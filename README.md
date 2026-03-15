@@ -140,7 +140,7 @@ Recommended image tags:
 Use the bundled Aliyun mirror shortcut when a nearer registry is configured:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/iflytek/skillhub/main/scripts/runtime.sh | sh -s -- up --aliyun
+curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- up --aliyun --version edge
 ```
 
 Start the runtime:
