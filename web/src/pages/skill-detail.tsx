@@ -107,6 +107,7 @@ export function SkillDetailPage() {
   const governanceVisible = hasRole('SKILL_ADMIN') || hasRole('SUPER_ADMIN')
   const isPendingPreview = skill?.viewingVersionStatus === 'PENDING_REVIEW'
   const canInteract = skill?.canInteract ?? true
+  const isVersionDownloadable = selectedVersionEntry?.status === 'PUBLISHED'
 
   const refreshSkill = () => {
     queryClient.invalidateQueries({ queryKey: ['skills', namespace, slug] })
@@ -136,15 +137,12 @@ export function SkillDetailPage() {
   const submitPromotionMutation = useSubmitPromotion()
   const reportMutation = useSubmitSkillReport(namespace, slug)
 
-  const triggerBrowserDownload = (blob: Blob, fileName: string) => {
-    const objectUrl = window.URL.createObjectURL(blob)
+  const triggerBrowserDownload = (url: string) => {
     const link = document.createElement('a')
-    link.href = objectUrl
-    link.download = fileName
+    link.href = url
     document.body.appendChild(link)
     link.click()
     link.remove()
-    window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 0)
   }
 
   const handleDownload = async () => {
@@ -157,11 +155,8 @@ export function SkillDetailPage() {
     }
 
     try {
-      const downloadedFile = await skillDownloadApi.downloadVersion(namespace, slug, selectedVersionEntry.version)
-      triggerBrowserDownload(
-        downloadedFile.blob,
-        downloadedFile.fileName ?? `${slug}-${selectedVersionEntry.version}.zip`,
-      )
+      const downloadRequest = await skillDownloadApi.downloadVersion(namespace, slug, selectedVersionEntry.version)
+      triggerBrowserDownload(downloadRequest.url)
       incrementSkillDownloadCount(queryClient, { namespace, slug })
       queryClient.invalidateQueries({ queryKey: ['skills', namespace, slug] })
       queryClient.invalidateQueries({ queryKey: ['skills', 'my'] })
@@ -690,7 +685,7 @@ export function SkillDetailPage() {
           variant="outline"
           size="lg"
           onClick={handleDownload}
-          disabled={!selectedVersionEntry || skill.status === 'ARCHIVED' || isPendingPreview}
+          disabled={!selectedVersionEntry || skill.status === 'ARCHIVED' || !isVersionDownloadable}
         >
           <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
