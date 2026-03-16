@@ -234,7 +234,8 @@
     "viewPromotions": "查看提升审核",
     "reportsTitle": "举报管理",
     "viewReports": "查看技能举报",
-    "previewMore": "..."
+    "previewMore": "...",
+    "previewMoreLabel": "更多"
   },
   "mySkills": {
     "title": "我的技能",

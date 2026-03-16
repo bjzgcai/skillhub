@@ -234,7 +234,8 @@
     "viewPromotions": "View Promotions",
     "reportsTitle": "Report Management",
     "viewReports": "View skill reports",
-    "previewMore": "..."
+    "previewMore": "...",
+    "previewMoreLabel": "More"
   },
   "mySkills": {
     "title": "My Skills",

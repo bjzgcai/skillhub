@@ -136,14 +136,13 @@ export function DashboardPage() {
                         ) : null}
                       </Link>
                     ))}
-                    {skillPreview.hasMore ? (
-                      <Link
-                        to="/dashboard/skills"
-                        className="flex min-h-20 items-center justify-center rounded-lg border border-dashed border-border/70 px-3 py-3 text-lg font-semibold text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
-                      >
-                        {t('dashboard.previewMore')}
-                      </Link>
-                    ) : null}
+                    <Link
+                      to="/dashboard/skills"
+                      className="flex min-h-20 flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-3 py-3 text-muted-foreground transition-colors hover:bg-accent/40 hover:text-foreground"
+                    >
+                      <span className="text-lg font-semibold leading-none">{t('dashboard.previewMore')}</span>
+                      <span className="mt-2 text-xs font-medium">{t('dashboard.previewMoreLabel')}</span>
+                    </Link>
                   </div>
                 </div>
               ) : (
