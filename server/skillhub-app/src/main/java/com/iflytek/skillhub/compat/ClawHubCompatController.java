@@ -5,6 +5,7 @@ import com.iflytek.skillhub.compat.dto.ClawHubDeleteResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubPublishResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubResolveResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubSearchResponse;
+import com.iflytek.skillhub.compat.dto.ClawHubSkillListResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubSkillResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubStarResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubUnstarResponse;
@@ -26,6 +27,7 @@ import com.iflytek.skillhub.domain.skill.service.SkillQueryService;
 import com.iflytek.skillhub.domain.skill.service.SkillSlugResolutionService;
 import com.iflytek.skillhub.domain.social.SkillStarService;
 import com.iflytek.skillhub.dto.SkillSummaryResponse;
+import com.iflytek.skillhub.ratelimit.RateLimit;
 import com.iflytek.skillhub.service.SkillSearchAppService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.MDC;
@@ -84,6 +86,7 @@ public class ClawHubCompatController {
         this.skillSlugResolutionService = skillSlugResolutionService;
     }
 
+    @RateLimit(category = "search", authenticated = 60, anonymous = 20)
     @GetMapping("/search")
     public ClawHubSearchResponse search(
             @RequestParam String q,
@@ -129,6 +132,7 @@ public class ClawHubCompatController {
         return (starScore + downloadScore) / 100.0;
     }
 
+    @RateLimit(category = "resolve", authenticated = 60, anonymous = 20)
     @GetMapping("/resolve")
     public ClawHubResolveResponse resolveByQuery(
             @RequestParam String slug,
@@ -164,6 +168,7 @@ public class ClawHubCompatController {
         return new ClawHubResolveResponse(matchVersion, latestVersion);
     }
 
+    @RateLimit(category = "resolve", authenticated = 60, anonymous = 20)
     @GetMapping("/resolve/{canonicalSlug}")
     public ClawHubResolveResponse resolve(
             @PathVariable String canonicalSlug,
@@ -191,6 +196,7 @@ public class ClawHubCompatController {
         return new ClawHubResolveResponse(matchVersion, latestVersion);
     }
 
+    @RateLimit(category = "download", authenticated = 60, anonymous = 20)
     @GetMapping("/download/{canonicalSlug}")
     public ResponseEntity<Void> downloadByPath(@PathVariable String canonicalSlug,
                                                @RequestParam(defaultValue = "latest") String version) {
@@ -203,6 +209,7 @@ public class ClawHubCompatController {
                 .build();
     }
 
+    @RateLimit(category = "download", authenticated = 60, anonymous = 20)
     @GetMapping("/download")
     public ResponseEntity<Void> downloadByQuery(@RequestParam String slug,
                                                 @RequestParam(defaultValue = "latest") String version) {
@@ -219,8 +226,9 @@ public class ClawHubCompatController {
                 .build();
     }
 
+    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
     @GetMapping("/skills")
-    public ClawHubSearchResponse listSkills(
+    public ClawHubSkillListResponse listSkills(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "25") int limit,
             @RequestParam(required = false) String sort,
@@ -238,13 +246,59 @@ public class ClawHubCompatController {
                 userNsRoles
         );
 
-        List<ClawHubSearchResponse.ClawHubSearchResult> results = response.items().stream()
-                .map(this::toSearchResult)
+        List<ClawHubSkillListResponse.SkillListItem> items = response.items().stream()
+                .map(this::toSkillListItem)
                 .toList();
 
-        return new ClawHubSearchResponse(results);
+        // Calculate nextCursor: if there are more results, return next page number as cursor
+        String nextCursor = null;
+        long totalResults = response.total();
+        long currentOffset = (long) page * limit;
+        if (currentOffset + items.size() < totalResults) {
+            nextCursor = String.valueOf(page + 1);
+        }
+
+        return new ClawHubSkillListResponse(items, nextCursor);
     }
 
+    private ClawHubSkillListResponse.SkillListItem toSkillListItem(SkillSummaryResponse item) {
+        long createdAt = 0;
+        long updatedAt = item.updatedAt() != null
+                ? item.updatedAt().toInstant(ZoneOffset.UTC).toEpochMilli()
+                : 0;
+
+        ClawHubSkillListResponse.SkillListItem.LatestVersion latestVersion = null;
+        if (item.latestVersion() != null) {
+            latestVersion = new ClawHubSkillListResponse.SkillListItem.LatestVersion(
+                    item.latestVersion(),
+                    updatedAt, // Use skill's updatedAt as version createdAt
+                    "", // changelog not available in summary
+                    null // license not available in summary
+            );
+        }
+
+        // Build stats map with non-null values
+        Map<String, Object> stats = new java.util.HashMap<>();
+        if (item.downloadCount() != null) {
+            stats.put("downloads", item.downloadCount());
+        }
+        if (item.starCount() != null) {
+            stats.put("stars", item.starCount());
+        }
+
+        return new ClawHubSkillListResponse.SkillListItem(
+                mapper.toCanonical(item.namespace(), item.slug()),
+                item.displayName(),
+                item.summary(),
+                Map.of(), // tags
+                stats,
+                createdAt,
+                updatedAt,
+                latestVersion
+        );
+    }
+
+    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
     @GetMapping("/skills/{canonicalSlug}")
     public ClawHubSkillResponse getSkill(
             @PathVariable String canonicalSlug,
@@ -305,6 +359,7 @@ public class ClawHubCompatController {
         return new ClawHubSkillResponse(skillInfo, versionInfo, ownerInfo, moderationInfo);
     }
 
+    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
     @DeleteMapping("/skills/{canonicalSlug}")
     public ClawHubDeleteResponse deleteSkill(
             @PathVariable String canonicalSlug,
@@ -313,6 +368,7 @@ public class ClawHubCompatController {
         return new ClawHubDeleteResponse();
     }
 
+    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
     @PostMapping("/skills/{canonicalSlug}/undelete")
     public ClawHubDeleteResponse undeleteSkill(
             @PathVariable String canonicalSlug,
@@ -321,6 +377,7 @@ public class ClawHubCompatController {
         return new ClawHubDeleteResponse();
     }
 
+    @RateLimit(category = "stars", authenticated = 60, anonymous = 20)
     @PostMapping("/stars/{canonicalSlug}")
     public ClawHubStarResponse starSkill(
             @PathVariable String canonicalSlug,
@@ -336,6 +393,7 @@ public class ClawHubCompatController {
         return new ClawHubStarResponse(true, alreadyStarred);
     }
 
+    @RateLimit(category = "stars", authenticated = 60, anonymous = 20)
     @DeleteMapping("/stars/{canonicalSlug}")
     public ClawHubUnstarResponse unstarSkill(
             @PathVariable String canonicalSlug,
@@ -351,6 +409,7 @@ public class ClawHubCompatController {
         return new ClawHubUnstarResponse(true, alreadyUnstarred);
     }
 
+    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
     @PostMapping("/skills")
     public ClawHubPublishResponse publishSkill(@RequestParam("payload") String payloadJson,
                                                @RequestParam("files") MultipartFile[] files,
@@ -381,6 +440,7 @@ public class ClawHubCompatController {
         );
     }
 
+    @RateLimit(category = "publish", authenticated = 60, anonymous = 20)
     @PostMapping("/publish")
     public ClawHubPublishResponse publish(@RequestParam("file") MultipartFile file,
                                           @RequestParam("namespace") String namespace,
@@ -414,6 +474,7 @@ public class ClawHubCompatController {
         return "global";
     }
 
+    @RateLimit(category = "whoami", authenticated = 60, anonymous = 20)
     @GetMapping("/whoami")
     public ClawHubWhoamiResponse whoami(@AuthenticationPrincipal PlatformPrincipal principal) {
         return new ClawHubWhoamiResponse(
