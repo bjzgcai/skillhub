@@ -36,7 +36,7 @@ class DeviceAuthServiceTest {
     @BeforeEach
     void setUp() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        service = new DeviceAuthService(redisTemplate, apiTokenService, "https://skillhub.example.com/device");
+        service = new DeviceAuthService(redisTemplate, apiTokenService, "https://skill.xfyun.cn/cli/auth");
     }
 
     @Test
@@ -47,7 +47,7 @@ class DeviceAuthServiceTest {
         // Then
         assertThat(response.deviceCode()).isNotEmpty();
         assertThat(response.userCode()).matches("[A-Z2-9]{4}-[A-Z2-9]{4}");
-        assertThat(response.verificationUri()).isEqualTo("https://skillhub.example.com/device");
+        assertThat(response.verificationUri()).isEqualTo("https://skill.xfyun.cn/cli/auth");
         assertThat(response.expiresIn()).isEqualTo(900); // 15 minutes
         assertThat(response.interval()).isEqualTo(5);
 
@@ -88,7 +88,7 @@ class DeviceAuthServiceTest {
         DeviceCodeData data = new DeviceCodeData("device123", "ABCD-1234", DeviceCodeStatus.AUTHORIZED, "42");
         when(valueOperations.get("device:code:device123")).thenReturn(data);
         when(valueOperations.setIfAbsent("device:claim:device123", "claimed", 1L, TimeUnit.MINUTES)).thenReturn(true);
-        when(apiTokenService.createToken("42", "CLI Device Flow", "[\"skill:read\",\"skill:publish\"]"))
+        when(apiTokenService.rotateToken("42", "CLI Device Flow", "[\"skill:read\",\"skill:publish\"]"))
             .thenReturn(new ApiTokenService.TokenCreateResult("sk_cli_token", mock(ApiToken.class)));
 
         // When
@@ -114,7 +114,7 @@ class DeviceAuthServiceTest {
         assertThatThrownBy(() -> service.pollToken("device123"))
             .isInstanceOf(DomainBadRequestException.class)
             .hasMessageContaining("error.deviceAuth.deviceCode.used");
-        verify(apiTokenService, never()).createToken(anyString(), anyString(), anyString());
+        verify(apiTokenService, never()).rotateToken(anyString(), anyString(), anyString());
     }
 
     @Test

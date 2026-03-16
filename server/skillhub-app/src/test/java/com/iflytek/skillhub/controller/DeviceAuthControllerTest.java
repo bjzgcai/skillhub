@@ -37,7 +37,7 @@ class DeviceAuthControllerTest {
         DeviceCodeResponse response = new DeviceCodeResponse(
             "device_abc123",
             "ABCD-1234",
-            "https://skillhub.example.com/device",
+            "https://skill.xfyun.cn/cli/auth",
             900,
             5
         );
@@ -50,7 +50,7 @@ class DeviceAuthControllerTest {
             .andExpect(jsonPath("$.code").value(0))
             .andExpect(jsonPath("$.data.deviceCode").value("device_abc123"))
             .andExpect(jsonPath("$.data.userCode").value("ABCD-1234"))
-            .andExpect(jsonPath("$.data.verificationUri").value("https://skillhub.example.com/device"))
+            .andExpect(jsonPath("$.data.verificationUri").value("https://skill.xfyun.cn/cli/auth"))
             .andExpect(jsonPath("$.data.expiresIn").value(900))
             .andExpect(jsonPath("$.data.interval").value(5));
     }
