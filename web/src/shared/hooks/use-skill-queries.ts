@@ -1,23 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { SkillSummary, SkillDetail, SkillVersion, SkillVersionDetail, SkillFile, SearchParams, PagedResponse, PublishResult, Namespace, NamespaceMember, ManagedNamespace, CreateNamespaceRequest, NamespaceCandidateUser, NamespaceRole } from '@/api/types'
 import { fetchJson, fetchText, getCsrfHeaders, meApi, namespaceApi, promotionApi, skillLifecycleApi, WEB_API_PREFIX } from '@/api/client'
-import { normalizeSearchQuery } from '@/shared/lib/search-query'
+import { appendNamespaceMember, replaceNamespaceMemberRole } from '@/shared/lib/namespace-member-cache'
+import { buildSkillSearchUrl, shouldEnableNamespaceMemberCandidates } from './skill-query-helpers'
 
 const PUBLISH_REQUEST_TIMEOUT_MS = 60_000
 
 async function searchSkills(params: SearchParams): Promise<PagedResponse<SkillSummary>> {
-  const queryParams = new URLSearchParams()
-  const normalizedQuery = normalizeSearchQuery(params.q ?? '')
-  if (normalizedQuery) queryParams.append('q', normalizedQuery)
-  if (params.namespace) {
-    const cleanNamespace = params.namespace.startsWith('@') ? params.namespace.slice(1) : params.namespace
-    queryParams.append('namespace', cleanNamespace)
-  }
-  if (params.sort) queryParams.append('sort', params.sort)
-  if (params.page !== undefined) queryParams.append('page', String(params.page))
-  if (params.size !== undefined) queryParams.append('size', String(params.size))
-
-  return fetchJson<PagedResponse<SkillSummary>>(`${WEB_API_PREFIX}/skills?${queryParams.toString()}`)
+  return fetchJson<PagedResponse<SkillSummary>>(buildSkillSearchUrl(params))
 }
 
 async function getSkillDetail(namespace: string, slug: string): Promise<SkillDetail> {
@@ -46,12 +36,16 @@ async function getSkillDocumentation(namespace: string, slug: string, version: s
   return fetchText(`${WEB_API_PREFIX}/skills/${cleanNamespace}/${slug}/versions/${version}/file?path=${encodeURIComponent(path)}`)
 }
 
-async function getMySkills(): Promise<SkillSummary[]> {
-  return fetchJson<SkillSummary[]>(`${WEB_API_PREFIX}/me/skills`)
+async function getMySkills(params: { page?: number; size?: number } = {}): Promise<PagedResponse<SkillSummary>> {
+  return meApi.getSkills(params)
 }
 
 async function getMyStars(): Promise<SkillSummary[]> {
   return meApi.getStars()
+}
+
+async function getMyStarsPage(params: { page?: number; size?: number } = {}): Promise<PagedResponse<SkillSummary>> {
+  return meApi.getStarsPage(params)
 }
 
 async function getMyNamespaces(): Promise<ManagedNamespace[]> {
@@ -158,10 +152,10 @@ export function useSkillVersionDetail(namespace: string, slug: string, version?:
   })
 }
 
-export function useMySkills() {
+export function useMySkills(params: { page?: number; size?: number } = {}) {
   return useQuery({
-    queryKey: ['skills', 'my'],
-    queryFn: getMySkills,
+    queryKey: ['skills', 'my', params],
+    queryFn: () => getMySkills(params),
   })
 }
 
@@ -169,6 +163,14 @@ export function useMyStars(enabled = true) {
   return useQuery({
     queryKey: ['skills', 'stars'],
     queryFn: getMyStars,
+    enabled,
+  })
+}
+
+export function useMyStarsPage(params: { page?: number; size?: number } = {}, enabled = true) {
+  return useQuery({
+    queryKey: ['skills', 'stars', 'page', params],
+    queryFn: () => getMyStarsPage(params),
     enabled,
   })
 }
@@ -213,7 +215,7 @@ export function useNamespaceMemberCandidates(slug: string, search: string, enabl
   return useQuery({
     queryKey: ['namespaces', slug, 'member-candidates', search],
     queryFn: () => searchNamespaceMemberCandidates({ slug, search }),
-    enabled: enabled && !!slug && search.trim().length >= 2,
+    enabled: shouldEnableNamespaceMemberCandidates(slug, search, enabled),
   })
 }
 
@@ -256,7 +258,11 @@ export function useAddNamespaceMember() {
 
   return useMutation({
     mutationFn: addNamespaceMember,
-    onSuccess: (_data, variables) => {
+    onSuccess: (member, variables) => {
+      queryClient.setQueryData<NamespaceMember[]>(
+        ['namespaces', variables.slug, 'members'],
+        (currentMembers) => appendNamespaceMember(currentMembers, member),
+      )
       invalidateNamespaceQueries(queryClient, variables.slug)
     },
   })
@@ -267,7 +273,11 @@ export function useUpdateNamespaceMemberRole() {
 
   return useMutation({
     mutationFn: updateNamespaceMemberRole,
-    onSuccess: (_data, variables) => {
+    onSuccess: (member, variables) => {
+      queryClient.setQueryData<NamespaceMember[]>(
+        ['namespaces', variables.slug, 'members'],
+        (currentMembers) => replaceNamespaceMemberRole(currentMembers, variables.userId, member.role),
+      )
       invalidateNamespaceQueries(queryClient, variables.slug)
     },
   })

@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 import { MarkdownRenderer } from '@/features/skill/markdown-renderer'
 import { FileTree } from '@/features/skill/file-tree'
 import { InstallCommand } from '@/features/skill/install-command'
+import { resolveSkillActionErrorTitle } from '@/features/skill/skill-action-error'
 import { RatingInput } from '@/features/social/rating-input'
 import { StarButton } from '@/features/social/star-button'
 import { useAuth } from '@/features/auth/use-auth'
@@ -13,6 +14,7 @@ import { adminApi, ApiError, skillDownloadApi } from '@/api/client'
 import { useSubmitSkillReport } from '@/features/report/use-skill-reports'
 import { formatLocalDateTime } from '@/shared/lib/date-time'
 import { incrementSkillDownloadCount } from '@/shared/lib/skill-download-cache'
+import { getSkillSquareSearch } from '@/shared/lib/skill-navigation'
 import { formatCompactCount } from '@/shared/lib/number-format'
 import { resolveDocumentationFilePath } from '@/shared/lib/skill-documentation'
 import { NamespaceBadge } from '@/shared/components/namespace-badge'
@@ -107,7 +109,8 @@ export function SkillDetailPage() {
   const governanceVisible = hasRole('SKILL_ADMIN') || hasRole('SUPER_ADMIN')
   const isPendingPreview = skill?.viewingVersionStatus === 'PENDING_REVIEW'
   const canInteract = skill?.canInteract ?? true
-  const isVersionDownloadable = selectedVersionEntry?.status === 'PUBLISHED'
+  const canReport = skill?.canReport ?? true
+  const isVersionDownloadable = selectedVersionEntry?.status === 'PUBLISHED' && (selectedVersionEntry?.downloadAvailable ?? false)
 
   const refreshSkill = () => {
     queryClient.invalidateQueries({ queryKey: ['skills', namespace, slug] })
@@ -137,12 +140,15 @@ export function SkillDetailPage() {
   const submitPromotionMutation = useSubmitPromotion()
   const reportMutation = useSubmitSkillReport(namespace, slug)
 
-  const triggerBrowserDownload = (url: string) => {
+  const triggerBrowserDownload = (blob: Blob, fileName: string) => {
+    const objectUrl = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
-    link.href = url
+    link.href = objectUrl
+    link.download = fileName
     document.body.appendChild(link)
     link.click()
     link.remove()
+    window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 0)
   }
 
   const handleDownload = async () => {
@@ -155,15 +161,18 @@ export function SkillDetailPage() {
     }
 
     try {
-      const downloadRequest = await skillDownloadApi.downloadVersion(namespace, slug, selectedVersionEntry.version)
-      triggerBrowserDownload(downloadRequest.url)
+      const downloadedFile = await skillDownloadApi.downloadVersion(namespace, slug, selectedVersionEntry.version)
+      triggerBrowserDownload(
+        downloadedFile.blob,
+        downloadedFile.fileName ?? `${slug}-${selectedVersionEntry.version}.zip`,
+      )
       incrementSkillDownloadCount(queryClient, { namespace, slug })
       queryClient.invalidateQueries({ queryKey: ['skills', namespace, slug] })
       queryClient.invalidateQueries({ queryKey: ['skills', 'my'] })
       queryClient.invalidateQueries({ queryKey: ['skills', 'stars'] })
       queryClient.invalidateQueries({ queryKey: ['skills', 'search'] })
     } catch (error) {
-      toast.error(t('skillDetail.reportErrorTitle'), error instanceof Error ? error.message : '')
+      toast.error(t(resolveSkillActionErrorTitle('download')), error instanceof Error ? error.message : '')
     }
   }
 
@@ -200,16 +209,12 @@ export function SkillDetailPage() {
       setReportDetails('')
       toast.success(t('skillDetail.reportSuccessTitle'), t('skillDetail.reportSuccessDescription'))
     } catch (error) {
-      toast.error(t('skillDetail.reportErrorTitle'), error instanceof Error ? error.message : '')
+      toast.error(t(resolveSkillActionErrorTitle('report')), error instanceof Error ? error.message : '')
     }
   }
 
   const handleBack = () => {
-    if (window.history.length > 1) {
-      window.history.back()
-      return
-    }
-    navigate({ to: '/search', search: { q: '', sort: 'relevance', page: 0, starredOnly: false } })
+    navigate({ to: '/search', search: getSkillSquareSearch() })
   }
 
   const resolveSkillStatusLabel = (status?: string) => {
@@ -653,9 +658,11 @@ export function SkillDetailPage() {
               <>
                 <StarButton skillId={skill.id} starCount={skill.starCount} onRequireLogin={requireLogin} />
                 <RatingInput skillId={skill.id} onRequireLogin={requireLogin} />
-                <Button variant="outline" className="w-full" onClick={handleOpenReport} disabled={reportMutation.isPending}>
-                  {reportMutation.isPending ? t('skillDetail.processing') : t('skillDetail.reportSkill')}
-                </Button>
+                {canReport ? (
+                  <Button variant="outline" className="w-full" onClick={handleOpenReport} disabled={reportMutation.isPending}>
+                    {reportMutation.isPending ? t('skillDetail.processing') : t('skillDetail.reportSkill')}
+                  </Button>
+                ) : null}
               </>
             ) : (
               <p className="text-sm text-muted-foreground">{t('skillDetail.pendingPreviewInteractionHint')}</p>

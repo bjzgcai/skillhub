@@ -630,6 +630,7 @@
     "reportReasonRequired": "请先填写举报原因",
     "reportSuccessTitle": "举报已提交",
     "reportSuccessDescription": "管理员将尽快处理这条举报。",
+    "downloadErrorTitle": "下载失败",
     "reportErrorTitle": "举报失败"
   },
   "reports": {
@@ -968,6 +969,10 @@
     "serverError": "服务器错误，请稍后重试",
     "networkError": "网络连接失败，请检查网络",
     "unknown": "操作失败"
+  },
+  "routeGuard": {
+    "forbiddenTitle": "没有权限访问该页面",
+    "forbiddenDescription": "当前账号权限已变更，正在返回上一页"
   },
   "error": {
     "auth": {

@@ -84,7 +84,8 @@ public class SkillQueryService {
             boolean canManageLifecycle,
             boolean canSubmitPromotion,
             String viewingVersionStatus,
-            boolean canInteract
+            boolean canInteract,
+            boolean canReport
     ) {}
 
     public record SkillVersionDetailDTO(
@@ -151,7 +152,8 @@ public class SkillQueryService {
                 canManageRestrictedSkill(skill, currentUserId, userNsRoles),
                 canSubmitPromotion(namespace, skill, latestVersionEntity, currentUserId, userNsRoles),
                 latestVersionEntity != null ? latestVersionEntity.getStatus().name() : null,
-                latestVersionEntity == null || latestVersionEntity.getStatus() == SkillVersionStatus.PUBLISHED
+                latestVersionEntity == null || latestVersionEntity.getStatus() == SkillVersionStatus.PUBLISHED,
+                currentUserId == null || !Objects.equals(skill.getOwnerId(), currentUserId)
         );
     }
 
@@ -215,7 +217,7 @@ public class SkillQueryService {
         SkillVersion skillVersion = findVersion(skill, version);
         assertPreviewAccessible(skill, skillVersion, version, currentUserId);
 
-        return skillFileRepository.findByVersionId(skillVersion.getId());
+        return availableFiles(skillVersion.getId());
     }
 
     public List<SkillFile> listFilesByTag(
@@ -228,7 +230,7 @@ public class SkillQueryService {
         Skill skill = resolveVisibleSkill(namespace.getId(), skillSlug, currentUserId);
         assertPublishedAccessible(namespace, skill, currentUserId, userNsRoles);
         SkillVersion skillVersion = resolveVersionEntity(skill, null, tagName, null);
-        return skillFileRepository.findByVersionId(skillVersion.getId());
+        return availableFiles(skillVersion.getId());
     }
 
     public InputStream getFileContent(
@@ -302,6 +304,23 @@ public class SkillQueryService {
         return new PageImpl<>(pageContent, pageable, visibleVersions.size());
     }
 
+    public boolean isDownloadAvailable(SkillVersion version) {
+        if (version == null) {
+            return false;
+        }
+        if (version.getStatus() != SkillVersionStatus.PUBLISHED) {
+            return false;
+        }
+        if (objectStorageService.exists(getBundleStorageKey(version.getSkillId(), version.getId()))) {
+            return true;
+        }
+        return skillFileRepository.findByVersionId(version.getId()).stream()
+                .findAny()
+                .filter(file -> skillFileRepository.findByVersionId(version.getId()).stream()
+                        .allMatch(candidate -> objectStorageService.exists(candidate.getStorageKey())))
+                .isPresent();
+    }
+
     public ResolvedVersionDTO resolveVersion(
             String namespaceSlug,
             String skillSlug,
@@ -361,10 +380,20 @@ public class SkillQueryService {
     }
 
     private SkillFile findFile(SkillVersion skillVersion, String filePath) {
-        return skillFileRepository.findByVersionId(skillVersion.getId()).stream()
+        return availableFiles(skillVersion.getId()).stream()
                 .filter(f -> f.getFilePath().equals(filePath))
                 .findFirst()
                 .orElseThrow(() -> new DomainBadRequestException("error.skill.file.notFound", filePath));
+    }
+
+    private List<SkillFile> availableFiles(Long versionId) {
+        return skillFileRepository.findByVersionId(versionId).stream()
+                .filter(file -> objectStorageService.exists(file.getStorageKey()))
+                .toList();
+    }
+
+    private String getBundleStorageKey(Long skillId, Long versionId) {
+        return String.format("packages/%d/%d/bundle.zip", skillId, versionId);
     }
 
     private InputStream readFileContent(SkillFile file) {

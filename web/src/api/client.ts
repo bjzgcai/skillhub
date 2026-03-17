@@ -37,8 +37,9 @@ export { ApiError }
 
 export const WEB_API_PREFIX = '/api/web'
 
-export type SkillDownloadRequest = {
-  url: string
+export type DownloadedFile = {
+  blob: Blob
+  fileName?: string
 }
 
 type RuntimeConfig = {
@@ -277,6 +278,20 @@ function ensureTrailingSlash(value: string): string {
   return value.endsWith('/') ? value : `${value}/`
 }
 
+function parseDownloadFileName(contentDisposition: string | null): string | undefined {
+  if (!contentDisposition) {
+    return undefined
+  }
+
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8Match) {
+    return decodeURIComponent(utf8Match[1])
+  }
+
+  const basicMatch = contentDisposition.match(/filename="?([^";]+)"?/i)
+  return basicMatch?.[1]
+}
+
 export async function getCurrentUser(): Promise<User | null> {
   try {
     const user = await unwrap<User>(client.GET('/api/v1/auth/me', {
@@ -427,25 +442,23 @@ export const accountApi = {
 }
 
 export const skillDownloadApi = {
-  async downloadVersion(namespace: string, slug: string, version: string): Promise<SkillDownloadRequest> {
+  async downloadVersion(namespace: string, slug: string, version: string): Promise<DownloadedFile> {
     const cleanNamespace = namespace.startsWith('@') ? namespace.slice(1) : namespace
-    const requestUrl = withBaseUrl(`${WEB_API_PREFIX}/skills/${cleanNamespace}/${slug}/versions/${version}/download`)
-    const url = typeof requestUrl === 'string' ? requestUrl : requestUrl.toString()
+    const response = await fetch(
+      withBaseUrl(`${WEB_API_PREFIX}/skills/${cleanNamespace}/${slug}/versions/${version}/download`),
+      {
+        headers: withRequestHeaders(),
+      },
+    )
 
-    const response = await fetch(requestUrl, {
-      headers: withRequestHeaders(),
-      redirect: 'manual',
-    })
-
-    if (response.type === 'opaqueredirect') {
-      return { url }
-    }
-
-    if (!response.ok && response.status !== 0 && response.status !== 302) {
+    if (!response.ok) {
       throw new ApiError(`HTTP ${response.status}`, response.status)
     }
 
-    return { url }
+    return {
+      blob: await response.blob(),
+      fileName: parseDownloadFileName(response.headers.get('content-disposition')),
+    }
   },
 }
 
@@ -845,8 +858,35 @@ export const governanceApi = {
 }
 
 export const meApi = {
+  async getSkills(params?: { page?: number; size?: number }): Promise<{ items: SkillSummary[]; total: number; page: number; size: number }> {
+    const searchParams = new URLSearchParams()
+    searchParams.set('page', String(params?.page ?? 0))
+    searchParams.set('size', String(params?.size ?? 10))
+    return fetchJson<{ items: SkillSummary[]; total: number; page: number; size: number }>(`${WEB_API_PREFIX}/me/skills?${searchParams.toString()}`)
+  },
+
+  async getStarsPage(params?: { page?: number; size?: number }): Promise<{ items: SkillSummary[]; total: number; page: number; size: number }> {
+    const searchParams = new URLSearchParams()
+    searchParams.set('page', String(params?.page ?? 0))
+    searchParams.set('size', String(params?.size ?? 12))
+    return fetchJson<{ items: SkillSummary[]; total: number; page: number; size: number }>(`${WEB_API_PREFIX}/me/stars?${searchParams.toString()}`)
+  },
+
   async getStars(): Promise<SkillSummary[]> {
-    return fetchJson<SkillSummary[]>(`${WEB_API_PREFIX}/me/stars`)
+    const items: SkillSummary[] = []
+    let page = 0
+    const size = 100
+    let hasMore = true
+
+    while (hasMore) {
+      const response = await meApi.getStarsPage({ page, size })
+      items.push(...response.items)
+
+      hasMore = (page + 1) * response.size < response.total && response.items.length > 0
+      page += 1
+    }
+
+    return items
   },
 }
 

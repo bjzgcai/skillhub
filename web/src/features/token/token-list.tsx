@@ -23,6 +23,7 @@ import { Select } from '@/shared/ui/select'
 import { Input } from '@/shared/ui/input'
 import type { ApiToken } from '@/api/types'
 import { resolveTokenExpiresAt, toLocalDateTimeInputValue, type TokenExpirationMode } from './token-expiration'
+import { TOKEN_TABLE_ACTIONS_HEAD_CLASS_NAME, TOKEN_TABLE_HEAD_CLASS_NAME } from './token-table-style'
 
 const PAGE_SIZE = 10
 type TokenPage = { items: ApiToken[]; total: number; page: number; size: number }
@@ -166,7 +167,7 @@ export function TokenList() {
             <Button>{t('token.createNew')}</Button>
           </CreateTokenDialog>
         </div>
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-6 text-sm text-destructive">
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 px-5 py-6 text-sm text-destructive">
           {error instanceof Error ? error.message : t('apiError.unknown')}
         </div>
       </div>
@@ -189,16 +190,16 @@ export function TokenList() {
           <p className="text-sm mt-2">{t('token.emptyHint')}</p>
         </div>
       ) : (
-        <div className="border rounded-lg">
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-card/80 shadow-card">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('token.name')}</TableHead>
-                <TableHead>{t('token.prefix')}</TableHead>
-                <TableHead>{t('token.createdAt')}</TableHead>
-                <TableHead>{t('token.lastUsed')}</TableHead>
-                <TableHead>{t('token.expiresAt')}</TableHead>
-                <TableHead className="text-center">{t('token.actions')}</TableHead>
+                <TableHead className={TOKEN_TABLE_HEAD_CLASS_NAME}>{t('token.name')}</TableHead>
+                <TableHead className={TOKEN_TABLE_HEAD_CLASS_NAME}>{t('token.prefix')}</TableHead>
+                <TableHead className={TOKEN_TABLE_HEAD_CLASS_NAME}>{t('token.createdAt')}</TableHead>
+                <TableHead className={TOKEN_TABLE_HEAD_CLASS_NAME}>{t('token.lastUsed')}</TableHead>
+                <TableHead className={TOKEN_TABLE_HEAD_CLASS_NAME}>{t('token.expiresAt')}</TableHead>
+                <TableHead className={TOKEN_TABLE_ACTIONS_HEAD_CLASS_NAME}>{t('token.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -129,11 +129,6 @@ export function UserMenu({ user, triggerClassName }: UserMenuProps) {
             {t('user.menu.security')}
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link to="/settings/accounts" className="cursor-pointer">
-            {t('user.menu.accounts')}
-          </Link>
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive">
           {t('user.menu.logout')}

@@ -102,6 +102,7 @@ class SkillQueryServiceTest {
         assertEquals(skillSlug, result.slug());
         assertEquals("Test Skill", result.displayName());
         assertEquals("1.0.0", result.latestVersion());
+        assertFalse(result.canReport());
     }
 
     @Test
@@ -137,6 +138,7 @@ class SkillQueryServiceTest {
         assertEquals(2L, result.id());
         assertEquals("Own Skill", result.displayName());
         assertEquals("2.0.0", result.latestVersion());
+        assertFalse(result.canReport());
     }
 
     @Test
@@ -278,6 +280,7 @@ class SkillQueryServiceTest {
         when(visibilityChecker.canAccess(skill, "user-100", userNsRoles)).thenReturn(true);
         when(skillVersionRepository.findBySkillIdAndVersion(1L, version)).thenReturn(Optional.of(skillVersion));
         when(skillFileRepository.findByVersionId(1L)).thenReturn(List.of(file1));
+        when(objectStorageService.exists("key1")).thenReturn(true);
 
         // Act
         List<SkillFile> result = service.listFiles(namespaceSlug, skillSlug, version, "user-100", userNsRoles);
@@ -335,6 +338,7 @@ class SkillQueryServiceTest {
         when(visibilityChecker.canAccess(skill, "user-100", userNsRoles)).thenReturn(true);
         when(skillVersionRepository.findBySkillIdAndVersion(1L, version)).thenReturn(Optional.of(skillVersion));
         when(skillFileRepository.findByVersionId(1L)).thenReturn(List.of(file));
+        when(objectStorageService.exists(file.getStorageKey())).thenReturn(true);
         when(objectStorageService.getObject(file.getStorageKey()))
                 .thenThrow(new UncheckedIOException(new java.io.FileNotFoundException(file.getStorageKey())));
 
@@ -343,6 +347,62 @@ class SkillQueryServiceTest {
 
         assertEquals("error.skill.file.notFound", ex.messageCode());
         assertArrayEquals(new Object[]{filePath}, ex.messageArgs());
+    }
+
+    @Test
+    void testListFiles_ShouldHideEntriesWhoseStorageObjectIsMissing() throws Exception {
+        String namespaceSlug = "test-ns";
+        String skillSlug = "test-skill";
+        String version = "1.0.0";
+        Map<Long, NamespaceRole> userNsRoles = Map.of(1L, NamespaceRole.MEMBER);
+
+        Namespace namespace = new Namespace(namespaceSlug, "Test NS", "user-1");
+        setId(namespace, 1L);
+        Skill skill = new Skill(1L, skillSlug, "user-100", SkillVisibility.PUBLIC);
+        setId(skill, 1L);
+        skill.setStatus(SkillStatus.ACTIVE);
+        SkillVersion skillVersion = new SkillVersion(1L, version, "user-100");
+        setId(skillVersion, 1L);
+        skillVersion.setStatus(SkillVersionStatus.PUBLISHED);
+        SkillFile availableFile = new SkillFile(1L, "SKILL.md", 100L, "text/markdown", "hash1", "skills/1/1/SKILL.md");
+        SkillFile missingFile = new SkillFile(1L, "_meta.json", 100L, "application/json", "hash2", "skills/1/1/_meta.json");
+
+        when(namespaceRepository.findBySlug(namespaceSlug)).thenReturn(Optional.of(namespace));
+        when(skillRepository.findByNamespaceIdAndSlug(1L, skillSlug)).thenReturn(List.of(skill));
+        when(visibilityChecker.canAccess(skill, "user-100", userNsRoles)).thenReturn(true);
+        when(skillVersionRepository.findBySkillIdAndVersion(1L, version)).thenReturn(Optional.of(skillVersion));
+        when(skillFileRepository.findByVersionId(1L)).thenReturn(List.of(availableFile, missingFile));
+        when(objectStorageService.exists("skills/1/1/SKILL.md")).thenReturn(true);
+        when(objectStorageService.exists("skills/1/1/_meta.json")).thenReturn(false);
+
+        List<SkillFile> result = service.listFiles(namespaceSlug, skillSlug, version, "user-100", userNsRoles);
+
+        assertEquals(1, result.size());
+        assertEquals("SKILL.md", result.get(0).getFilePath());
+    }
+
+    @Test
+    void testIsDownloadAvailable_ShouldReturnFalseWhenBundleIsMissing() throws Exception {
+        SkillVersion version = new SkillVersion(1L, "1.0.0", "user-100");
+        setId(version, 10L);
+        version.setStatus(SkillVersionStatus.PUBLISHED);
+
+        assertFalse(service.isDownloadAvailable(version));
+        verify(objectStorageService).exists("packages/1/10/bundle.zip");
+    }
+
+    @Test
+    void testIsDownloadAvailable_ShouldReturnTrueWhenBundleMissingButFilesExist() throws Exception {
+        SkillVersion version = new SkillVersion(1L, "1.0.0", "user-100");
+        setId(version, 10L);
+        version.setStatus(SkillVersionStatus.PUBLISHED);
+        SkillFile file = new SkillFile(10L, "SKILL.md", 10L, "text/markdown", "hash", "skills/1/10/SKILL.md");
+
+        when(objectStorageService.exists("packages/1/10/bundle.zip")).thenReturn(false);
+        when(skillFileRepository.findByVersionId(10L)).thenReturn(List.of(file));
+        when(objectStorageService.exists("skills/1/10/SKILL.md")).thenReturn(true);
+
+        assertTrue(service.isDownloadAvailable(version));
     }
 
     @Test
@@ -402,6 +462,7 @@ class SkillQueryServiceTest {
         when(visibilityChecker.canAccess(skill, "user-100", userNsRoles)).thenReturn(true);
         when(skillVersionRepository.findById(11L)).thenReturn(Optional.of(latestVersion));
         when(skillFileRepository.findByVersionId(11L)).thenReturn(List.of(file));
+        when(objectStorageService.exists("storage-key")).thenReturn(true);
 
         List<SkillFile> result = service.listFilesByTag(namespaceSlug, skillSlug, "latest", "user-100", userNsRoles);
 
@@ -804,6 +865,7 @@ class SkillQueryServiceTest {
         when(visibilityChecker.canAccess(skill, ownerId, userNsRoles)).thenReturn(true);
         when(skillVersionRepository.findBySkillIdAndVersion(1L, version)).thenReturn(Optional.of(pending));
         when(skillFileRepository.findByVersionId(11L)).thenReturn(List.of(file));
+        when(objectStorageService.exists("storage-key")).thenReturn(true);
 
         List<SkillFile> result = service.listFiles(namespaceSlug, skillSlug, version, ownerId, userNsRoles);
 
