@@ -113,6 +113,17 @@ class AdminSkillReportControllerTest {
     }
 
     @Test
+    void resolveReport_withHideDispositionAndSkillAdmin_returns403() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/skill-reports/99/resolve")
+                        .with(authentication(adminAuth()))
+                        .with(csrf())
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"comment\":\"handled\",\"disposition\":\"RESOLVE_AND_HIDE\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(403));
+    }
+
+    @Test
     void listReports_withAuditorRole_returns403() throws Exception {
         PlatformPrincipal principal = new PlatformPrincipal(
                 "auditor", "auditor", "auditor@example.com", "", "github", Set.of("AUDITOR")
