@@ -75,10 +75,6 @@ const SecuritySettingsPage = createLazyRouteComponent(
   () => import('@/pages/settings/security'),
   'SecuritySettingsPage',
 )
-const AccountSettingsPage = createLazyRouteComponent(
-  () => import('@/pages/settings/accounts'),
-  'AccountSettingsPage',
-)
 const AdminUsersPage = createLazyRouteComponent(() => import('@/pages/admin/users'), 'AdminUsersPage')
 const AuditLogPage = createLazyRouteComponent(() => import('@/pages/admin/audit-log'), 'AuditLogPage')
 
@@ -300,8 +296,10 @@ const settingsSecurityRoute = createRoute({
 const settingsAccountsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'settings/accounts',
-  beforeLoad: requireAuth,
-  component: AccountSettingsPage,
+  beforeLoad: async (ctx) => {
+    await requireAuth(ctx)
+    throw redirect({ to: '/settings/security' })
+  },
 })
 
 const adminUsersRoute = createRoute({
