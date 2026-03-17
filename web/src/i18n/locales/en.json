@@ -630,6 +630,7 @@
     "reportReasonRequired": "Please provide a report reason",
     "reportSuccessTitle": "Report submitted",
     "reportSuccessDescription": "Administrators will review this report soon.",
+    "downloadErrorTitle": "Download failed",
     "reportErrorTitle": "Report failed"
   },
   "reports": {

@@ -630,6 +630,7 @@
     "reportReasonRequired": "请先填写举报原因",
     "reportSuccessTitle": "举报已提交",
     "reportSuccessDescription": "管理员将尽快处理这条举报。",
+    "downloadErrorTitle": "下载失败",
     "reportErrorTitle": "举报失败"
   },
   "reports": {

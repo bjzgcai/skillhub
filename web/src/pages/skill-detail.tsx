@@ -6,6 +6,7 @@ import { ArrowLeft } from 'lucide-react'
 import { MarkdownRenderer } from '@/features/skill/markdown-renderer'
 import { FileTree } from '@/features/skill/file-tree'
 import { InstallCommand } from '@/features/skill/install-command'
+import { resolveSkillActionErrorTitle } from '@/features/skill/skill-action-error'
 import { RatingInput } from '@/features/social/rating-input'
 import { StarButton } from '@/features/social/star-button'
 import { useAuth } from '@/features/auth/use-auth'
@@ -170,7 +171,7 @@ export function SkillDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['skills', 'stars'] })
       queryClient.invalidateQueries({ queryKey: ['skills', 'search'] })
     } catch (error) {
-      toast.error(t('skillDetail.reportErrorTitle'), error instanceof Error ? error.message : '')
+      toast.error(t(resolveSkillActionErrorTitle('download')), error instanceof Error ? error.message : '')
     }
   }
 
@@ -207,7 +208,7 @@ export function SkillDetailPage() {
       setReportDetails('')
       toast.success(t('skillDetail.reportSuccessTitle'), t('skillDetail.reportSuccessDescription'))
     } catch (error) {
-      toast.error(t('skillDetail.reportErrorTitle'), error instanceof Error ? error.message : '')
+      toast.error(t(resolveSkillActionErrorTitle('report')), error instanceof Error ? error.message : '')
     }
   }
 
