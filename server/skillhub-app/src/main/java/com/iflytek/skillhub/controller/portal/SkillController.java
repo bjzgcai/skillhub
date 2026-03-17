@@ -104,7 +104,8 @@ public class SkillController extends BaseApiController {
                 v.getChangelog(),
                 v.getFileCount(),
                 v.getTotalSize(),
-                v.getPublishedAt()
+                v.getPublishedAt(),
+                skillQueryService.isDownloadAvailable(v)
         )));
 
         return ok("response.success.read", response);

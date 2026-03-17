@@ -4,6 +4,7 @@ import com.iflytek.skillhub.domain.namespace.NamespaceMemberRepository;
 import com.iflytek.skillhub.domain.namespace.NamespaceRole;
 import com.iflytek.skillhub.domain.shared.exception.DomainForbiddenException;
 import com.iflytek.skillhub.domain.skill.SkillFile;
+import com.iflytek.skillhub.domain.skill.SkillVersion;
 import com.iflytek.skillhub.domain.skill.service.SkillDownloadService;
 import com.iflytek.skillhub.domain.skill.service.SkillQueryService;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -173,5 +175,22 @@ class SkillControllerTest {
                 .andExpect(jsonPath("$.data[0].filePath").value("README.md"))
                 .andExpect(jsonPath("$.timestamp").isNotEmpty())
                 .andExpect(jsonPath("$.requestId").isNotEmpty());
+    }
+
+    @Test
+    void listVersionsShouldExposeDownloadAvailability() throws Exception {
+        SkillVersion version = new SkillVersion(1L, "1.0.0", "owner-1");
+        when(skillQueryService.listVersions(
+                eq("team"),
+                eq("demo"),
+                eq((String) null),
+                eq(Map.<Long, NamespaceRole>of()),
+                any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(version)));
+        when(skillQueryService.isDownloadAvailable(version)).thenReturn(false);
+
+        mockMvc.perform(get("/api/v1/skills/team/demo/versions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.items[0].downloadAvailable").value(false));
     }
 }

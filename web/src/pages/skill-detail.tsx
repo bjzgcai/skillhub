@@ -109,7 +109,7 @@ export function SkillDetailPage() {
   const governanceVisible = hasRole('SKILL_ADMIN') || hasRole('SUPER_ADMIN')
   const isPendingPreview = skill?.viewingVersionStatus === 'PENDING_REVIEW'
   const canInteract = skill?.canInteract ?? true
-  const isVersionDownloadable = selectedVersionEntry?.status === 'PUBLISHED'
+  const isVersionDownloadable = selectedVersionEntry?.status === 'PUBLISHED' && (selectedVersionEntry?.downloadAvailable ?? false)
 
   const refreshSkill = () => {
     queryClient.invalidateQueries({ queryKey: ['skills', namespace, slug] })

@@ -215,7 +215,7 @@ public class SkillQueryService {
         SkillVersion skillVersion = findVersion(skill, version);
         assertPreviewAccessible(skill, skillVersion, version, currentUserId);
 
-        return skillFileRepository.findByVersionId(skillVersion.getId());
+        return availableFiles(skillVersion.getId());
     }
 
     public List<SkillFile> listFilesByTag(
@@ -228,7 +228,7 @@ public class SkillQueryService {
         Skill skill = resolveVisibleSkill(namespace.getId(), skillSlug, currentUserId);
         assertPublishedAccessible(namespace, skill, currentUserId, userNsRoles);
         SkillVersion skillVersion = resolveVersionEntity(skill, null, tagName, null);
-        return skillFileRepository.findByVersionId(skillVersion.getId());
+        return availableFiles(skillVersion.getId());
     }
 
     public InputStream getFileContent(
@@ -302,6 +302,16 @@ public class SkillQueryService {
         return new PageImpl<>(pageContent, pageable, visibleVersions.size());
     }
 
+    public boolean isDownloadAvailable(SkillVersion version) {
+        if (version == null) {
+            return false;
+        }
+        if (version.getStatus() != SkillVersionStatus.PUBLISHED) {
+            return false;
+        }
+        return objectStorageService.exists(getBundleStorageKey(version.getSkillId(), version.getId()));
+    }
+
     public ResolvedVersionDTO resolveVersion(
             String namespaceSlug,
             String skillSlug,
@@ -361,10 +371,20 @@ public class SkillQueryService {
     }
 
     private SkillFile findFile(SkillVersion skillVersion, String filePath) {
-        return skillFileRepository.findByVersionId(skillVersion.getId()).stream()
+        return availableFiles(skillVersion.getId()).stream()
                 .filter(f -> f.getFilePath().equals(filePath))
                 .findFirst()
                 .orElseThrow(() -> new DomainBadRequestException("error.skill.file.notFound", filePath));
+    }
+
+    private List<SkillFile> availableFiles(Long versionId) {
+        return skillFileRepository.findByVersionId(versionId).stream()
+                .filter(file -> objectStorageService.exists(file.getStorageKey()))
+                .toList();
+    }
+
+    private String getBundleStorageKey(Long skillId, Long versionId) {
+        return String.format("packages/%d/%d/bundle.zip", skillId, versionId);
     }
 
     private InputStream readFileContent(SkillFile file) {

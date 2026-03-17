@@ -181,6 +181,7 @@ export interface SkillVersion {
   fileCount: number
   totalSize: number
   publishedAt: string
+  downloadAvailable: boolean
 }
 
 export interface SkillVersionDetail {

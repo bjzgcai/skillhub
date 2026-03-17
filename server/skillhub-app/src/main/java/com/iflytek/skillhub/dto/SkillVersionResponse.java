@@ -9,5 +9,6 @@ public record SkillVersionResponse(
         String changelog,
         int fileCount,
         long totalSize,
-        LocalDateTime publishedAt
+        LocalDateTime publishedAt,
+        boolean downloadAvailable
 ) {}
