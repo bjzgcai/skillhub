@@ -16,12 +16,14 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -36,6 +38,8 @@ class SkillDownloadServiceTest {
     private SkillRepository skillRepository;
     @Mock
     private SkillVersionRepository skillVersionRepository;
+    @Mock
+    private SkillFileRepository skillFileRepository;
     @Mock
     private SkillTagRepository skillTagRepository;
     @Mock
@@ -55,6 +59,7 @@ class SkillDownloadServiceTest {
                 namespaceRepository,
                 skillRepository,
                 skillVersionRepository,
+                skillFileRepository,
                 skillTagRepository,
                 objectStorageService,
                 visibilityChecker,
@@ -206,6 +211,52 @@ class SkillDownloadServiceTest {
 
         assertThrows(DomainBadRequestException.class, () ->
                 service.downloadVersion(namespaceSlug, skillSlug, versionStr, userId, userNsRoles));
+    }
+
+    @Test
+    void testDownloadVersion_ShouldFallbackToBundledFilesWhenBundleIsMissing() throws Exception {
+        String namespaceSlug = "test-ns";
+        String skillSlug = "test-skill";
+        String versionStr = "1.0.0";
+        String userId = "user-100";
+        Map<Long, NamespaceRole> userNsRoles = Map.of(1L, NamespaceRole.MEMBER);
+
+        Namespace namespace = new Namespace(namespaceSlug, "Test NS", "user-1");
+        setId(namespace, 1L);
+        Skill skill = new Skill(1L, skillSlug, userId, SkillVisibility.PUBLIC);
+        setId(skill, 1L);
+        skill.setStatus(SkillStatus.ACTIVE);
+        SkillVersion version = new SkillVersion(1L, versionStr, userId);
+        setId(version, 10L);
+        version.setStatus(SkillVersionStatus.PUBLISHED);
+        SkillFile file = new SkillFile(10L, "SKILL.md", 4L, "text/markdown", "hash", "skills/1/10/SKILL.md");
+
+        when(namespaceRepository.findBySlug(namespaceSlug)).thenReturn(Optional.of(namespace));
+        when(skillRepository.findByNamespaceIdAndSlug(1L, skillSlug)).thenReturn(List.of(skill));
+        when(visibilityChecker.canAccess(skill, userId, userNsRoles)).thenReturn(true);
+        when(skillVersionRepository.findBySkillIdAndVersion(1L, versionStr)).thenReturn(Optional.of(version));
+        when(objectStorageService.exists("packages/1/10/bundle.zip")).thenReturn(false);
+        when(skillFileRepository.findByVersionId(10L)).thenReturn(List.of(file));
+        when(objectStorageService.exists("skills/1/10/SKILL.md")).thenReturn(true);
+        when(objectStorageService.getObject("skills/1/10/SKILL.md")).thenReturn(new ByteArrayInputStream("test".getBytes()));
+
+        SkillDownloadService.DownloadResult result = service.downloadVersion(namespaceSlug, skillSlug, versionStr, userId, userNsRoles);
+
+        assertNull(result.presignedUrl());
+        assertEquals("test-skill-1.0.0.zip", result.filename());
+        assertEquals("application/zip", result.contentType());
+        assertTrue(result.contentLength() > 0);
+
+        try (ZipInputStream zipInputStream = new ZipInputStream(result.content())) {
+            var entry = zipInputStream.getNextEntry();
+            assertNotNull(entry);
+            assertEquals("SKILL.md", entry.getName());
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            zipInputStream.transferTo(output);
+            assertEquals("test", output.toString());
+        }
+
+        verify(eventPublisher).publishEvent(any(SkillDownloadedEvent.class));
     }
 
     private void setId(Object entity, Long id) throws Exception {

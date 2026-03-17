@@ -392,6 +392,20 @@ class SkillQueryServiceTest {
     }
 
     @Test
+    void testIsDownloadAvailable_ShouldReturnTrueWhenBundleMissingButFilesExist() throws Exception {
+        SkillVersion version = new SkillVersion(1L, "1.0.0", "user-100");
+        setId(version, 10L);
+        version.setStatus(SkillVersionStatus.PUBLISHED);
+        SkillFile file = new SkillFile(10L, "SKILL.md", 10L, "text/markdown", "hash", "skills/1/10/SKILL.md");
+
+        when(objectStorageService.exists("packages/1/10/bundle.zip")).thenReturn(false);
+        when(skillFileRepository.findByVersionId(10L)).thenReturn(List.of(file));
+        when(objectStorageService.exists("skills/1/10/SKILL.md")).thenReturn(true);
+
+        assertTrue(service.isDownloadAvailable(version));
+    }
+
+    @Test
     void testGetVersionDetail_ShouldReturnMetadataPayload() throws Exception {
         String namespaceSlug = "test-ns";
         String skillSlug = "test-skill";

@@ -13,8 +13,14 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.Map;
+import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service
 public class SkillDownloadService {
@@ -22,6 +28,7 @@ public class SkillDownloadService {
     private final NamespaceRepository namespaceRepository;
     private final SkillRepository skillRepository;
     private final SkillVersionRepository skillVersionRepository;
+    private final SkillFileRepository skillFileRepository;
     private final SkillTagRepository skillTagRepository;
     private final ObjectStorageService objectStorageService;
     private final VisibilityChecker visibilityChecker;
@@ -32,6 +39,7 @@ public class SkillDownloadService {
             NamespaceRepository namespaceRepository,
             SkillRepository skillRepository,
             SkillVersionRepository skillVersionRepository,
+            SkillFileRepository skillFileRepository,
             SkillTagRepository skillTagRepository,
             ObjectStorageService objectStorageService,
             VisibilityChecker visibilityChecker,
@@ -40,6 +48,7 @@ public class SkillDownloadService {
         this.namespaceRepository = namespaceRepository;
         this.skillRepository = skillRepository;
         this.skillVersionRepository = skillVersionRepository;
+        this.skillFileRepository = skillFileRepository;
         this.skillTagRepository = skillTagRepository;
         this.objectStorageService = objectStorageService;
         this.visibilityChecker = visibilityChecker;
@@ -134,20 +143,60 @@ public class SkillDownloadService {
 
         String storageKey = String.format("packages/%d/%d/bundle.zip", skill.getId(), version.getId());
 
-        if (!objectStorageService.exists(storageKey)) {
-            throw new DomainBadRequestException("error.skill.bundle.notFound");
+        DownloadResult result;
+        if (objectStorageService.exists(storageKey)) {
+            ObjectMetadata metadata = objectStorageService.getMetadata(storageKey);
+            String presignedUrl = objectStorageService.generatePresignedUrl(storageKey, Duration.ofMinutes(10));
+            InputStream content = objectStorageService.getObject(storageKey);
+            result = new DownloadResult(content, buildFilename(skill, version), metadata.size(), metadata.contentType(), presignedUrl);
+        } else {
+            result = buildBundleFromFiles(skill, version);
         }
-
-        ObjectMetadata metadata = objectStorageService.getMetadata(storageKey);
-        String presignedUrl = objectStorageService.generatePresignedUrl(storageKey, Duration.ofMinutes(10));
-        InputStream content = objectStorageService.getObject(storageKey);
 
         // Publish download event
         eventPublisher.publishEvent(new SkillDownloadedEvent(skill.getId(), version.getId()));
+        return result;
+    }
 
-        String filename = String.format("%s-%s.zip", skill.getSlug(), version.getVersion());
+    private DownloadResult buildBundleFromFiles(Skill skill, SkillVersion version) {
+        List<SkillFile> files = skillFileRepository.findByVersionId(version.getId()).stream()
+                .filter(file -> objectStorageService.exists(file.getStorageKey()))
+                .sorted(Comparator.comparing(SkillFile::getFilePath))
+                .toList();
+        if (files.isEmpty()) {
+            throw new DomainBadRequestException("error.skill.bundle.notFound");
+        }
 
-        return new DownloadResult(content, filename, metadata.size(), metadata.contentType(), presignedUrl);
+        byte[] bundle = createBundle(files);
+        return new DownloadResult(
+                new ByteArrayInputStream(bundle),
+                buildFilename(skill, version),
+                bundle.length,
+                "application/zip",
+                null
+        );
+    }
+
+    private byte[] createBundle(List<SkillFile> files) {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+             ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
+            for (SkillFile file : files) {
+                ZipEntry zipEntry = new ZipEntry(file.getFilePath());
+                zipOutputStream.putNextEntry(zipEntry);
+                try (InputStream inputStream = objectStorageService.getObject(file.getStorageKey())) {
+                    inputStream.transferTo(zipOutputStream);
+                }
+                zipOutputStream.closeEntry();
+            }
+            zipOutputStream.finish();
+            return outputStream.toByteArray();
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to build fallback bundle zip", e);
+        }
+    }
+
+    private String buildFilename(Skill skill, SkillVersion version) {
+        return String.format("%s-%s.zip", skill.getSlug(), version.getVersion());
     }
 
     private Namespace findNamespace(String slug) {
