@@ -9,7 +9,8 @@ import { Label } from '@/shared/ui/label'
 import { ConfirmDialog } from '@/shared/components/confirm-dialog'
 import { toast } from '@/shared/lib/toast'
 import { resolveReviewActionErrorDescription } from '@/features/review/review-error'
-import { useReviewDetail, useApproveReview, useRejectReview } from '@/features/review/use-review-detail'
+import { ReviewSkillDetailSection } from '@/features/review/review-skill-detail-section'
+import { useReviewDetail, useReviewSkillDetail, useApproveReview, useRejectReview } from '@/features/review/use-review-detail'
 
 /**
  * Review task detail page for moderators. The route owns the approve/reject
@@ -23,6 +24,11 @@ export function ReviewDetailPage() {
   const taskId = Number(id)
 
   const { data: review, isLoading } = useReviewDetail(taskId)
+  const {
+    data: reviewSkillDetail,
+    isLoading: isLoadingReviewSkillDetail,
+    error: reviewSkillDetailError,
+  } = useReviewSkillDetail(taskId)
   const approveMutation = useApproveReview({
     onSuccess: () => {
       toast.success(t('review.approveSuccess'))
@@ -153,6 +159,12 @@ export function ReviewDetailPage() {
           </div>
         )}
       </Card>
+
+      <ReviewSkillDetailSection
+        detail={reviewSkillDetail}
+        isLoading={isLoadingReviewSkillDetail}
+        hasError={Boolean(reviewSkillDetailError)}
+      />
 
       {review.status === 'PENDING' && (
         <Card className="p-8 space-y-6">
