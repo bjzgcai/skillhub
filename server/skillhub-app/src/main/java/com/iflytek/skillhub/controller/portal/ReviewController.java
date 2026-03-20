@@ -16,19 +16,27 @@ import com.iflytek.skillhub.domain.skill.Skill;
 import com.iflytek.skillhub.domain.skill.SkillRepository;
 import com.iflytek.skillhub.domain.skill.SkillVersion;
 import com.iflytek.skillhub.domain.skill.SkillVersionRepository;
+import com.iflytek.skillhub.domain.skill.service.SkillDownloadService;
 import com.iflytek.skillhub.domain.user.UserAccount;
 import com.iflytek.skillhub.domain.user.UserAccountRepository;
 import com.iflytek.skillhub.dto.ApiResponse;
 import com.iflytek.skillhub.dto.ApiResponseFactory;
 import com.iflytek.skillhub.dto.PageResponse;
 import com.iflytek.skillhub.dto.ReviewActionRequest;
+import com.iflytek.skillhub.dto.ReviewSkillDetailResponse;
 import com.iflytek.skillhub.dto.ReviewTaskRequest;
 import com.iflytek.skillhub.dto.ReviewTaskResponse;
+import com.iflytek.skillhub.service.ReviewSkillDetailAppService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.MDC;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -57,6 +65,7 @@ public class ReviewController extends BaseApiController {
     private final UserAccountRepository userAccountRepository;
     private final RbacService rbacService;
     private final AuditLogService auditLogService;
+    private final ReviewSkillDetailAppService reviewSkillDetailAppService;
 
     public ReviewController(ReviewService reviewService,
                             ReviewTaskRepository reviewTaskRepository,
@@ -66,6 +75,7 @@ public class ReviewController extends BaseApiController {
                             UserAccountRepository userAccountRepository,
                             RbacService rbacService,
                             AuditLogService auditLogService,
+                            ReviewSkillDetailAppService reviewSkillDetailAppService,
                             ApiResponseFactory responseFactory) {
         super(responseFactory);
         this.reviewService = reviewService;
@@ -76,6 +86,7 @@ public class ReviewController extends BaseApiController {
         this.userAccountRepository = userAccountRepository;
         this.rbacService = rbacService;
         this.auditLogService = auditLogService;
+        this.reviewSkillDetailAppService = reviewSkillDetailAppService;
     }
 
     @PostMapping
@@ -230,6 +241,29 @@ public class ReviewController extends BaseApiController {
         return ok("response.success.read", toResponse(task));
     }
 
+    @GetMapping("/{id}/skill-detail")
+    public ApiResponse<ReviewSkillDetailResponse> getReviewSkillDetail(@PathVariable Long id,
+                                                                       @RequestAttribute("userId") String userId,
+                                                                       @RequestAttribute(value = "userNsRoles", required = false) Map<Long, NamespaceRole> userNsRoles) {
+        return ok(
+                "response.success.read",
+                reviewSkillDetailAppService.getReviewSkillDetail(id, userId, userNsRoles != null ? userNsRoles : Map.of())
+        );
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<InputStreamResource> downloadReviewVersion(@PathVariable Long id,
+                                                                     HttpServletRequest request,
+                                                                     @RequestAttribute("userId") String userId,
+                                                                     @RequestAttribute(value = "userNsRoles", required = false) Map<Long, NamespaceRole> userNsRoles) {
+        SkillDownloadService.DownloadResult result = reviewSkillDetailAppService.downloadReviewPackage(
+                id,
+                userId,
+                userNsRoles != null ? userNsRoles : Map.of()
+        );
+        return buildDownloadResponse(request, result);
+    }
+
     private ReviewTaskResponse toResponse(ReviewTask task) {
         SkillVersion skillVersion = skillVersionRepository.findById(task.getSkillVersionId())
                 .orElseThrow(() -> new DomainNotFoundException("skill_version.not_found", task.getSkillVersionId()));
@@ -296,5 +330,40 @@ public class ReviewController extends BaseApiController {
             return null;
         }
         return "{\"comment\":\"" + comment.replace("\"", "\\\"") + "\"}";
+    }
+
+    private ResponseEntity<InputStreamResource> buildDownloadResponse(HttpServletRequest request, SkillDownloadService.DownloadResult result) {
+        if (shouldRedirectToPresignedUrl(request, result.presignedUrl())) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, result.presignedUrl())
+                    .build();
+        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + result.filename() + "\"")
+                .contentType(MediaType.parseMediaType(result.contentType()))
+                .contentLength(result.contentLength())
+                .body(new InputStreamResource(result.openContent()));
+    }
+
+    private boolean shouldRedirectToPresignedUrl(HttpServletRequest request, String presignedUrl) {
+        if (presignedUrl == null || presignedUrl.isBlank()) {
+            return false;
+        }
+        if (!isSecureRequest(request)) {
+            return true;
+        }
+        try {
+            return "https".equalsIgnoreCase(java.net.URI.create(presignedUrl).getScheme());
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
+
+    private boolean isSecureRequest(HttpServletRequest request) {
+        String forwardedProto = request.getHeader("X-Forwarded-Proto");
+        if (forwardedProto != null && !forwardedProto.isBlank()) {
+            return "https".equalsIgnoreCase(forwardedProto);
+        }
+        return request.isSecure();
     }
 }
