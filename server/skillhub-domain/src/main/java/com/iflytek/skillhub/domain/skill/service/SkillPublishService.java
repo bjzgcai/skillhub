@@ -132,7 +132,39 @@ public class SkillPublishService {
             String publisherId,
             SkillVisibility visibility,
             java.util.Set<String> platformRoles) {
-        return publishFromEntriesInternal(namespaceSlug, entries, publisherId, visibility, platformRoles, false, false);
+        return publishFromEntriesInternal(namespaceSlug, entries, publisherId, visibility, platformRoles, false, false, null);
+    }
+
+    /**
+     * Publishes a mirrored remote package into the local registry using a system-owned
+     * publisher identity. Membership checks are bypassed and the version is auto-published.
+     */
+    @Transactional
+    public PublishResult publishMirroredEntries(
+            String namespaceSlug,
+            List<PackageEntry> entries,
+            String publisherId,
+            SkillVisibility visibility) {
+        return publishMirroredEntries(namespaceSlug, entries, publisherId, visibility, null);
+    }
+
+    @Transactional
+    public PublishResult publishMirroredEntries(
+            String namespaceSlug,
+            List<PackageEntry> entries,
+            String publisherId,
+            SkillVisibility visibility,
+            String explicitSkillSlug) {
+        return publishFromEntriesInternal(
+                namespaceSlug,
+                entries,
+                publisherId,
+                visibility,
+                Set.of("SUPER_ADMIN"),
+                true,
+                true,
+                explicitSkillSlug
+        );
     }
 
     /**
@@ -168,7 +200,8 @@ public class SkillPublishService {
                 skill.getVisibility(),
                 Set.of(),
                 true,
-                true
+                true,
+                null
         );
     }
 
@@ -179,7 +212,8 @@ public class SkillPublishService {
             SkillVisibility visibility,
             Set<String> platformRoles,
             boolean forceAutoPublish,
-            boolean bypassMembershipCheck) {
+            boolean bypassMembershipCheck,
+            String explicitSkillSlug) {
 
         // 1. Find namespace by slug
         Namespace namespace = namespaceRepository.findBySlug(namespaceSlug)
@@ -214,7 +248,9 @@ public class SkillPublishService {
             String autoVersion = AUTO_VERSION_FORMATTER.format(currentTime());
             metadata = new SkillMetadata(metadata.name(), metadata.description(), autoVersion, metadata.body(), metadata.frontmatter());
         }
-        String skillSlug = SlugValidator.slugify(metadata.name());
+        String skillSlug = (explicitSkillSlug != null && !explicitSkillSlug.isBlank())
+                ? explicitSkillSlug
+                : SlugValidator.slugify(metadata.name());
 
         // 5. Run PrePublishValidator
         PrePublishValidator.SkillPackageContext context = new PrePublishValidator.SkillPackageContext(
