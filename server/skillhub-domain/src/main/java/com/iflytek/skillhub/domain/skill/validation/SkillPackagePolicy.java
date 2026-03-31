@@ -25,7 +25,7 @@ public final class SkillPackagePolicy {
             // Configuration
             ".toml", ".xml", ".ini", ".cfg", ".env",
             // Scripts and source code
-            ".js", ".ts", ".py", ".sh", ".rb", ".go", ".rs", ".java", ".kt",
+            ".js", ".mjs", ".ts", ".py", ".sh", ".rb", ".go", ".rs", ".java", ".kt",
             ".lua", ".sql", ".r", ".bat", ".ps1", ".zsh", ".bash",
             // Images
             ".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp", ".ico"
@@ -124,7 +124,7 @@ public final class SkillPackagePolicy {
     private static boolean isTextExtension(String path) {
         return path.endsWith(".md") || path.endsWith(".txt")
                 || path.endsWith(".json") || path.endsWith(".yaml") || path.endsWith(".yml")
-                || path.endsWith(".js") || path.endsWith(".ts") || path.endsWith(".py") || path.endsWith(".sh")
+                || path.endsWith(".js") || path.endsWith(".mjs") || path.endsWith(".ts") || path.endsWith(".py") || path.endsWith(".sh")
                 || path.endsWith(".html") || path.endsWith(".css") || path.endsWith(".csv")
                 || path.endsWith(".toml") || path.endsWith(".xml") || path.endsWith(".ini")
                 || path.endsWith(".cfg") || path.endsWith(".env")

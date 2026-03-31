@@ -7,11 +7,15 @@ import com.iflytek.skillhub.compat.dto.ClawHubResolveResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubSearchResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubSkillListResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubSkillResponse;
+import com.iflytek.skillhub.compat.dto.ClawHubSkillVersionListResponse;
+import com.iflytek.skillhub.compat.dto.ClawHubSkillVersionResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubStarResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubUnstarResponse;
 import com.iflytek.skillhub.compat.dto.ClawHubWhoamiResponse;
 import com.iflytek.skillhub.domain.namespace.NamespaceRole;
+import com.iflytek.skillhub.exception.UnauthorizedException;
 import com.iflytek.skillhub.ratelimit.RateLimit;
+import com.iflytek.skillhub.service.AuditRequestContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Map;
@@ -104,17 +108,72 @@ public class ClawHubCompatController {
     }
 
     @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
+    @GetMapping("/skills/{canonicalSlug}/versions")
+    public ClawHubSkillVersionListResponse listVersions(@PathVariable String canonicalSlug,
+                                                        @RequestParam(defaultValue = "25") int limit,
+                                                        @RequestAttribute(value = "userId", required = false) String userId,
+                                                        @RequestAttribute(value = "userNsRoles", required = false) Map<Long, NamespaceRole> userNsRoles) {
+        return clawHubCompatAppService.listVersions(canonicalSlug, limit, userId, userNsRoles);
+    }
+
+    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
+    @GetMapping("/skills/{canonicalSlug}/versions/{version}")
+    public ClawHubSkillVersionResponse getVersion(@PathVariable String canonicalSlug,
+                                                  @PathVariable String version,
+                                                  @RequestAttribute(value = "userId", required = false) String userId,
+                                                  @RequestAttribute(value = "userNsRoles", required = false) Map<Long, NamespaceRole> userNsRoles) {
+        return clawHubCompatAppService.getVersion(canonicalSlug, version, userId, userNsRoles);
+    }
+
+    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
+    @GetMapping("/skills/{canonicalSlug}/file")
+    public ResponseEntity<String> getFile(@PathVariable String canonicalSlug,
+                                          @RequestParam("path") String path,
+                                          @RequestParam(required = false) String version,
+                                          @RequestParam(required = false) String tag,
+                                          @RequestAttribute(value = "userId", required = false) String userId,
+                                          @RequestAttribute(value = "userNsRoles", required = false) Map<Long, NamespaceRole> userNsRoles) throws IOException {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, "text/plain; charset=utf-8")
+                .body(clawHubCompatAppService.getFileContent(canonicalSlug, path, version, tag, userId, userNsRoles));
+    }
+
+    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
     @DeleteMapping("/skills/{canonicalSlug}")
     public ClawHubDeleteResponse deleteSkill(@PathVariable String canonicalSlug,
-                                             @AuthenticationPrincipal PlatformPrincipal principal) {
-        return clawHubCompatAppService.deleteSkill();
+                                             @AuthenticationPrincipal PlatformPrincipal principal,
+                                             @RequestAttribute(value = "userId", required = false) String userId,
+                                             @RequestAttribute(value = "userNsRoles", required = false) Map<Long, NamespaceRole> userNsRoles,
+                                             HttpServletRequest request) {
+        requireAuthenticated(principal, userId);
+        return clawHubCompatAppService.deleteSkill(
+                canonicalSlug,
+                userId,
+                userNsRoles,
+                AuditRequestContext.from(request)
+        );
     }
 
     @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
     @PostMapping("/skills/{canonicalSlug}/undelete")
     public ClawHubDeleteResponse undeleteSkill(@PathVariable String canonicalSlug,
-                                               @AuthenticationPrincipal PlatformPrincipal principal) {
-        return clawHubCompatAppService.undeleteSkill();
+                                               @AuthenticationPrincipal PlatformPrincipal principal,
+                                               @RequestAttribute(value = "userId", required = false) String userId,
+                                               @RequestAttribute(value = "userNsRoles", required = false) Map<Long, NamespaceRole> userNsRoles,
+                                               HttpServletRequest request) {
+        requireAuthenticated(principal, userId);
+        return clawHubCompatAppService.undeleteSkill(
+                canonicalSlug,
+                userId,
+                userNsRoles,
+                AuditRequestContext.from(request)
+        );
+    }
+
+    private void requireAuthenticated(PlatformPrincipal principal, String userId) {
+        if (principal == null || userId == null || userId.isBlank()) {
+            throw new UnauthorizedException("error.auth.required");
+        }
     }
 
     @RateLimit(category = "stars", authenticated = 60, anonymous = 20)
