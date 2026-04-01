@@ -1,9 +1,10 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Eye, EyeOff } from 'lucide-react'
-import { getDirectAuthRuntimeConfig } from '@/api/client'
+import { ApiError, getDingTalkRuntimeConfig, getDirectAuthRuntimeConfig } from '@/api/client'
 import { LoginButton } from '@/features/auth/login-button'
+import { useDingTalkH5Login } from '@/features/auth/use-dingtalk-h5-login'
 import { SessionBootstrapEntry } from '@/features/auth/session-bootstrap-entry'
 import { useAuthMethods } from '@/features/auth/use-auth-methods'
 import { usePasswordLogin } from '@/features/auth/use-password-login'
@@ -22,11 +23,14 @@ export function LoginPage() {
   const navigate = useNavigate()
   const search = useSearch({ from: '/login' })
   const loginMutation = usePasswordLogin()
+  const dingTalkMutation = useDingTalkH5Login()
+  const dingTalkRuntimeConfig = getDingTalkRuntimeConfig()
   const directAuthConfig = getDirectAuthRuntimeConfig()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{ username?: string, password?: string }>({})
+  const dingTalkAttemptedRef = useRef(false)
   const isChinese = i18n.resolvedLanguage?.split('-')[0] === 'zh'
   const { data: authMethods } = useAuthMethods(search.returnTo)
 
@@ -37,6 +41,67 @@ export function LoginPage() {
       method.methodType === 'DIRECT_PASSWORD' && method.provider === directAuthConfig.provider)
     : undefined
   const bootstrapMethod = authMethods?.find((method) => method.methodType === 'SESSION_BOOTSTRAP')
+  const dingTalkMethod = authMethods?.find((method) =>
+    method.methodType === 'OAUTH_REDIRECT' && method.provider === dingTalkRuntimeConfig.provider)
+
+  useEffect(() => {
+    if (
+      !dingTalkRuntimeConfig.enabled
+      || !dingTalkRuntimeConfig.auto
+      || !dingTalkRuntimeConfig.corpId
+      || dingTalkAttemptedRef.current
+      || typeof window === 'undefined'
+    ) {
+      return
+    }
+
+    const dd = (window as Window & {
+      dd?: {
+        runtime?: {
+          permission?: {
+            requestAuthCode?: (options: {
+              corpId: string
+              onSuccess: (result: { code: string }) => void
+              onFail: () => void
+            }) => void
+          }
+        }
+      }
+    }).dd
+
+    const requestAuthCode = dd?.runtime?.permission?.requestAuthCode
+    if (!requestAuthCode) {
+      return
+    }
+
+    dingTalkAttemptedRef.current = true
+    requestAuthCode({
+      corpId: dingTalkRuntimeConfig.corpId,
+      onSuccess: (result) => {
+        const dingTalkCode = result.code || (result as { authCode?: string }).authCode
+        if (!dingTalkCode) {
+          return
+        }
+        void dingTalkMutation.mutateAsync(dingTalkCode, {
+          onSuccess: async () => {
+            await navigate({ to: returnTo })
+          },
+          onError: () => {
+            // Keep the standard login choices available.
+          },
+        })
+      },
+      onFail: () => {
+        // Ignore DingTalk SDK failures so normal login remains available.
+      },
+    })
+  }, [dingTalkMutation, dingTalkRuntimeConfig.auto, dingTalkRuntimeConfig.corpId, dingTalkRuntimeConfig.enabled, navigate, returnTo])
+
+  const dingTalkManualError = dingTalkMutation.error instanceof ApiError
+    && dingTalkMutation.error.status !== 401
+    && dingTalkMutation.error.status !== 403
+    ? dingTalkMutation.error.message
+    : null
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -87,8 +152,39 @@ export function LoginPage() {
               methodDisplayName={bootstrapMethod?.displayName}
               onAuthenticated={() => navigate({ to: returnTo })}
             />
+            {dingTalkRuntimeConfig.enabled && dingTalkRuntimeConfig.auto && dingTalkMethod ? (
+              <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
+                {dingTalkMutation.isPending
+                  ? t('login.enterpriseSsoSubmitting', { name: dingTalkMethod.displayName })
+                  : t('login.enterpriseSsoAutoHint', { name: dingTalkMethod.displayName })}
+              </div>
+            ) : null}
+            {dingTalkManualError ? (
+              <p className="text-sm text-red-600">{dingTalkManualError}</p>
+            ) : null}
+            {dingTalkRuntimeConfig.enabled && dingTalkMethod ? (
+              <div className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                <div>
+                  <p className="text-sm font-medium text-sky-900">
+                    {t('login.enterpriseSsoTitle', { name: dingTalkMethod.displayName })}
+                  </p>
+                  <p className="text-sm text-sky-700">
+                    {t('login.enterpriseSsoHint', { name: dingTalkMethod.displayName })}
+                  </p>
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    window.location.href = dingTalkMethod.actionUrl
+                  }}
+                  type="button"
+                >
+                  {t('loginButton.loginWith', { name: dingTalkMethod.displayName })}
+                </Button>
+              </div>
+            ) : null}
 
-            <Tabs defaultValue="password" className="space-y-6">
+            <Tabs defaultValue={dingTalkRuntimeConfig.enabled && dingTalkMethod ? 'oauth' : 'password'} className="space-y-6">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="password">{t('login.tabPassword')}</TabsTrigger>
                 <TabsTrigger value="oauth">{t('login.tabOAuth')}</TabsTrigger>

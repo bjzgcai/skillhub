@@ -27,6 +27,8 @@ skillhub:
   auth:
     mock:
       enabled: true
+    dingtalk:
+      enabled: ${SKILLHUB_AUTH_DINGTALK_ENABLED:false}
   notification:
     cleanup:
       read-retention-days: 30

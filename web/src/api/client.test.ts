@@ -36,6 +36,7 @@ vi.mock('@/shared/lib/api-error', () => ({
 import {
   WEB_API_PREFIX,
   buildApiUrl,
+  getDingTalkRuntimeConfig,
   getDirectAuthRuntimeConfig,
   getSessionBootstrapRuntimeConfig,
 } from './client'
@@ -152,6 +153,39 @@ describe('getSessionBootstrapRuntimeConfig', () => {
       authSessionBootstrapProvider: '  ',
     }
     const config = getSessionBootstrapRuntimeConfig()
+    expect(config.enabled).toBe(false)
+  })
+})
+
+describe('getDingTalkRuntimeConfig', () => {
+  it('returns disabled when no runtime config is present', () => {
+    const config = getDingTalkRuntimeConfig()
+    expect(config.enabled).toBe(false)
+    expect(config.auto).toBe(false)
+    expect(config.provider).toBeUndefined()
+    expect(config.corpId).toBeUndefined()
+  })
+
+  it('returns fully enabled config when all required values are present', () => {
+    window.__SKILLHUB_RUNTIME_CONFIG__ = {
+      authDingtalkEnabled: 'true',
+      authDingtalkProvider: 'dingtalk',
+      authDingtalkAuto: 'yes',
+      authDingtalkCorpId: 'ding-test-corp',
+    }
+    const config = getDingTalkRuntimeConfig()
+    expect(config.enabled).toBe(true)
+    expect(config.provider).toBe('dingtalk')
+    expect(config.auto).toBe(true)
+    expect(config.corpId).toBe('ding-test-corp')
+  })
+
+  it('returns disabled when the provider is blank', () => {
+    window.__SKILLHUB_RUNTIME_CONFIG__ = {
+      authDingtalkEnabled: 'true',
+      authDingtalkProvider: '  ',
+    }
+    const config = getDingTalkRuntimeConfig()
     expect(config.enabled).toBe(false)
   })
 })
