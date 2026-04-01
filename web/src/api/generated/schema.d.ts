@@ -1188,6 +1188,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/dingtalk/h5-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["h5Login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/device/token": {
         parameters: {
             query?: never;
@@ -2596,6 +2612,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/skills/{canonicalSlug}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listVersions_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/{canonicalSlug}/versions/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/{canonicalSlug}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/search": {
         parameters: {
             query?: never;
@@ -2820,6 +2884,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/web/skills/id/{skillId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteSkillById"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/notifications/{id}": {
         parameters: {
             query?: never;
@@ -2895,6 +2975,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete: operations["revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/skills/id/{skillId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deleteSkillById_1"];
         options?: never;
         head?: never;
         patch?: never;
@@ -3393,6 +3489,9 @@ export interface components {
             provider: string;
             username: string;
             password: string;
+        };
+        DingTalkH5LoginRequest: {
+            code: string;
         };
         TokenRequest: {
             deviceCode?: string;
@@ -4219,6 +4318,41 @@ export interface components {
             createdAt?: number;
             changelog?: string;
             license?: string;
+        };
+        ClawHubSkillVersionListResponse: {
+            items?: components["schemas"]["Item"][];
+            nextCursor?: string;
+        };
+        Item: {
+            version?: string;
+            /** Format: int64 */
+            createdAt?: number;
+            changelog?: string;
+            changelogSource?: string;
+        };
+        ClawHubSkillVersionResponse: {
+            version?: components["schemas"]["Version"];
+            skill?: components["schemas"]["Skill"];
+        };
+        FileEntry: {
+            path?: string;
+            /** Format: int64 */
+            size?: number;
+            sha256?: string;
+            contentType?: string;
+        };
+        Skill: {
+            slug?: string;
+            displayName?: string;
+        };
+        Version: {
+            version?: string;
+            /** Format: int64 */
+            createdAt?: number;
+            changelog?: string;
+            changelogSource?: string;
+            license?: string;
+            files?: components["schemas"]["FileEntry"][];
         };
         ClawHubSearchResponse: {
             results?: components["schemas"]["ClawHubSearchResult"][];
@@ -6857,6 +6991,30 @@ export interface operations {
             };
         };
     };
+    h5Login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DingTalkH5LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAuthMeResponse"];
+                };
+            };
+        };
+    };
     pollToken: {
         parameters: {
             query?: never;
@@ -9065,6 +9223,79 @@ export interface operations {
             };
         };
     };
+    listVersions_2: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                canonicalSlug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ClawHubSkillVersionListResponse"];
+                };
+            };
+        };
+    };
+    getVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                canonicalSlug: string;
+                version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ClawHubSkillVersionResponse"];
+                };
+            };
+        };
+    };
+    getFile: {
+        parameters: {
+            query: {
+                path: string;
+                version?: string;
+                tag?: string;
+            };
+            header?: never;
+            path: {
+                canonicalSlug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": string;
+                };
+            };
+        };
+    };
     search_1: {
         parameters: {
             query: {
@@ -9391,6 +9622,28 @@ export interface operations {
             };
         };
     };
+    deleteSkillById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                skillId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSkillDeleteResponse"];
+                };
+            };
+        };
+    };
     deleteRead: {
         parameters: {
             query?: never;
@@ -9498,6 +9751,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    deleteSkillById_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                skillId: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseSkillDeleteResponse"];
+                };
             };
         };
     };
