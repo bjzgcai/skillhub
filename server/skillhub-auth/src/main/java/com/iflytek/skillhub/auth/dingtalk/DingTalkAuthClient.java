@@ -50,10 +50,8 @@ public class DingTalkAuthClient {
         String unionId = null;
         try {
             browserPayload = getJson(properties.getBrowserUserInfoUrl(), userAccessToken);
-            unionId = firstString(browserPayload, "unionId", "unionid");
+            unionId = firstString(browserPayload, "unionId", "unionid", "openId", "openid", "sub");
         } catch (HttpClientErrorException.Forbidden ex) {
-            // Some DingTalk tenants grant browser login but not the users/me scope needed by the
-            // newer contact API. Keep the flow alive and try downstream enterprise lookups instead.
             browserPayload = Map.of();
         }
         if (unionId == null) {
@@ -68,7 +66,6 @@ public class DingTalkAuthClient {
             ? resolveEnterpriseUserId(appAccessToken, unionId)
             : firstString(browserPayload, "userid", "userId");
         Map<String, Object> detailPayload = userId != null ? getEnterpriseUserDetail(appAccessToken, userId) : Map.of();
-
         return buildIdentity(unionId, userId, browserPayload, detailPayload);
     }
 
@@ -134,6 +131,7 @@ public class DingTalkAuthClient {
                 "clientId", properties.getAppKey(),
                 "clientSecret", properties.getAppSecret(),
                 "code", authorizationCode,
+                "refreshToken", "",
                 "grantType", "authorization_code"
             ),
             null
@@ -217,11 +215,17 @@ public class DingTalkAuthClient {
     }
 
     private Map<String, Object> postJson(String url, Map<String, ?> body, String bearerToken) {
+        String requestUrl = url;
+        boolean topApiStyle = url.contains("/topapi/");
+        if (topApiStyle && bearerToken != null && !bearerToken.isBlank()) {
+            requestUrl = url + (url.contains("?") ? "&" : "?") + "access_token=" + bearerToken;
+        }
+
         RestClient.RequestBodySpec request = restClient.post()
-            .uri(url)
+            .uri(requestUrl)
             .contentType(MediaType.APPLICATION_JSON)
             .accept(MediaType.APPLICATION_JSON);
-        if (bearerToken != null && !bearerToken.isBlank()) {
+        if (bearerToken != null && !bearerToken.isBlank() && !topApiStyle) {
             request.header(HttpHeaders.AUTHORIZATION, "Bearer " + bearerToken);
             request.header("x-acs-dingtalk-access-token", bearerToken);
         }

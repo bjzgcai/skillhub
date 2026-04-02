@@ -3,6 +3,9 @@ package com.iflytek.skillhub.auth.entity;
 import jakarta.persistence.*;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Map;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "identity_binding",
@@ -24,8 +27,9 @@ public class IdentityBinding {
     @Column(name = "login_name", length = 128)
     private String loginName;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "extra_json", columnDefinition = "jsonb")
-    private String extraJson;
+    private Map<String, Object> extraJson;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -62,8 +66,8 @@ public class IdentityBinding {
     public void setSubject(String subject) { this.subject = subject; }
     public String getLoginName() { return loginName; }
     public void setLoginName(String loginName) { this.loginName = loginName; }
-    public String getExtraJson() { return extraJson; }
-    public void setExtraJson(String extraJson) { this.extraJson = extraJson; }
+    public Map<String, Object> getExtraJson() { return extraJson; }
+    public void setExtraJson(Map<String, Object> extraJson) { this.extraJson = extraJson; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
 }
