@@ -44,7 +44,7 @@ export function LoginPage() {
   const dingTalkMethod = authMethods?.find((method) =>
     method.methodType === 'OAUTH_REDIRECT' && method.provider === dingTalkRuntimeConfig.provider)
   const showDingTalkEntry = Boolean(dingTalkRuntimeConfig.provider && dingTalkMethod)
-  const shouldExpandPasswordLogin = !showDingTalkEntry && showPasswordLogin !== false
+  const shouldExpandPasswordLogin = showPasswordLogin ?? !showDingTalkEntry
 
   useEffect(() => {
     if (
