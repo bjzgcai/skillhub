@@ -104,7 +104,8 @@ public class DingTalkAuthController extends BaseApiController {
             String returnTo = dingTalkLoginFlowService.validateStateAndConsumeReturnTo(request.getSession(false), state);
             PlatformPrincipal principal = dingTalkLoginService.authenticateBrowserLogin(authorizationCode);
             platformSessionService.establishSession(principal, request);
-            return new RedirectView(returnTo != null ? returnTo : OAuthLoginRedirectSupport.DEFAULT_TARGET_URL, true);
+            String target = returnTo != null ? returnTo : OAuthLoginRedirectSupport.DEFAULT_TARGET_URL;
+            return new RedirectView(buildFrontendRedirect(target), true);
         } catch (AccountDisabledException ex) {
             log.warn("DingTalk callback failed: account disabled");
             return new RedirectView(buildLoginRedirect(fallbackReturnTo, "accountDisabled"), true);
@@ -126,14 +127,24 @@ public class DingTalkAuthController extends BaseApiController {
         return ok("response.success.read", AuthMeResponse.from(principal));
     }
 
-    private String buildLoginRedirect(String returnTo, String reason) {
-        String loginBase = "/login";
-        if (publicBaseUrl != null && !publicBaseUrl.isBlank()) {
-            loginBase = publicBaseUrl.endsWith("/")
-                ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1) + "/login"
-                : publicBaseUrl + "/login";
+    private String buildFrontendRedirect(String path) {
+        if (path == null || path.isBlank()) {
+            path = "/";
         }
-        StringBuilder builder = new StringBuilder(loginBase);
+        if (publicBaseUrl != null && !publicBaseUrl.isBlank()) {
+            String base = publicBaseUrl.endsWith("/")
+                ? publicBaseUrl.substring(0, publicBaseUrl.length() - 1)
+                : publicBaseUrl;
+            if (!path.startsWith("/")) {
+                path = "/" + path;
+            }
+            return base + path;
+        }
+        return path;
+    }
+
+    private String buildLoginRedirect(String returnTo, String reason) {
+        StringBuilder builder = new StringBuilder(buildFrontendRedirect("/login"));
         boolean hasQuery = false;
         if (reason != null && !reason.isBlank()) {
             builder.append("?reason=").append(urlEncode(reason));

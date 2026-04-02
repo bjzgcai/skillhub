@@ -27,7 +27,9 @@ class DingTalkLoginFlowServiceTest {
             .startsWith("https://login.dingtalk.com/oauth2/auth?")
             .contains("client_id=app-key")
             .contains("redirect_uri=https%3A%2F%2Fskillhub.example.com%2Fapi%2Fv1%2Fauth%2Fdingtalk%2Fcallback")
-            .contains("scope=openid")
+            .contains("response_type=code")
+            .contains("prompt=consent")
+            .contains("scope=openid+corpid")
             .contains("state=");
         assertThat(session.getAttribute(DingTalkLoginFlowService.SESSION_RETURN_TO_ATTRIBUTE))
             .isEqualTo("/workspace?tab=recent");
@@ -75,6 +77,7 @@ class DingTalkLoginFlowServiceTest {
         properties.setAppKey("app-key");
         properties.setAppSecret("app-secret");
         properties.setRedirectUri("https://skillhub.example.com/api/v1/auth/dingtalk/callback");
+        properties.setBrowserScope("openid corpid");
         return properties;
     }
 }

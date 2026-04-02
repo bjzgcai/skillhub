@@ -46,6 +46,7 @@ public class DingTalkLoginFlowService {
             + "?client_id=" + urlEncode(properties.getAppKey())
             + "&redirect_uri=" + urlEncode(properties.getRedirectUri())
             + "&response_type=code"
+            + "&prompt=consent"
             + "&scope=" + urlEncode(properties.getBrowserScope())
             + "&state=" + urlEncode(state);
 
