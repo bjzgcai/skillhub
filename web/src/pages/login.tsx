@@ -1,7 +1,7 @@
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Eye, EyeOff } from 'lucide-react'
+import { ChevronDown, Eye, EyeOff } from 'lucide-react'
 import { ApiError, getDingTalkRuntimeConfig, getDirectAuthRuntimeConfig } from '@/api/client'
 import { LoginButton } from '@/features/auth/login-button'
 import { useDingTalkH5Login } from '@/features/auth/use-dingtalk-h5-login'
@@ -10,7 +10,6 @@ import { useAuthMethods } from '@/features/auth/use-auth-methods'
 import { usePasswordLogin } from '@/features/auth/use-password-login'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs'
 
 /**
  * Authentication entry page.
@@ -29,6 +28,7 @@ export function LoginPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [showPasswordLogin, setShowPasswordLogin] = useState<boolean | null>(null)
   const [fieldErrors, setFieldErrors] = useState<{ username?: string, password?: string }>({})
   const dingTalkAttemptedRef = useRef(false)
   const isChinese = i18n.resolvedLanguage?.split('-')[0] === 'zh'
@@ -43,6 +43,8 @@ export function LoginPage() {
   const bootstrapMethod = authMethods?.find((method) => method.methodType === 'SESSION_BOOTSTRAP')
   const dingTalkMethod = authMethods?.find((method) =>
     method.methodType === 'OAUTH_REDIRECT' && method.provider === dingTalkRuntimeConfig.provider)
+  const showDingTalkEntry = Boolean(dingTalkRuntimeConfig.provider && dingTalkMethod)
+  const shouldExpandPasswordLogin = !showDingTalkEntry && showPasswordLogin !== false
 
   useEffect(() => {
     if (
@@ -103,6 +105,10 @@ export function LoginPage() {
     ? dingTalkMutation.error.message
     : null
 
+  useEffect(() => {
+    setShowPasswordLogin(!showDingTalkEntry)
+  }, [showDingTalkEntry])
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const trimmedUsername = username.trim()
@@ -162,121 +168,110 @@ export function LoginPage() {
             {dingTalkManualError ? (
               <p className="text-sm text-red-600">{dingTalkManualError}</p>
             ) : null}
-            {dingTalkRuntimeConfig.enabled && dingTalkMethod ? (
-              <div className="space-y-3 rounded-2xl border border-sky-200 bg-sky-50 p-4">
-                <div>
-                  <p className="text-sm font-medium text-sky-900">
-                    {t('login.enterpriseSsoTitle', { name: dingTalkMethod.displayName })}
+            <div className="space-y-6">
+              {showDingTalkEntry ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    {t('login.dingtalkHint')}
                   </p>
-                  <p className="text-sm text-sky-700">
-                    {t('login.enterpriseSsoHint', { name: dingTalkMethod.displayName })}
-                  </p>
+                  <LoginButton returnTo={returnTo} providers={['dingtalk']} />
                 </div>
-                <Button
-                  className="w-full"
-                  onClick={() => {
-                    window.location.href = dingTalkMethod.actionUrl
-                  }}
+              ) : null}
+
+              <div className="rounded-2xl border border-border/60 bg-background/40">
+                <button
                   type="button"
+                  className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium text-foreground"
+                  onClick={() => setShowPasswordLogin((current) => !current)}
+                  aria-expanded={Boolean(showPasswordLogin)}
                 >
-                  {t('loginButton.loginWith', { name: dingTalkMethod.displayName })}
-                </Button>
+                  <span>{showDingTalkEntry ? t('login.otherLoginMethods') : t('login.tabPassword')}</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showPasswordLogin ? 'rotate-180' : ''}`} />
+                </button>
+
+                {shouldExpandPasswordLogin ? (
+                  <div className="border-t border-border/60 px-4 py-4">
+                    <form className="space-y-4" onSubmit={handleSubmit}>
+                      {directAuthConfig.enabled ? (
+                        <p className="text-sm text-muted-foreground">
+                          {t('login.passwordCompatHint', {
+                            name: directMethod?.displayName ?? directAuthConfig.provider,
+                          })}
+                        </p>
+                      ) : null}
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium" htmlFor="username">{t('login.username')}</label>
+                        <Input
+                          id="username"
+                          autoComplete="username"
+                          value={username}
+                          onChange={(event) => {
+                            setUsername(event.target.value)
+                            if (fieldErrors.username) {
+                              setFieldErrors((current) => ({ ...current, username: undefined }))
+                            }
+                          }}
+                          placeholder={t('login.usernamePlaceholder')}
+                          aria-invalid={fieldErrors.username ? 'true' : 'false'}
+                        />
+                        {fieldErrors.username ? (
+                          <p className="text-sm text-red-600">{fieldErrors.username}</p>
+                        ) : null}
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium" htmlFor="password">{t('login.password')}</label>
+                        <div className="relative">
+                          <Input
+                            id="password"
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="current-password"
+                            value={password}
+                            onChange={(event) => {
+                              setPassword(event.target.value)
+                              if (fieldErrors.password) {
+                                setFieldErrors((current) => ({ ...current, password: undefined }))
+                              }
+                            }}
+                            placeholder={t('login.passwordPlaceholder')}
+                            className="pr-12"
+                            aria-invalid={fieldErrors.password ? 'true' : 'false'}
+                          />
+                          <button
+                            type="button"
+                            aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
+                            aria-pressed={showPassword}
+                            onClick={() => setShowPassword((current) => !current)}
+                            className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        {fieldErrors.password ? (
+                          <p className="text-sm text-red-600">{fieldErrors.password}</p>
+                        ) : null}
+                      </div>
+                      {loginMutation.error ? (
+                        <p className="text-sm text-red-600">{loginMutation.error.message}</p>
+                      ) : null}
+                      <Button className="w-full" disabled={loginMutation.isPending} type="submit">
+                        {loginMutation.isPending ? t('login.submitting') : t('login.submit')}
+                      </Button>
+                      <p className="text-center text-sm text-muted-foreground">
+                        {t('login.noAccount')}
+                        {' '}
+                        <Link
+                          to="/register"
+                          search={{ returnTo }}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {t('login.register')}
+                        </Link>
+                      </p>
+                    </form>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
-
-            <Tabs defaultValue={dingTalkRuntimeConfig.enabled && dingTalkMethod ? 'oauth' : 'password'} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="password">{t('login.tabPassword')}</TabsTrigger>
-                <TabsTrigger value="oauth">{t('login.tabOAuth')}</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="password">
-                <form className="space-y-4" onSubmit={handleSubmit}>
-                  {directAuthConfig.enabled ? (
-                    <p className="text-sm text-muted-foreground">
-                      {t('login.passwordCompatHint', {
-                        name: directMethod?.displayName ?? directAuthConfig.provider,
-                      })}
-                    </p>
-                  ) : null}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="username">{t('login.username')}</label>
-                    <Input
-                      id="username"
-                      autoComplete="username"
-                      value={username}
-                      onChange={(event) => {
-                        setUsername(event.target.value)
-                        if (fieldErrors.username) {
-                          setFieldErrors((current) => ({ ...current, username: undefined }))
-                        }
-                      }}
-                      placeholder={t('login.usernamePlaceholder')}
-                      aria-invalid={fieldErrors.username ? 'true' : 'false'}
-                    />
-                    {fieldErrors.username ? (
-                      <p className="text-sm text-red-600">{fieldErrors.username}</p>
-                    ) : null}
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium" htmlFor="password">{t('login.password')}</label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? 'text' : 'password'}
-                        autoComplete="current-password"
-                        value={password}
-                        onChange={(event) => {
-                          setPassword(event.target.value)
-                          if (fieldErrors.password) {
-                            setFieldErrors((current) => ({ ...current, password: undefined }))
-                          }
-                        }}
-                        placeholder={t('login.passwordPlaceholder')}
-                        className="pr-12"
-                        aria-invalid={fieldErrors.password ? 'true' : 'false'}
-                      />
-                      <button
-                        type="button"
-                        aria-label={showPassword ? t('login.hidePassword') : t('login.showPassword')}
-                        aria-pressed={showPassword}
-                        onClick={() => setShowPassword((current) => !current)}
-                        className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                    {fieldErrors.password ? (
-                      <p className="text-sm text-red-600">{fieldErrors.password}</p>
-                    ) : null}
-                  </div>
-                  {loginMutation.error ? (
-                    <p className="text-sm text-red-600">{loginMutation.error.message}</p>
-                  ) : null}
-                  <Button className="w-full" disabled={loginMutation.isPending} type="submit">
-                    {loginMutation.isPending ? t('login.submitting') : t('login.submit')}
-                  </Button>
-                  <p className="text-center text-sm text-muted-foreground">
-                    {t('login.noAccount')}
-                    {' '}
-                    <Link
-                      to="/register"
-                      search={{ returnTo }}
-                      className="font-medium text-primary hover:underline"
-                    >
-                      {t('login.register')}
-                    </Link>
-                  </p>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="oauth" className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  {t('login.oauthHint')}
-                </p>
-                <LoginButton returnTo={returnTo} />
-              </TabsContent>
-            </Tabs>
+            </div>
           </div>
         </div>
 
