@@ -48,7 +48,7 @@ clawhub login --token sk_your_api_token_here
 Optional local check:
 
 ```bash
-curl https://skillhub.your-company.com/.well-known/clawhub.json
+curl {{appBaseUrl}}/.well-known/clawhub.json
 ```
 
 Expected response:
