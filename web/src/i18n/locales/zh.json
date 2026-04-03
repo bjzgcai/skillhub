@@ -170,6 +170,12 @@
     "filters": {
       "label": "筛选:"
     },
+    "source": {
+      "label": "来源:",
+      "all": "全部",
+      "internal": "两院",
+      "clawhub": "ClawHub"
+    },
     "sort": {
       "label": "排序:",
       "relevance": "相关性",

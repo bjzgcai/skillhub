@@ -259,6 +259,7 @@ export interface SearchParams {
   q?: string
   namespace?: string
   label?: string
+  source?: 'all' | 'internal' | 'clawhub'
   sort?: string
   page?: number
   size?: number
