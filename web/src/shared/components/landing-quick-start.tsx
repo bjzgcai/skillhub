@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Bot, Check, Copy, UserRound } from 'lucide-react'
 import { useCopyToClipboard } from '@/shared/lib/clipboard'
@@ -10,6 +10,17 @@ interface LandingQuickStartTab {
   label: string
   description: string
   command: string
+}
+
+function getRegistrySkillDocUrl(): string {
+  if (typeof window === 'undefined') {
+    return 'https://skill.xfyun.cn/registry/skill.md'
+  }
+
+  const runtimeConfig = (window as unknown as Record<string, unknown>).__SKILLHUB_RUNTIME_CONFIG__ as { appBaseUrl?: string } | undefined
+  const baseUrl = runtimeConfig?.appBaseUrl || `${window.location.protocol}//${window.location.host}`
+  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+  return `${normalizedBaseUrl}/registry/skill.md`
 }
 
 function CompactCopyButton({ text }: { text: string }) {
@@ -44,12 +55,14 @@ export function LandingQuickStartSection() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<LandingQuickStartTabId>('agent')
 
+  const registrySkillDocUrl = useMemo(() => getRegistrySkillDocUrl(), [])
+
   const tabs: LandingQuickStartTab[] = [
     {
       id: 'agent',
       label: t('landing.quickStart.tabs.agent'),
       description: t('landing.quickStart.agent.description'),
-      command: t('landing.quickStart.agent.command'),
+      command: t('landing.quickStart.agent.command', { url: registrySkillDocUrl }),
     },
     {
       id: 'human',
