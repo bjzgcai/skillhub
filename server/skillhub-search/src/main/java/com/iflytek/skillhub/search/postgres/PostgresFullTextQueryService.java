@@ -111,6 +111,7 @@ public class PostgresFullTextQueryService implements SearchQueryService {
         sql.append("FROM skill_search_document d ");
         sql.append("JOIN skill s ON s.id = d.skill_id ");
         sql.append("JOIN namespace n ON n.id = d.namespace_id ");
+        sql.append("LEFT JOIN remote_mirror_record rmr ON rmr.skill_id = d.skill_id ");
         sql.append("WHERE 1=1 ");
 
         // Visibility filtering
@@ -134,6 +135,12 @@ public class PostgresFullTextQueryService implements SearchQueryService {
         // Namespace filtering
         if (query.namespaceId() != null) {
             sql.append("AND d.namespace_id = :namespaceId ");
+        }
+
+        if ("internal".equals(query.source())) {
+            sql.append("AND rmr.id IS NULL ");
+        } else if ("clawhub".equals(query.source())) {
+            sql.append("AND rmr.id IS NOT NULL AND LOWER(rmr.source_registry) = 'clawhub' ");
         }
 
         if (query.labelSlugs() != null && !query.labelSlugs().isEmpty()) {

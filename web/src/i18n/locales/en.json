@@ -170,6 +170,12 @@
     "filters": {
       "label": "Filter:"
     },
+    "source": {
+      "label": "Source:",
+      "all": "All",
+      "internal": "Internal",
+      "clawhub": "ClawHub"
+    },
     "sort": {
       "label": "Sort:",
       "relevance": "Relevance",

@@ -56,6 +56,7 @@ export function SearchPage() {
 
   const q = normalizeSearchQuery(searchParams.q || '')
   const selectedLabel = searchParams.label || ''
+  const selectedSource = searchParams.source || 'all'
   const sort = searchParams.sort || 'newest'
   const page = searchParams.page ?? 0
   const starredOnly = searchParams.starredOnly ?? false
@@ -68,6 +69,7 @@ export function SearchPage() {
   const { data, isLoading, isFetching } = useSearchSkills({
     q,
     label: selectedLabel || undefined,
+    source: selectedSource,
     sort,
     page,
     size: PAGE_SIZE,
@@ -90,39 +92,39 @@ export function SearchPage() {
 
     if (!normalizedQuery) {
       startTransition(() => {
-        navigate({ to: '/search', search: { q: '', label: selectedLabel, sort, page: 0, starredOnly }, replace: page === 0 })
+        navigate({ to: '/search', search: { q: '', label: selectedLabel, source: selectedSource, sort, page: 0, starredOnly }, replace: page === 0 })
       })
       return
     }
 
     const timeoutId = window.setTimeout(() => {
       startTransition(() => {
-        navigate({ to: '/search', search: { q: normalizedQuery, label: selectedLabel, sort, page: 0, starredOnly }, replace: true })
+        navigate({ to: '/search', search: { q: normalizedQuery, label: selectedLabel, source: selectedSource, sort, page: 0, starredOnly }, replace: true })
       })
     }, 250)
 
     return () => window.clearTimeout(timeoutId)
-  }, [navigate, page, q, queryInput, selectedLabel, sort, starredOnly])
+  }, [navigate, page, q, queryInput, selectedLabel, selectedSource, sort, starredOnly])
 
   const handleSearch = (query: string) => {
     const normalizedQuery = normalizeSearchQuery(query)
     setQueryInput(query)
     startTransition(() => {
-      navigate({ to: '/search', search: { q: normalizedQuery, label: selectedLabel, sort, page: 0, starredOnly }, replace: true })
+      navigate({ to: '/search', search: { q: normalizedQuery, label: selectedLabel, source: selectedSource, sort, page: 0, starredOnly }, replace: true })
     })
   }
 
   const handleSortChange = (newSort: string) => {
-    navigate({ to: '/search', search: { q, label: selectedLabel, sort: newSort, page: 0, starredOnly } })
+    navigate({ to: '/search', search: { q, label: selectedLabel, source: selectedSource, sort: newSort, page: 0, starredOnly } })
   }
 
   const handlePageChange = (newPage: number) => {
-    navigate({ to: '/search', search: { q, label: selectedLabel, sort, page: newPage, starredOnly } })
+    navigate({ to: '/search', search: { q, label: selectedLabel, source: selectedSource, sort, page: newPage, starredOnly } })
   }
 
   const handleLabelToggle = (label: string) => {
     const nextLabel = selectedLabel === label ? '' : label
-    navigate({ to: '/search', search: { q, label: nextLabel, sort, page: 0, starredOnly } })
+    navigate({ to: '/search', search: { q, label: nextLabel, source: selectedSource, sort, page: 0, starredOnly } })
   }
 
   const handleStarredToggle = () => {
@@ -136,7 +138,11 @@ export function SearchPage() {
       return
     }
 
-    navigate({ to: '/search', search: { q, label: selectedLabel, sort, page: 0, starredOnly: !starredOnly } })
+    navigate({ to: '/search', search: { q, label: selectedLabel, source: selectedSource, sort, page: 0, starredOnly: !starredOnly } })
+  }
+
+  const handleSourceChange = (source: 'all' | 'internal' | 'clawhub') => {
+    navigate({ to: '/search', search: { q, label: selectedLabel, source, sort, page: 0, starredOnly } })
   }
 
   const handleSkillClick = (namespace: string, slug: string) => {
@@ -215,7 +221,7 @@ export function SearchPage() {
           </div>
         ) : null}
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="text-sm font-medium text-muted-foreground">{t('search.filters.label')}</span>
           <Button
             variant={starredOnly ? 'default' : 'outline'}
@@ -224,6 +230,30 @@ export function SearchPage() {
           >
             {t('search.filterStarred')}
           </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">{t('search.source.label')}</span>
+            <Button
+              variant={selectedSource === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleSourceChange('all')}
+            >
+              {t('search.source.all')}
+            </Button>
+            <Button
+              variant={selectedSource === 'internal' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleSourceChange('internal')}
+            >
+              {t('search.source.internal')}
+            </Button>
+            <Button
+              variant={selectedSource === 'clawhub' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleSourceChange('clawhub')}
+            >
+              {t('search.source.clawhub')}
+            </Button>
+          </div>
           {!starredOnly && labels?.map((label) => (
             <Button
               key={label.slug}
