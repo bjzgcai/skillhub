@@ -60,6 +60,10 @@ type RuntimeConfig = {
   authSessionBootstrapEnabled?: string
   authSessionBootstrapProvider?: string
   authSessionBootstrapAuto?: string
+  authDingtalkEnabled?: string
+  authDingtalkProvider?: string
+  authDingtalkAuto?: string
+  authDingtalkCorpId?: string
 }
 
 declare global {
@@ -141,6 +145,13 @@ export type DirectAuthRuntimeConfig = {
   provider?: string
 }
 
+export type DingTalkRuntimeConfig = {
+  enabled: boolean
+  provider?: string
+  auto: boolean
+  corpId?: string
+}
+
 export function getDirectAuthRuntimeConfig(): DirectAuthRuntimeConfig {
   const config = getRuntimeConfig()
   const provider = config.authDirectProvider?.trim()
@@ -157,6 +168,18 @@ export function getSessionBootstrapRuntimeConfig(): SessionBootstrapRuntimeConfi
     enabled: parseBooleanFlag(config.authSessionBootstrapEnabled) && !!provider,
     provider: provider || undefined,
     auto: parseBooleanFlag(config.authSessionBootstrapAuto),
+  }
+}
+
+export function getDingTalkRuntimeConfig(): DingTalkRuntimeConfig {
+  const config = getRuntimeConfig()
+  const provider = config.authDingtalkProvider?.trim()
+  const corpId = config.authDingtalkCorpId?.trim()
+  return {
+    enabled: parseBooleanFlag(config.authDingtalkEnabled) && !!provider,
+    provider: provider || undefined,
+    auto: parseBooleanFlag(config.authDingtalkAuto),
+    corpId: corpId || undefined,
   }
 }
 
@@ -376,6 +399,16 @@ export const authApi = {
         username: request.username,
         password: request.password,
       }),
+    })
+  },
+
+  async dingTalkH5Login(code: string): Promise<User> {
+    return fetchJson<User>('/api/v1/auth/dingtalk/h5-login', {
+      method: 'POST',
+      headers: await ensureCsrfHeaders({
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify({ code }),
     })
   },
 }

@@ -107,7 +107,7 @@
       },
       "agent": {
         "description": "Send a prompt to your Agent to set up the SkillHub Registry",
-        "command": "Read https://www.example.com/registry/skill.md and follow the instructions to setup SkillHub Skills Registry"
+        "command": "Read {{url}} and follow the instructions to setup SkillHub Skills Registry"
       },
       "human": {
         "description": "Use the CLI tool to install Skills",
@@ -170,6 +170,12 @@
     "filters": {
       "label": "Filter:"
     },
+    "source": {
+      "label": "Source:",
+      "all": "All",
+      "internal": "Internal",
+      "clawhub": "ClawHub"
+    },
     "sort": {
       "label": "Sort:",
       "relevance": "Relevance",
@@ -198,6 +204,7 @@
     "subtitle": "Choose a method to continue",
     "tabPassword": "Password",
     "tabOAuth": "OAuth",
+    "otherLoginMethods": "Other sign-in options",
     "username": "Username",
     "password": "Password",
     "usernamePlaceholder": "Enter username",
@@ -211,6 +218,7 @@
     "noAccount": "Don't have an account?",
     "register": "Sign up now",
     "oauthHint": "After GitHub authentication, you will be automatically redirected back to this site.",
+    "dingtalkHint": "After signing in with DingTalk, you will be automatically redirected back to this site.",
     "passwordCompatHint": "This deployment has the password compatibility layer enabled. The form will route to {{name}} instead of the fixed local account endpoint.",
     "enterpriseSsoTitle": "Enterprise SSO",
     "enterpriseSsoHint": "This deployment has the compatibility layer enabled. If your browser already has a {{name}} session, you can try establishing a SkillHub session directly.",

@@ -168,10 +168,11 @@ class AuthControllerTest {
         mockMvc.perform(get("/api/v1/auth/methods").param("returnTo", "/dashboard/publish"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(0))
-            .andExpect(jsonPath("$.data[*].id", hasItems("local-password", "oauth-github", "oauth-gitee")))
-            .andExpect(jsonPath("$.data[?(@.id=='local-password')].methodType").value(hasItems("PASSWORD")))
-            .andExpect(jsonPath("$.data[?(@.id=='oauth-github')].actionUrl")
-                .value(hasItems("/oauth2/authorization/github?returnTo=%2Fdashboard%2Fpublish")));
+            .andExpect(jsonPath("$.data[*].id", hasItems("oauth-dingtalk")))
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[?(@.id=='oauth-dingtalk')].methodType").value(hasItems("OAUTH_REDIRECT")))
+            .andExpect(jsonPath("$.data[?(@.id=='oauth-dingtalk')].actionUrl")
+                .value(hasItems("/api/v1/auth/dingtalk/authorize?returnTo=%2Fdashboard%2Fpublish")));
     }
 
     @Test

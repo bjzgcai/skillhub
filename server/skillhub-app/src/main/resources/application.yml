@@ -70,6 +70,25 @@ skillhub:
       enabled: ${SKILLHUB_AUTH_DIRECT_ENABLED:false}
     session-bootstrap:
       enabled: ${SKILLHUB_AUTH_SESSION_BOOTSTRAP_ENABLED:false}
+    dingtalk:
+      enabled: ${SKILLHUB_AUTH_DINGTALK_ENABLED:false}
+      display-name: ${SKILLHUB_AUTH_DINGTALK_DISPLAY_NAME:DingTalk}
+      app-key: ${SKILLHUB_AUTH_DINGTALK_APP_KEY:}
+      app-secret: ${SKILLHUB_AUTH_DINGTALK_APP_SECRET:}
+      corp-id: ${SKILLHUB_AUTH_DINGTALK_CORP_ID:}
+      agent-id: ${SKILLHUB_AUTH_DINGTALK_AGENT_ID:}
+      redirect-uri: ${SKILLHUB_AUTH_DINGTALK_REDIRECT_URI:}
+      authorization-url: ${SKILLHUB_AUTH_DINGTALK_AUTHORIZATION_URL:https://login.dingtalk.com/oauth2/auth}
+      browser-user-token-url: ${SKILLHUB_AUTH_DINGTALK_BROWSER_USER_TOKEN_URL:https://api.dingtalk.com/v1.0/oauth2/userAccessToken}
+      browser-user-info-url: ${SKILLHUB_AUTH_DINGTALK_BROWSER_USER_INFO_URL:https://api.dingtalk.com/v1.0/contact/users/me}
+      app-token-url: ${SKILLHUB_AUTH_DINGTALK_APP_TOKEN_URL:https://api.dingtalk.com/v1.0/oauth2/accessToken}
+      h5-user-info-url: ${SKILLHUB_AUTH_DINGTALK_H5_USER_INFO_URL:https://oapi.dingtalk.com/topapi/v2/user/getuserinfo}
+      user-id-by-union-id-url: ${SKILLHUB_AUTH_DINGTALK_USER_ID_BY_UNION_ID_URL:https://oapi.dingtalk.com/topapi/user/getbyunionid}
+      user-detail-url: ${SKILLHUB_AUTH_DINGTALK_USER_DETAIL_URL:https://oapi.dingtalk.com/topapi/v2/user/get}
+      browser-scope: ${SKILLHUB_AUTH_DINGTALK_BROWSER_SCOPE:openid}
+      require-corp-membership: ${SKILLHUB_AUTH_DINGTALK_REQUIRE_CORP_MEMBERSHIP:true}
+      auto-provision-user: ${SKILLHUB_AUTH_DINGTALK_AUTO_PROVISION_USER:true}
+      auto-login-in-dingtalk: ${SKILLHUB_AUTH_DINGTALK_AUTO_LOGIN_IN_DINGTALK:false}
   public:
     base-url: ${SKILLHUB_PUBLIC_BASE_URL:}
   access-policy:

@@ -68,6 +68,7 @@ public class IdentityBindingService {
             }
 
             binding = new IdentityBinding(user.getId(), claims.provider(), claims.subject(), claims.providerLogin());
+            binding.setExtraJson(claims.extra());
             bindingRepo.save(binding);
         }
 
@@ -113,6 +114,7 @@ public class IdentityBindingService {
         user = userRepo.save(user);
 
         IdentityBinding binding = new IdentityBinding(user.getId(), claims.provider(), claims.subject(), claims.providerLogin());
+        binding.setExtraJson(claims.extra());
         bindingRepo.save(binding);
     }
 }
