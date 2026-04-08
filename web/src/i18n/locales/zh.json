@@ -107,7 +107,7 @@
       },
       "agent": {
         "description": "发送提示词给你的 Agent，以设置SkillHub Registry",
-        "command": "阅读 https://www.example.com/registry/skill.md，并按照说明完成 SkillHub Skills Registry 的配置"
+        "command": "阅读 {{url}}，并按照说明完成 SkillHub Skills Registry 的配置"
       },
       "human": {
         "description": "使用CLI工具安装Skills",
@@ -170,6 +170,12 @@
     "filters": {
       "label": "筛选:"
     },
+    "source": {
+      "label": "来源:",
+      "all": "全部",
+      "internal": "两院",
+      "clawhub": "ClawHub"
+    },
     "sort": {
       "label": "排序:",
       "relevance": "相关性",
@@ -198,6 +204,7 @@
     "subtitle": "选择一个方式登录以继续",
     "tabPassword": "账号密码",
     "tabOAuth": "OAuth",
+    "otherLoginMethods": "其他登录方式",
     "username": "用户名",
     "password": "密码",
     "usernamePlaceholder": "输入用户名",
@@ -211,6 +218,7 @@
     "noAccount": "还没有账号？",
     "register": "立即注册",
     "oauthHint": "使用 GitHub 登录时，认证完成后会自动返回当前站点。",
+    "dingtalkHint": "使用 DingTalk 登录时，认证完成后会自动返回当前站点。",
     "passwordCompatHint": "当前部署已启用账号密码兼容接入层。表单将路由到 {{name}}，而不是固定使用本地账号接口。",
     "enterpriseSsoTitle": "企业单点登录",
     "enterpriseSsoHint": "当前部署已启用兼容接入层。若浏览器中已存在 {{name}} 会话，可直接尝试建立 SkillHub 登录态。",

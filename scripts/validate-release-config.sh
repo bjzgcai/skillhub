@@ -113,6 +113,8 @@ validate_boolean SESSION_COOKIE_SECURE
 validate_boolean BOOTSTRAP_ADMIN_ENABLED
 validate_boolean SKILLHUB_STORAGE_S3_FORCE_PATH_STYLE
 validate_boolean SKILLHUB_STORAGE_S3_AUTO_CREATE_BUCKET
+validate_boolean SKILLHUB_AUTH_DINGTALK_ENABLED
+validate_boolean SKILLHUB_WEB_AUTH_DINGTALK_ENABLED
 
 validate_port POSTGRES_PORT
 validate_port REDIS_PORT
@@ -144,6 +146,20 @@ case "$storage_provider" in
     error "SKILLHUB_STORAGE_PROVIDER must be either local or s3"
     ;;
 esac
+
+require_non_empty SKILLHUB_AUTH_DINGTALK_APP_KEY
+require_non_empty SKILLHUB_AUTH_DINGTALK_APP_SECRET
+require_non_empty SKILLHUB_AUTH_DINGTALK_REDIRECT_URI
+validate_url SKILLHUB_AUTH_DINGTALK_REDIRECT_URI
+validate_no_trailing_slash SKILLHUB_AUTH_DINGTALK_REDIRECT_URI
+
+if [ "${SKILLHUB_AUTH_DINGTALK_ENABLED:-false}" != "true" ]; then
+  error "SKILLHUB_AUTH_DINGTALK_ENABLED must be true for this DingTalk-only deployment"
+fi
+
+if [ "${SKILLHUB_WEB_AUTH_DINGTALK_ENABLED:-false}" != "true" ]; then
+  error "SKILLHUB_WEB_AUTH_DINGTALK_ENABLED must be true for this DingTalk-only deployment"
+fi
 
 if [ -n "${SKILLHUB_WEB_API_BASE_URL:-}" ]; then
   validate_url SKILLHUB_WEB_API_BASE_URL

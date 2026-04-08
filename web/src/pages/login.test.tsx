@@ -23,11 +23,23 @@ vi.mock('lucide-react', () => ({
 }))
 
 vi.mock('@/api/client', () => ({
+  ApiError: class ApiError extends Error {
+    status = 0
+  },
+  getDingTalkRuntimeConfig: () => ({ enabled: false, auto: false }),
   getDirectAuthRuntimeConfig: () => ({ enabled: false }),
 }))
 
 vi.mock('@/features/auth/login-button', () => ({
   LoginButton: () => null,
+}))
+
+vi.mock('@/features/auth/use-dingtalk-h5-login', () => ({
+  useDingTalkH5Login: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+    error: null,
+  }),
 }))
 
 vi.mock('@/features/auth/session-bootstrap-entry', () => ({

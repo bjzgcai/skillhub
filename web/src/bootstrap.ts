@@ -24,6 +24,10 @@ function ensureRuntimeConfigFallback() {
     authSessionBootstrapEnabled: 'false',
     authSessionBootstrapProvider: '',
     authSessionBootstrapAuto: 'false',
+    authDingtalkEnabled: 'false',
+    authDingtalkProvider: '',
+    authDingtalkAuto: 'false',
+    authDingtalkCorpId: '',
   }
 }
 
