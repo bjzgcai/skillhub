@@ -59,6 +59,16 @@ export function Layout() {
     return pathname === to
   }
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handleHomeNavigation = () => {
+    window.requestAnimationFrame(() => {
+      scrollToTop()
+    })
+  }
+
   return (
     <div className="min-h-screen flex flex-col relative overflow-x-clip" style={{ background: 'var(--bg-page, hsl(var(--background)))' }}>
       {/* Decorative gradient orb */}
@@ -146,56 +156,21 @@ export function Layout() {
                 {t('layout.footerDescription')}
               </p>
             </div>
-            <div className="flex flex-wrap gap-12 md:gap-16">
-              <div>
-                <h4 className="text-sm font-semibold mb-3" style={{ color: 'hsl(var(--foreground))' }}>
-                  {t('nav.home')}
-                </h4>
-                <ul className="space-y-2 text-sm">
-                  <li>
-                    <Link to="/" className="hover:opacity-80 transition-opacity" style={{ color: 'hsl(var(--text-secondary))' }}>
-                      {t('nav.home')}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/search"
-                      search={{ q: '', sort: 'relevance', page: 0, starredOnly: false }}
-                      className="hover:opacity-80 transition-opacity"
-                      style={{ color: 'hsl(var(--text-secondary))' }}
-                    >
-                      {t('nav.search')}
-                    </Link>
-                  </li>
-                  <li>
-                    <Link to="/dashboard" className="hover:opacity-80 transition-opacity" style={{ color: 'hsl(var(--text-secondary))' }}>
-                      {t('nav.dashboard')}
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-sm font-semibold mb-3" style={{ color: 'hsl(var(--foreground))' }}>
-                  {t('footer.resources')}
-                </h4>
-                <ul className="space-y-2 text-sm">
-                  <li>
-                    <a href="#" className="hover:opacity-80 transition-opacity" style={{ color: 'hsl(var(--text-secondary))' }}>
-                      {t('footer.docs')}
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:opacity-80 transition-opacity" style={{ color: 'hsl(var(--text-secondary))' }}>
-                      {t('footer.api')}
-                    </a>
-                  </li>
-                  <li>
-                    <a href="#" className="hover:opacity-80 transition-opacity" style={{ color: 'hsl(var(--text-secondary))' }}>
-                      {t('footer.community')}
-                    </a>
-                  </li>
-                </ul>
-              </div>
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+              <Link to="/" onClick={handleHomeNavigation} className="hover:opacity-80 transition-opacity" style={{ color: 'hsl(var(--text-secondary))' }}>
+                {t('nav.home')}
+              </Link>
+              <Link
+                to="/search"
+                search={{ q: '', sort: 'relevance', page: 0, starredOnly: false }}
+                className="hover:opacity-80 transition-opacity"
+                style={{ color: 'hsl(var(--text-secondary))' }}
+              >
+                {t('nav.search')}
+              </Link>
+              <Link to="/dashboard" className="hover:opacity-80 transition-opacity" style={{ color: 'hsl(var(--text-secondary))' }}>
+                {t('nav.dashboard')}
+              </Link>
             </div>
           </div>
           <div

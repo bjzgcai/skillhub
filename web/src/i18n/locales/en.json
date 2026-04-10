@@ -137,9 +137,9 @@
     "browseSkills": "Browse Skills",
     "publishSkill": "Publish Skill",
     "popularTitle": "Popular Downloads",
-    "popularDescription": "Most popular skills in the community",
+    "popularDescription": "Most popular internal skills",
     "latestTitle": "Latest Releases",
-    "latestDescription": "Freshly published skills",
+    "latestDescription": "Newly published internal skills",
     "viewAll": "View All →",
     "quickStart": {
       "title": "Quick Start",

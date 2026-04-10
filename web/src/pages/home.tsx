@@ -6,6 +6,7 @@ import { SkeletonList } from '@/shared/components/skeleton-loader'
 import { QuickStartSection } from '@/shared/components/quick-start'
 import { useSearchSkills } from '@/shared/hooks/use-skill-queries'
 import { normalizeSearchQuery } from '@/shared/lib/search-query'
+import { buildHomeSearchParams, HOME_DISCOVERY_SOURCE } from '@/shared/lib/home-discovery'
 import { Button } from '@/shared/ui/button'
 
 export function HomePage() {
@@ -13,17 +14,19 @@ export function HomePage() {
   const navigate = useNavigate()
 
   const { data: popularSkills, isLoading: isLoadingPopular } = useSearchSkills({
+    source: HOME_DISCOVERY_SOURCE,
     sort: 'downloads',
     size: 6,
   })
 
   const { data: latestSkills, isLoading: isLoadingLatest } = useSearchSkills({
+    source: HOME_DISCOVERY_SOURCE,
     sort: 'newest',
     size: 6,
   })
 
   const handleSearch = (query: string) => {
-    navigate({ to: '/search', search: { q: normalizeSearchQuery(query), sort: 'relevance', page: 0, starredOnly: false } })
+    navigate({ to: '/search', search: buildHomeSearchParams('relevance', normalizeSearchQuery(query)) })
   }
 
   const handleSkillClick = (namespace: string, slug: string) => {
@@ -53,7 +56,7 @@ export function HomePage() {
         <div className="flex items-center justify-center gap-4 animate-fade-up delay-2">
           <button
             className="px-8 py-3.5 rounded-xl text-base font-medium text-white bg-brand-gradient shadow-sm hover:opacity-95 transition-opacity"
-            onClick={() => navigate({ to: '/search', search: { q: '', sort: 'relevance', page: 0, starredOnly: false } })}
+            onClick={() => navigate({ to: '/search', search: buildHomeSearchParams('relevance') })}
           >
             {t('home.browseSkills')}
           </button>
@@ -78,7 +81,7 @@ export function HomePage() {
           </div>
           <Button
             variant="ghost"
-            onClick={() => navigate({ to: '/search', search: { q: '', sort: 'downloads', page: 0, starredOnly: false } })}
+            onClick={() => navigate({ to: '/search', search: buildHomeSearchParams('downloads') })}
           >
             {t('home.viewAll')}
           </Button>
@@ -110,7 +113,7 @@ export function HomePage() {
           </div>
           <Button
             variant="ghost"
-            onClick={() => navigate({ to: '/search', search: { q: '', sort: 'newest', page: 0, starredOnly: false } })}
+            onClick={() => navigate({ to: '/search', search: buildHomeSearchParams('newest') })}
           >
             {t('home.viewAll')}
           </Button>
