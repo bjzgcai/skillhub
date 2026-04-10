@@ -7,6 +7,7 @@ import { SkillCard } from '@/features/skill/skill-card'
 import { SkeletonList } from '@/shared/components/skeleton-loader'
 import { useSearchSkills } from '@/shared/hooks/use-skill-queries'
 import { useInView } from '@/shared/hooks/use-in-view'
+import { buildHomeSearchParams, HOME_DISCOVERY_SOURCE } from '@/shared/lib/home-discovery'
 import { Button } from '@/shared/ui/button'
 
 /**
@@ -20,11 +21,13 @@ export function LandingPage() {
   const navigate = useNavigate()
 
   const { data: popularSkills, isLoading: isLoadingPopular } = useSearchSkills({
+    source: HOME_DISCOVERY_SOURCE,
     sort: 'downloads',
     size: 6,
   })
 
   const { data: latestSkills, isLoading: isLoadingLatest } = useSearchSkills({
+    source: HOME_DISCOVERY_SOURCE,
     sort: 'newest',
     size: 6,
   })
@@ -42,7 +45,7 @@ export function LandingPage() {
     const normalized = normalizeSearchQuery(query)
     navigate({
       to: '/search',
-      search: { q: normalized, sort: 'relevance', page: 0, starredOnly: false },
+      search: buildHomeSearchParams('relevance', normalized),
     })
   }
 
@@ -91,7 +94,7 @@ export function LandingPage() {
         <div className="flex flex-wrap justify-center gap-4 mb-14">
           <Link
             to="/search"
-            search={{ q: '', sort: 'relevance', page: 0, starredOnly: false }}
+            search={buildHomeSearchParams('relevance')}
             className="px-8 py-3.5 rounded-xl text-base font-medium text-white bg-brand-gradient shadow-sm hover:opacity-95 transition-opacity"
           >
             {t('landing.hero.exploreSkills')}
@@ -123,7 +126,7 @@ export function LandingPage() {
             </div>
             <Button
               variant="ghost"
-              onClick={() => navigate({ to: '/search', search: { q: '', sort: 'downloads', page: 0, starredOnly: false } })}
+              onClick={() => navigate({ to: '/search', search: buildHomeSearchParams('downloads') })}
             >
               {t('home.viewAll')}
             </Button>
@@ -157,7 +160,7 @@ export function LandingPage() {
             </div>
             <Button
               variant="ghost"
-              onClick={() => navigate({ to: '/search', search: { q: '', sort: 'newest', page: 0, starredOnly: false } })}
+              onClick={() => navigate({ to: '/search', search: buildHomeSearchParams('newest') })}
             >
               {t('home.viewAll')}
             </Button>
