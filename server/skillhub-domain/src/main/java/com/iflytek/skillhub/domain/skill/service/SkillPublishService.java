@@ -26,6 +26,8 @@ import com.iflytek.skillhub.storage.ObjectStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -85,6 +87,7 @@ public class SkillPublishService {
     private final SkillStorageDeletionCompensationService compensationService;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
+    private final boolean reviewRequired;
 
     public SkillPublishService(
             NamespaceRepository namespaceRepository,
@@ -102,6 +105,44 @@ public class SkillPublishService {
             SkillStorageDeletionCompensationService compensationService,
             ApplicationEventPublisher eventPublisher,
             Clock clock) {
+        this(
+                namespaceRepository,
+                namespaceMemberRepository,
+                skillRepository,
+                skillVersionRepository,
+                skillFileRepository,
+                objectStorageService,
+                skillPackageValidator,
+                skillMetadataParser,
+                prePublishValidator,
+                objectMapper,
+                reviewTaskRepository,
+                securityScanService,
+                compensationService,
+                eventPublisher,
+                clock,
+                true
+        );
+    }
+
+    @Autowired
+    public SkillPublishService(
+            NamespaceRepository namespaceRepository,
+            NamespaceMemberRepository namespaceMemberRepository,
+            SkillRepository skillRepository,
+            SkillVersionRepository skillVersionRepository,
+            SkillFileRepository skillFileRepository,
+            ObjectStorageService objectStorageService,
+            SkillPackageValidator skillPackageValidator,
+            SkillMetadataParser skillMetadataParser,
+            PrePublishValidator prePublishValidator,
+            ObjectMapper objectMapper,
+            ReviewTaskRepository reviewTaskRepository,
+            SecurityScanService securityScanService,
+            SkillStorageDeletionCompensationService compensationService,
+            ApplicationEventPublisher eventPublisher,
+            Clock clock,
+            @Value("${skillhub.publish.review-required:true}") boolean reviewRequired) {
         this.namespaceRepository = namespaceRepository;
         this.namespaceMemberRepository = namespaceMemberRepository;
         this.skillRepository = skillRepository;
@@ -117,6 +158,7 @@ public class SkillPublishService {
         this.compensationService = compensationService;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
+        this.reviewRequired = reviewRequired;
     }
 
     /**
@@ -312,7 +354,7 @@ public class SkillPublishService {
         // 8. Create SkillVersion
         SkillVersion version = new SkillVersion(skill.getId(), metadata.version(), publisherId);
         version.setRequestedVisibility(visibility);
-        boolean autoPublish = forceAutoPublish || isSuperAdmin;
+        boolean autoPublish = forceAutoPublish || isSuperAdmin || !reviewRequired;
         if (autoPublish) {
             version.setStatus(SkillVersionStatus.PUBLISHED);
             version.setPublishedAt(currentTime());
