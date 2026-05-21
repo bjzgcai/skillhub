@@ -6,10 +6,10 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        display: ['Inter', 'system-ui', 'sans-serif'],
-        heading: ['Inter', 'system-ui', 'sans-serif'],
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        display: ['Source Han Sans SC', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+        heading: ['Source Han Sans SC', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+        sans: ['Source Han Sans SC', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'sans-serif'],
+        mono: ['JetBrains Mono', 'SFMono-Regular', 'Consolas', 'ui-monospace', 'monospace'],
       },
       borderRadius: {
         lg: 'var(--radius)',
