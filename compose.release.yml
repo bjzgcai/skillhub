@@ -31,7 +31,8 @@ services:
       retries: 10
 
   server:
-    image: ${SKILLHUB_SERVER_IMAGE:-ghcr.io/iflytek/skillhub-server}:${SKILLHUB_VERSION:-latest}
+    image: ${SKILLHUB_SERVER_IMAGE:-skillhub-server}:${SKILLHUB_VERSION:-latest}
+    pull_policy: never
     restart: unless-stopped
     ports:
       - "${API_PORT:-8080}:8080"
@@ -90,7 +91,8 @@ services:
       start_period: 60s
 
   web:
-    image: ${SKILLHUB_WEB_IMAGE:-ghcr.io/iflytek/skillhub-web}:${SKILLHUB_VERSION:-latest}
+    image: ${SKILLHUB_WEB_IMAGE:-skillhub-web}:${SKILLHUB_VERSION:-latest}
+    pull_policy: never
     restart: unless-stopped
     ports:
       - "${WEB_PORT:-80}:80"
