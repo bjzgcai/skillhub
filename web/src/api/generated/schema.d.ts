@@ -532,6 +532,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/skills/{namespace}/publish/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewDisplayMetadata"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/web/skills/{namespace}/publish/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["previewDisplayMetadata_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/web/skills/{namespace}/publish": {
         parameters: {
             query?: never;
@@ -2804,6 +2836,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/dingtalk/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["config"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/users": {
         parameters: {
             query?: never;
@@ -3273,6 +3321,21 @@ export interface components {
         AdminSkillActionRequest: {
             reason?: string;
         };
+        ApiResponsePublishDisplayMetadataPreviewResponse: {
+            /** Format: int32 */
+            code?: number;
+            msg?: string;
+            data?: components["schemas"]["PublishDisplayMetadataPreviewResponse"];
+            /** Format: date-time */
+            timestamp?: string;
+            requestId?: string;
+        };
+        PublishDisplayMetadataPreviewResponse: {
+            slug?: string;
+            existingSkill?: boolean;
+            displayName?: string;
+            summary?: string;
+        };
         ApiResponsePublishResponse: {
             /** Format: int32 */
             code?: number;
@@ -3650,6 +3713,11 @@ export interface components {
             version?: string;
             status?: string;
         };
+        SkillOwnerResponse: {
+            displayName?: string;
+            avatarUrl?: string;
+            dingtalkUserId?: string;
+        };
         SkillSummaryResponse: {
             /** Format: int64 */
             id?: number;
@@ -3665,6 +3733,8 @@ export interface components {
             /** Format: int32 */
             ratingCount?: number;
             namespace?: string;
+            owner?: components["schemas"]["SkillOwnerResponse"];
+            labels?: components["schemas"]["SkillLabelDto"][];
             /** Format: date-time */
             updatedAt?: string;
             canSubmitPromotion?: boolean;
@@ -4400,6 +4470,17 @@ export interface components {
             provider?: string;
             displayName?: string;
             actionUrl?: string;
+        };
+        ApiResponseMapStringObject: {
+            /** Format: int32 */
+            code?: number;
+            msg?: string;
+            data?: {
+                [key: string]: Record<string, never>;
+            };
+            /** Format: date-time */
+            timestamp?: string;
+            requestId?: string;
         };
         AdminUserSummaryResponse: {
             id?: string;
@@ -5720,10 +5801,70 @@ export interface operations {
             };
         };
     };
+    previewDisplayMetadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePublishDisplayMetadataPreviewResponse"];
+                };
+            };
+        };
+    };
+    previewDisplayMetadata_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePublishDisplayMetadataPreviewResponse"];
+                };
+            };
+        };
+    };
     publish: {
         parameters: {
             query: {
                 visibility: string;
+                displayName?: string;
+                summary?: string;
             };
             header?: never;
             path: {
@@ -5755,6 +5896,8 @@ export interface operations {
         parameters: {
             query: {
                 visibility: string;
+                displayName?: string;
+                summary?: string;
             };
             header?: never;
             path: {
@@ -7485,6 +7628,7 @@ export interface operations {
                 q?: string;
                 namespace?: string;
                 label?: string[];
+                source?: string;
                 sort?: string;
                 page?: number;
                 size?: number;
@@ -9491,6 +9635,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseAuthMeResponse"];
+                };
+            };
+        };
+    };
+    config: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
                 };
             };
         };

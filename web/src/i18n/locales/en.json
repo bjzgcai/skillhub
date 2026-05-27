@@ -1176,7 +1176,24 @@
     "precheckFailedDescription": "The package appears to contain a secret, token, or password. Replace real credentials with placeholders and try again.",
     "frontmatterFailedTitle": "SKILL.md format is invalid",
     "frontmatterFailedDescription": "Please check the YAML frontmatter at the top of SKILL.md. If a field value contains a colon, wrap it in quotes.",
-    "selectRequired": "Please select namespace and file"
+    "selectRequired": "Please select namespace and file",
+    "displayGuidance": {
+      "title": "Chinese display metadata powers skill cards",
+      "description": "When publishing or updating a skill, fill the page fields for Chinese display name and summary; keep name as the stable English slug.",
+      "nameRule": "Existing skills automatically reuse their historical Chinese display name and summary, which you can adjust for this publish.",
+      "descriptionRule": "New skills start empty. Add a 30-80 character Chinese summary explaining what users can accomplish.",
+      "bodyRule": "If left blank, the backend falls back to name and description from SKILL.md.",
+      "example": "SKILL.md only needs standard fields:\n---\nname: canteen-assistant\ndescription: Query canteen menus and feedback.\nversion: 1.0.0\n---"
+    },
+    "displayName": "Chinese display name (optional)",
+    "displayNamePlaceholder": "Example: 食堂助手",
+    "summary": "Chinese summary (optional)",
+    "summaryPlaceholder": "30-80 Chinese characters explaining what users can accomplish",
+    "displayMetadataPreview": {
+      "loading": "Reading the package to check whether existing Chinese display metadata can be reused...",
+      "existing": "Recognized existing skill {{slug}}. Historical Chinese display name and summary have been filled in; you can adjust them for this publish.",
+      "new": "Recognized a new skill. Add a Chinese display name and summary so cards and search results read clearly."
+    }
   },
   "toast": {
     "success": "Success",

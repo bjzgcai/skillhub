@@ -284,6 +284,13 @@ export interface PublishResult {
   totalSize: number
 }
 
+export interface PublishDisplayMetadataPreview {
+  slug: string
+  existingSkill: boolean
+  displayName: string
+  summary: string
+}
+
 export interface SkillDeleteResult {
   skillId?: number
   namespace?: string

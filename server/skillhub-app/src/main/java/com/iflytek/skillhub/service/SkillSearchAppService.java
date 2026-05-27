@@ -1,5 +1,12 @@
 package com.iflytek.skillhub.service;
 
+import com.iflytek.skillhub.auth.entity.IdentityBinding;
+import com.iflytek.skillhub.auth.repository.IdentityBindingRepository;
+import com.iflytek.skillhub.domain.label.LabelDefinition;
+import com.iflytek.skillhub.domain.label.LabelDefinitionService;
+import com.iflytek.skillhub.domain.label.LabelTranslation;
+import com.iflytek.skillhub.domain.label.SkillLabel;
+import com.iflytek.skillhub.domain.label.SkillLabelRepository;
 import com.iflytek.skillhub.domain.namespace.NamespaceRole;
 import com.iflytek.skillhub.domain.namespace.Namespace;
 import com.iflytek.skillhub.domain.namespace.NamespaceRepository;
@@ -7,6 +14,10 @@ import com.iflytek.skillhub.domain.namespace.NamespaceService;
 import com.iflytek.skillhub.domain.skill.Skill;
 import com.iflytek.skillhub.domain.skill.SkillRepository;
 import com.iflytek.skillhub.domain.skill.service.SkillLifecycleProjectionService;
+import com.iflytek.skillhub.domain.user.UserAccount;
+import com.iflytek.skillhub.domain.user.UserAccountRepository;
+import com.iflytek.skillhub.dto.SkillLabelDto;
+import com.iflytek.skillhub.dto.SkillOwnerResponse;
 import com.iflytek.skillhub.dto.SkillSummaryResponse;
 import com.iflytek.skillhub.search.SearchQuery;
 import com.iflytek.skillhub.search.SearchQueryService;
@@ -31,23 +42,41 @@ import java.util.stream.Collectors;
 @Service
 public class SkillSearchAppService {
 
+    private record LabelSummary(LabelDefinition definition, List<LabelTranslation> translations) {
+    }
+
     private final SearchQueryService searchQueryService;
     private final SkillRepository skillRepository;
     private final NamespaceRepository namespaceRepository;
     private final NamespaceService namespaceService;
     private final SkillLifecycleProjectionService skillLifecycleProjectionService;
+    private final UserAccountRepository userAccountRepository;
+    private final SkillLabelRepository skillLabelRepository;
+    private final LabelDefinitionService labelDefinitionService;
+    private final LabelLocalizationService labelLocalizationService;
+    private final IdentityBindingRepository identityBindingRepository;
 
     public SkillSearchAppService(
             SearchQueryService searchQueryService,
             SkillRepository skillRepository,
             NamespaceRepository namespaceRepository,
             NamespaceService namespaceService,
-            SkillLifecycleProjectionService skillLifecycleProjectionService) {
+            SkillLifecycleProjectionService skillLifecycleProjectionService,
+            UserAccountRepository userAccountRepository,
+            SkillLabelRepository skillLabelRepository,
+            LabelDefinitionService labelDefinitionService,
+            LabelLocalizationService labelLocalizationService,
+            IdentityBindingRepository identityBindingRepository) {
         this.searchQueryService = searchQueryService;
         this.skillRepository = skillRepository;
         this.namespaceRepository = namespaceRepository;
         this.namespaceService = namespaceService;
         this.skillLifecycleProjectionService = skillLifecycleProjectionService;
+        this.userAccountRepository = userAccountRepository;
+        this.skillLabelRepository = skillLabelRepository;
+        this.labelDefinitionService = labelDefinitionService;
+        this.labelLocalizationService = labelLocalizationService;
+        this.identityBindingRepository = identityBindingRepository;
     }
 
     public record SearchResponse(
@@ -189,18 +218,118 @@ public class SkillSearchAppService {
                 .collect(Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().getSlug()));
         Map<Long, SkillLifecycleProjectionService.Projection> projectionsBySkillId =
                 skillLifecycleProjectionService.projectPublishedSummaries(matchedSkills);
+        Map<String, SkillOwnerResponse> ownersByUserId = buildOwnersByUserId(matchedSkills);
+        Map<Long, List<SkillLabelDto>> labelsBySkillId = buildLabelsBySkillId(skillIds);
 
         return skillIds.stream()
                 .map(skillsById::get)
                 .filter(java.util.Objects::nonNull)
-                .map(skill -> toSummaryResponse(skill, namespaceSlugsById, projectionsBySkillId.get(skill.getId())))
+                .map(skill -> toSummaryResponse(
+                        skill,
+                        namespaceSlugsById,
+                        projectionsBySkillId.get(skill.getId()),
+                        ownersByUserId.get(skill.getOwnerId()),
+                        labelsBySkillId.getOrDefault(skill.getId(), List.of())))
                 .toList();
+    }
+
+    private Map<String, SkillOwnerResponse> buildOwnersByUserId(List<Skill> matchedSkills) {
+        List<String> ownerIds = matchedSkills.stream()
+                .map(Skill::getOwnerId)
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .toList();
+        if (ownerIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, UserAccount> usersById = userAccountRepository.findByIdIn(ownerIds).stream()
+                .collect(Collectors.toMap(UserAccount::getId, Function.identity()));
+        Map<String, String> dingtalkUserIdsByUserId = identityBindingRepository
+                .findByProviderCodeAndUserIdIn("dingtalk", ownerIds)
+                .stream()
+                .map(binding -> new java.util.AbstractMap.SimpleImmutableEntry<>(
+                        binding.getUserId(),
+                        resolveDingtalkUserId(binding)))
+                .filter(entry -> entry.getValue() != null && !entry.getValue().isBlank())
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        Map.Entry::getValue,
+                        (left, right) -> left));
+
+        return ownerIds.stream()
+                .collect(Collectors.toMap(
+                        Function.identity(),
+                        userId -> toOwnerResponse(usersById.get(userId), dingtalkUserIdsByUserId.get(userId))));
+    }
+
+    private SkillOwnerResponse toOwnerResponse(UserAccount user, String dingtalkUserId) {
+        return new SkillOwnerResponse(
+                user != null ? user.getDisplayName() : null,
+                user != null ? user.getAvatarUrl() : null,
+                dingtalkUserId
+        );
+    }
+
+    private String resolveDingtalkUserId(IdentityBinding binding) {
+        if (binding.getExtraJson() == null) {
+            return null;
+        }
+        Object userId = binding.getExtraJson().get("userid");
+        return userId == null ? null : userId.toString();
+    }
+
+    private Map<Long, List<SkillLabelDto>> buildLabelsBySkillId(List<Long> skillIds) {
+        List<SkillLabel> skillLabels = skillLabelRepository.findBySkillIdIn(skillIds);
+        if (skillLabels.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> labelIds = skillLabels.stream()
+                .map(SkillLabel::getLabelId)
+                .distinct()
+                .toList();
+        Map<Long, LabelSummary> labelsById = labelDefinitionService.listByIds(labelIds).stream()
+                .collect(Collectors.toMap(
+                        LabelDefinition::getId,
+                        definition -> new LabelSummary(definition, List.of())));
+        Map<Long, List<LabelTranslation>> translationsByLabelId = labelDefinitionService.listTranslationsByLabelIds(labelIds);
+        labelsById = labelsById.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> new LabelSummary(
+                                entry.getValue().definition(),
+                                translationsByLabelId.getOrDefault(entry.getKey(), List.of()))));
+
+        Map<Long, LabelSummary> finalLabelsById = labelsById;
+        return skillLabels.stream()
+                .map(skillLabel -> new java.util.AbstractMap.SimpleImmutableEntry<>(
+                        skillLabel,
+                        finalLabelsById.get(skillLabel.getLabelId())))
+                .filter(entry -> entry.getValue() != null)
+                .collect(Collectors.groupingBy(
+                        entry -> entry.getKey().getSkillId(),
+                        Collectors.collectingAndThen(Collectors.toList(), labels -> labels.stream()
+                                .map(Map.Entry::getValue)
+                                .sorted(java.util.Comparator
+                                        .comparingInt((LabelSummary label) -> label.definition().getSortOrder())
+                                        .thenComparing(label -> label.definition().getSlug()))
+                                .map(label -> toLabelDto(label.definition(), label.translations()))
+                                .toList())));
+    }
+
+    private SkillLabelDto toLabelDto(LabelDefinition definition, List<LabelTranslation> translations) {
+        return new SkillLabelDto(
+                definition.getSlug(),
+                definition.getType().name(),
+                labelLocalizationService.resolveDisplayName(definition.getSlug(), translations)
+        );
     }
 
     private SkillSummaryResponse toSummaryResponse(
             Skill skill,
             Map<Long, String> namespaceSlugsById,
-            SkillLifecycleProjectionService.Projection projection) {
+            SkillLifecycleProjectionService.Projection projection,
+            SkillOwnerResponse owner,
+            List<SkillLabelDto> labels) {
         String namespaceSlug = namespaceSlugsById.get(skill.getNamespaceId());
 
         return new SkillSummaryResponse(
@@ -214,6 +343,8 @@ public class SkillSearchAppService {
                 skill.getRatingAvg(),
                 skill.getRatingCount(),
                 namespaceSlug,
+                owner,
+                labels,
                 skill.getUpdatedAt(),
                 false,
                 toLifecycleVersion(projection.headlineVersion()),

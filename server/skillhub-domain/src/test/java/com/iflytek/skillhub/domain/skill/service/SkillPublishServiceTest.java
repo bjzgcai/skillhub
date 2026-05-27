@@ -177,6 +177,128 @@ class SkillPublishServiceTest {
     }
 
     @Test
+    void testPublishFromEntries_ShouldUseRequestDisplayMetadataForCardText() throws Exception {
+        String namespaceSlug = "test-ns";
+        String publisherId = "user-100";
+        String skillMdContent = """
+                ---
+                name: canteen-assistant
+                description: Query canteen menus and feedback.
+                version: 1.0.0
+                ---
+                Body
+                """;
+
+        PackageEntry skillMd = new PackageEntry("SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown");
+        List<PackageEntry> entries = List.of(skillMd);
+
+        Namespace namespace = new Namespace(namespaceSlug, "Test NS", "user-1");
+        setId(namespace, 1L);
+        SkillMetadata metadata = new SkillMetadata(
+                "canteen-assistant",
+                "Query canteen menus and feedback.",
+                "1.0.0",
+                "Body",
+                Map.of(
+                        "name", "canteen-assistant",
+                        "description", "Query canteen menus and feedback.",
+                        "version", "1.0.0"
+                ));
+
+        Skill skill = new Skill(1L, "canteen-assistant", publisherId, SkillVisibility.PUBLIC);
+        setId(skill, 1L);
+        when(namespaceRepository.findBySlug(namespaceSlug)).thenReturn(Optional.of(namespace));
+        when(skillPackageValidator.validate(entries)).thenReturn(ValidationResult.pass());
+        when(skillMetadataParser.parse(skillMdContent)).thenReturn(metadata);
+        when(prePublishValidator.validate(any())).thenReturn(ValidationResult.pass());
+        when(skillRepository.findByNamespaceIdAndSlug(any(), eq("canteen-assistant"))).thenReturn(List.of(skill));
+        when(skillRepository.findByNamespaceIdAndSlugAndOwnerId(any(), eq("canteen-assistant"), eq(publisherId))).thenReturn(Optional.of(skill));
+        when(skillVersionRepository.findBySkillIdAndVersion(any(), eq("1.0.0"))).thenReturn(Optional.empty());
+        when(skillVersionRepository.save(any(SkillVersion.class))).thenAnswer(invocation -> {
+            SkillVersion saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                setId(saved, 10L);
+            }
+            return saved;
+        });
+        when(skillRepository.save(any())).thenReturn(skill);
+
+        service.publishFromEntries(
+                namespaceSlug,
+                entries,
+                publisherId,
+                SkillVisibility.PUBLIC,
+                Set.of("SUPER_ADMIN"),
+                "食堂助手",
+                "查询每日菜单、菜品评分和用餐反馈，支持食堂建议提交与用餐数据分析。");
+
+        assertEquals("食堂助手", skill.getDisplayName());
+        assertEquals("查询每日菜单、菜品评分和用餐反馈，支持食堂建议提交与用餐数据分析。", skill.getSummary());
+    }
+
+    @Test
+    void testPublishFromEntries_ShouldStoreRequestDisplayMetadataWithoutUpdatingSkillBeforeReview() throws Exception {
+        String namespaceSlug = "test-ns";
+        String publisherId = "user-100";
+        String skillMdContent = """
+                ---
+                name: canteen-assistant
+                description: Query canteen menus and feedback.
+                version: 1.0.0
+                ---
+                Body
+                """;
+
+        PackageEntry skillMd = new PackageEntry("SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown");
+        List<PackageEntry> entries = List.of(skillMd);
+
+        Namespace namespace = new Namespace(namespaceSlug, "Test NS", "user-1");
+        setId(namespace, 1L);
+        NamespaceMember member = mock(NamespaceMember.class);
+        SkillMetadata metadata = new SkillMetadata(
+                "canteen-assistant",
+                "Query canteen menus and feedback.",
+                "1.0.0",
+                "Body",
+                Map.of("name", "canteen-assistant", "description", "Query canteen menus and feedback.", "version", "1.0.0"));
+
+        Skill skill = new Skill(1L, "canteen-assistant", publisherId, SkillVisibility.PUBLIC);
+        setId(skill, 1L);
+        skill.setDisplayName("历史展示名");
+        skill.setSummary("历史中文描述");
+        when(namespaceRepository.findBySlug(namespaceSlug)).thenReturn(Optional.of(namespace));
+        when(namespaceMemberRepository.findByNamespaceIdAndUserId(any(), eq(publisherId))).thenReturn(Optional.of(member));
+        when(skillPackageValidator.validate(entries)).thenReturn(ValidationResult.pass());
+        when(skillMetadataParser.parse(skillMdContent)).thenReturn(metadata);
+        when(prePublishValidator.validate(any())).thenReturn(ValidationResult.pass());
+        when(skillRepository.findByNamespaceIdAndSlug(any(), eq("canteen-assistant"))).thenReturn(List.of(skill));
+        when(skillRepository.findByNamespaceIdAndSlugAndOwnerId(any(), eq("canteen-assistant"), eq(publisherId))).thenReturn(Optional.of(skill));
+        when(skillVersionRepository.findBySkillIdAndVersion(any(), eq("1.0.0"))).thenReturn(Optional.empty());
+        when(skillVersionRepository.save(any(SkillVersion.class))).thenAnswer(invocation -> {
+            SkillVersion saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                setId(saved, 10L);
+            }
+            return saved;
+        });
+        when(skillRepository.save(any())).thenReturn(skill);
+
+        SkillPublishService.PublishResult result = service.publishFromEntries(
+                namespaceSlug,
+                entries,
+                publisherId,
+                SkillVisibility.PUBLIC,
+                Set.of(),
+                "食堂助手",
+                "查询每日菜单、菜品评分和用餐反馈，支持食堂建议提交与用餐数据分析。");
+
+        assertEquals("历史展示名", skill.getDisplayName());
+        assertEquals("历史中文描述", skill.getSummary());
+        assertTrue(result.version().getParsedMetadataJson().contains("displayName"));
+        assertTrue(result.version().getParsedMetadataJson().contains("食堂助手"));
+    }
+
+    @Test
     void testPublishFromEntries_ShouldReplaceDraftVersionWithSameVersion() throws Exception {
         String namespaceSlug = "test-ns";
         String publisherId = "user-100";
@@ -676,11 +798,9 @@ class SkillPublishServiceTest {
 
         Namespace namespace = new Namespace(namespaceSlug, "Test NS", "user-1");
         setId(namespace, 1L);
-        NamespaceMember member = mock(NamespaceMember.class);
         SkillMetadata metadata = new SkillMetadata("Too Long Skill", longDescription, "1.0.0", "Body", Map.of());
 
         when(namespaceRepository.findBySlug(namespaceSlug)).thenReturn(Optional.of(namespace));
-        when(namespaceMemberRepository.findByNamespaceIdAndUserId(any(), eq(publisherId))).thenReturn(Optional.of(member));
         when(skillPackageValidator.validate(entries)).thenReturn(ValidationResult.pass());
         when(skillMetadataParser.parse(skillMdContent)).thenReturn(metadata);
         when(prePublishValidator.validate(any())).thenReturn(ValidationResult.pass());
@@ -703,11 +823,11 @@ class SkillPublishServiceTest {
                 entries,
                 publisherId,
                 SkillVisibility.PUBLIC,
-                Set.of()
+                Set.of("SUPER_ADMIN")
         );
 
         assertEquals(longDescription, skill.getSummary());
-        assertEquals(SkillVersionStatus.PENDING_REVIEW, result.version().getStatus());
+        assertEquals(SkillVersionStatus.PUBLISHED, result.version().getStatus());
         verify(prePublishValidator).validate(any());
         verify(skillRepository).save(skill);
     }

@@ -37,10 +37,10 @@ describe('i18n config', () => {
     expect(useMock).toHaveBeenCalledTimes(2)
   })
 
-  it('calls init with the english fallback language', () => {
+  it('calls init with the chinese fallback language', () => {
     expect(initMock).toHaveBeenCalledTimes(1)
     const initOptions = initMock.mock.calls[0][0]
-    expect(initOptions.fallbackLng).toBe('en')
+    expect(initOptions.fallbackLng).toBe('zh')
   })
 
   it('disables HTML escaping for React interpolation', () => {
@@ -48,9 +48,10 @@ describe('i18n config', () => {
     expect(initOptions.interpolation.escapeValue).toBe(false)
   })
 
-  it('configures localStorage-first detection order', () => {
+  it('configures localStorage-only detection order', () => {
     const initOptions = initMock.mock.calls[0][0]
-    expect(initOptions.detection.order).toEqual(['localStorage', 'navigator'])
+    expect(initOptions.detection.order).toEqual(['localStorage'])
+    expect(initOptions.detection.lookupLocalStorage).toBe('skillhubLng')
     expect(initOptions.detection.caches).toEqual(['localStorage'])
   })
 

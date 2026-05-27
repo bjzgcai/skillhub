@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { SkillSummary, SkillDetail, SkillVersion, SkillVersionDetail, SkillFile, SearchParams, PagedResponse, PublishResult } from '@/api/types'
+import type { SkillSummary, SkillDetail, SkillVersion, SkillVersionDetail, SkillFile, SearchParams, PagedResponse, PublishResult, PublishDisplayMetadataPreview } from '@/api/types'
 import { fetchJson, fetchText, getCsrfHeaders, skillLifecycleApi, WEB_API_PREFIX } from '@/api/client'
 import { clearDeletedSkillQueries } from '@/features/skill/skill-delete-flow'
 import { getSkillDetailQueryKey } from './query-keys'
@@ -37,11 +37,30 @@ async function getSkillDocumentation(namespace: string, slug: string, version: s
   return fetchText(`${WEB_API_PREFIX}/skills/${cleanNamespace}/${slug}/versions/${version}/file?path=${encodeURIComponent(path)}`)
 }
 
-async function publishSkill(params: { namespace: string; file: File; visibility: string }): Promise<PublishResult> {
+async function previewPublishDisplayMetadata(params: { namespace: string; file: File }): Promise<PublishDisplayMetadataPreview> {
+  const cleanNamespace = params.namespace.startsWith('@') ? params.namespace.slice(1) : params.namespace
+  const formData = new FormData()
+  formData.append('file', params.file)
+
+  return fetchJson<PublishDisplayMetadataPreview>(`${WEB_API_PREFIX}/skills/${cleanNamespace}/publish/preview`, {
+    method: 'POST',
+    headers: getCsrfHeaders(),
+    body: formData,
+    timeoutMs: PUBLISH_REQUEST_TIMEOUT_MS,
+  })
+}
+
+async function publishSkill(params: { namespace: string; file: File; visibility: string; displayName?: string; summary?: string }): Promise<PublishResult> {
   const cleanNamespace = params.namespace.startsWith('@') ? params.namespace.slice(1) : params.namespace
   const formData = new FormData()
   formData.append('file', params.file)
   formData.append('visibility', params.visibility)
+  if (params.displayName?.trim()) {
+    formData.append('displayName', params.displayName.trim())
+  }
+  if (params.summary?.trim()) {
+    formData.append('summary', params.summary.trim())
+  }
 
   return fetchJson<PublishResult>(`${WEB_API_PREFIX}/skills/${cleanNamespace}/publish`, {
     method: 'POST',
@@ -112,6 +131,15 @@ export function useSkillVersionDetail(namespace: string, slug: string, version?:
     queryKey: ['skills', namespace, slug, 'versions', version, 'detail'],
     queryFn: () => getSkillVersionDetail(namespace, slug, version!),
     enabled: enabled && !!namespace && !!slug && !!version,
+  })
+}
+
+export function usePublishDisplayMetadataPreview() {
+  return useMutation({
+    mutationFn: previewPublishDisplayMetadata,
+    meta: {
+      skipGlobalErrorHandler: true,
+    },
   })
 }
 

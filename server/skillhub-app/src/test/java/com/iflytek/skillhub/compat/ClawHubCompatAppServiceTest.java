@@ -2,11 +2,14 @@ package com.iflytek.skillhub.compat;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.iflytek.skillhub.auth.rbac.PlatformPrincipal;
+import com.iflytek.skillhub.compat.dto.ClawHubPublishResponse;
 import com.iflytek.skillhub.controller.support.MultipartPackageExtractor;
 import com.iflytek.skillhub.controller.support.ZipPackageExtractor;
 import com.iflytek.skillhub.domain.audit.AuditLogService;
@@ -16,9 +19,11 @@ import com.iflytek.skillhub.domain.shared.exception.DomainBadRequestException;
 import com.iflytek.skillhub.domain.shared.exception.DomainNotFoundException;
 import com.iflytek.skillhub.domain.skill.SkillFile;
 import com.iflytek.skillhub.domain.skill.SkillVersion;
+import com.iflytek.skillhub.domain.skill.SkillVisibility;
 import com.iflytek.skillhub.domain.skill.metadata.SkillMetadata;
 import com.iflytek.skillhub.domain.skill.service.SkillPublishService;
 import com.iflytek.skillhub.domain.skill.service.SkillQueryService;
+import com.iflytek.skillhub.domain.skill.validation.PackageEntry;
 import com.iflytek.skillhub.domain.skill.validation.ValidationResult;
 import com.iflytek.skillhub.domain.social.SkillStarService;
 import com.iflytek.skillhub.dto.SkillLifecycleVersionResponse;
@@ -35,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.web.multipart.MultipartFile;
 
 class ClawHubCompatAppServiceTest {
 
@@ -650,6 +656,70 @@ class ClawHubCompatAppServiceTest {
     }
 
     @Test
+    void publishSkill_reusesExistingDisplayMetadataWhenClawhubDoesNotPassName() throws Exception {
+        SkillSearchAppService skillSearchAppService = mock(SkillSearchAppService.class);
+        SkillQueryService skillQueryService = mock(SkillQueryService.class);
+        SkillPublishService skillPublishService = mock(SkillPublishService.class);
+        ZipPackageExtractor zipPackageExtractor = mock(ZipPackageExtractor.class);
+        MultipartPackageExtractor multipartPackageExtractor = mock(MultipartPackageExtractor.class);
+        AuditLogService auditLogService = mock(AuditLogService.class);
+        CompatSkillLookupService compatSkillLookupService = mock(CompatSkillLookupService.class);
+        SkillStarService skillStarService = mock(SkillStarService.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<RemoteRegistryClient> remoteRegistryClientProvider = mock(ObjectProvider.class);
+        RemoteMirrorIngestAppService remoteMirrorIngestAppService = mock(RemoteMirrorIngestAppService.class);
+        MultipartFile[] files = new MultipartFile[0];
+        List<PackageEntry> entries = List.of(new PackageEntry("SKILL.md", "---".getBytes(), 3, "text/markdown"));
+        MultipartPackageExtractor.PublishPayload payload = new MultipartPackageExtractor.PublishPayload(
+                "canteen-assistant", null, "1.0.0", null, true, List.of("latest"), null);
+        SkillVersion version = new SkillVersion(1L, "1.0.0", "usr_1");
+        setField(version, "id", 11L);
+
+        when(multipartPackageExtractor.extract(files, "{}")).thenReturn(new MultipartPackageExtractor.ExtractedPackage(payload, entries));
+        when(skillPublishService.previewDisplayMetadata("global", entries, "usr_1"))
+                .thenReturn(new SkillPublishService.DisplayMetadataPreview("canteen-assistant", true, "食堂助手", "历史中文描述"));
+        when(skillPublishService.publishFromEntries(
+                eq("global"),
+                eq(entries),
+                eq("usr_1"),
+                eq(SkillVisibility.PUBLIC),
+                eq(java.util.Set.of("SUPER_ADMIN")),
+                eq("食堂助手"),
+                eq("历史中文描述")))
+                .thenReturn(new SkillPublishService.PublishResult(1L, "canteen-assistant", version));
+
+        ClawHubCompatAppService service = newService(
+                skillSearchAppService,
+                skillQueryService,
+                skillPublishService,
+                zipPackageExtractor,
+                multipartPackageExtractor,
+                auditLogService,
+                compatSkillLookupService,
+                skillStarService,
+                remoteRegistryClientProvider,
+                remoteMirrorIngestAppService
+        );
+
+        ClawHubPublishResponse response = service.publishSkill(
+                "{}",
+                files,
+                new PlatformPrincipal("usr_1", "Publisher", "p@example.com", null, "local", java.util.Set.of("SUPER_ADMIN")),
+                "127.0.0.1",
+                "test-agent");
+
+        assertThat(response.skillId()).isEqualTo("1");
+        verify(skillPublishService).publishFromEntries(
+                "global",
+                entries,
+                "usr_1",
+                SkillVisibility.PUBLIC,
+                java.util.Set.of("SUPER_ADMIN"),
+                "食堂助手",
+                "历史中文描述");
+    }
+
+    @Test
     void getFileContent_returnsTextFileContent() throws Exception {
         SkillSearchAppService skillSearchAppService = mock(SkillSearchAppService.class);
         SkillQueryService skillQueryService = mock(SkillQueryService.class);
@@ -684,6 +754,16 @@ class ClawHubCompatAppServiceTest {
         String content = service.getFileContent("calendar", "README.md", "1.0.0", null, null, Map.of());
 
         assertThat(content).isEqualTo("# Calendar");
+    }
+
+    private static void setField(Object target, String fieldName, Object value) {
+        try {
+            java.lang.reflect.Field field = target.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            field.set(target, value);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private ClawHubCompatAppService newService(SkillSearchAppService skillSearchAppService,

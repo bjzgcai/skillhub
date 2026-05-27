@@ -72,7 +72,9 @@ class SkillPublishControllerTest {
             anyList(),
             eq("usr_1"),
             eq(SkillVisibility.PUBLIC),
-            eq(Set.of("SUPER_ADMIN"))))
+            eq(Set.of("SUPER_ADMIN")),
+            eq(null),
+            eq(null)))
             .willReturn(new SkillPublishService.PublishResult(12L, "demo-skill", version));
 
         PlatformPrincipal principal = new PlatformPrincipal(

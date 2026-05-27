@@ -142,4 +142,12 @@ SkillHub expects OpenSkills-style packages with `SKILL.md` as the entry point.
 
 ## Publishing Guidance
 
-Just need to follow the OpenSkills-style standards.
+Follow the OpenSkills-style package layout and keep `name` as a stable English kebab-case slug:
+
+```yaml
+name: canteen-assistant
+description: Query canteen menus and feedback.
+version: 1.0.0
+```
+
+When publishing from the web UI, use the optional Chinese display name and Chinese summary fields for SkillHub cards and search results. Existing skills reuse their historical Chinese display metadata by default. If those fields are left blank for a new skill, SkillHub falls back to `name` and `description`.
