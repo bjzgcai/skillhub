@@ -72,6 +72,13 @@ public class SkillPublishService {
             SkillVersion version
     ) {}
 
+    public record DisplayMetadataPreview(
+            String slug,
+            boolean existingSkill,
+            String displayName,
+            String summary
+    ) {}
+
     private final NamespaceRepository namespaceRepository;
     private final NamespaceMemberRepository namespaceMemberRepository;
     private final SkillRepository skillRepository;
@@ -174,7 +181,28 @@ public class SkillPublishService {
             String publisherId,
             SkillVisibility visibility,
             java.util.Set<String> platformRoles) {
-        return publishFromEntriesInternal(namespaceSlug, entries, publisherId, visibility, platformRoles, false, false, null);
+        return publishFromEntries(namespaceSlug, entries, publisherId, visibility, platformRoles, null, null);
+    }
+
+    @Transactional
+    public PublishResult publishFromEntries(
+            String namespaceSlug,
+            List<PackageEntry> entries,
+            String publisherId,
+            SkillVisibility visibility,
+            java.util.Set<String> platformRoles,
+            String displayNameOverride,
+            String summaryOverride) {
+        return publishFromEntriesInternal(
+                namespaceSlug,
+                entries,
+                publisherId,
+                visibility,
+                platformRoles,
+                false,
+                false,
+                null,
+                new DisplayMetadataOverride(displayNameOverride, summaryOverride));
     }
 
     /**
@@ -205,7 +233,8 @@ public class SkillPublishService {
                 Set.of("SUPER_ADMIN"),
                 true,
                 true,
-                explicitSkillSlug
+                explicitSkillSlug,
+                DisplayMetadataOverride.empty()
         );
     }
 
@@ -243,8 +272,32 @@ public class SkillPublishService {
                 Set.of(),
                 true,
                 true,
-                null
+                null,
+                DisplayMetadataOverride.empty()
         );
+    }
+
+    public DisplayMetadataPreview previewDisplayMetadata(String namespaceSlug, List<PackageEntry> entries, String publisherId) {
+        Namespace namespace = namespaceRepository.findBySlug(namespaceSlug)
+                .orElseThrow(() -> new DomainBadRequestException("error.namespace.slug.notFound", namespaceSlug));
+        assertNamespaceWritable(namespace);
+
+        ValidationResult packageValidation = skillPackageValidator.validate(entries);
+        if (!packageValidation.passed()) {
+            throw new DomainBadRequestException(
+                    "error.skill.publish.package.invalid",
+                    String.join(", ", packageValidation.errors()));
+        }
+
+        SkillMetadata metadata = parseSkillMetadata(entries);
+        String skillSlug = SlugValidator.slugify(metadata.name());
+        return skillRepository.findByNamespaceIdAndSlugAndOwnerId(namespace.getId(), skillSlug, publisherId)
+                .map(skill -> new DisplayMetadataPreview(
+                        skillSlug,
+                        true,
+                        nullToEmpty(skill.getDisplayName()),
+                        nullToEmpty(skill.getSummary())))
+                .orElseGet(() -> new DisplayMetadataPreview(skillSlug, false, "", ""));
     }
 
     private PublishResult publishFromEntriesInternal(
@@ -255,7 +308,8 @@ public class SkillPublishService {
             Set<String> platformRoles,
             boolean forceAutoPublish,
             boolean bypassMembershipCheck,
-            String explicitSkillSlug) {
+            String explicitSkillSlug,
+            DisplayMetadataOverride displayMetadataOverride) {
 
         // 1. Find namespace by slug
         Namespace namespace = namespaceRepository.findBySlug(namespaceSlug)
@@ -279,17 +333,12 @@ public class SkillPublishService {
         }
 
         // 4. Parse SKILL.md
-        PackageEntry skillMd = entries.stream()
-                .filter(e -> e.path().equals("SKILL.md"))
-                .findFirst()
-                .orElseThrow(() -> new DomainBadRequestException("error.skill.publish.skillMd.notFound"));
-
-        String skillMdContent = new String(skillMd.content());
-        SkillMetadata metadata = skillMetadataParser.parse(skillMdContent);
+        SkillMetadata metadata = parseSkillMetadata(entries);
         if (metadata.version() == null || metadata.version().isBlank()) {
             String autoVersion = AUTO_VERSION_FORMATTER.format(currentTime());
             metadata = new SkillMetadata(metadata.name(), metadata.description(), autoVersion, metadata.body(), metadata.frontmatter());
         }
+        metadata = applyDisplayMetadataOverride(metadata, displayMetadataOverride);
         String skillSlug = (explicitSkillSlug != null && !explicitSkillSlug.isBlank())
                 ? explicitSkillSlug
                 : SlugValidator.slugify(metadata.name());
@@ -450,9 +499,9 @@ public class SkillPublishService {
         }
 
         // 12. Update skill metadata and move the published pointer for auto-publish flows
-        skill.setDisplayName(metadata.name());
-        skill.setSummary(metadata.description());
         if (autoPublish) {
+            skill.setDisplayName(resolveDisplayName(metadata));
+            skill.setSummary(resolveSummary(metadata));
             skill.setLatestVersionId(version.getId());
             skill.setVisibility(visibility);
         }
@@ -533,6 +582,65 @@ public class SkillPublishService {
 
     private String buildBundleStorageKey(Long skillId, Long versionId) {
         return String.format("packages/%d/%d/bundle.zip", skillId, versionId);
+    }
+
+    private SkillMetadata parseSkillMetadata(List<PackageEntry> entries) {
+        PackageEntry skillMd = entries.stream()
+                .filter(e -> e.path().equals("SKILL.md"))
+                .findFirst()
+                .orElseThrow(() -> new DomainBadRequestException("error.skill.publish.skillMd.notFound"));
+        String skillMdContent = new String(skillMd.content());
+        return skillMetadataParser.parse(skillMdContent);
+    }
+
+    private SkillMetadata applyDisplayMetadataOverride(SkillMetadata metadata, DisplayMetadataOverride override) {
+        if (override == null || override.isEmpty()) {
+            return metadata;
+        }
+        String displayName = override.displayName() != null && !override.displayName().isBlank()
+                ? override.displayName().trim()
+                : metadata.displayName();
+        String summary = override.summary() != null && !override.summary().isBlank()
+                ? override.summary().trim()
+                : metadata.summary();
+        return new SkillMetadata(
+                metadata.name(),
+                metadata.description(),
+                metadata.version(),
+                metadata.body(),
+                metadata.frontmatter(),
+                displayName,
+                summary);
+    }
+
+    private String resolveDisplayName(SkillMetadata metadata) {
+        return textOrFallback(metadata.displayName(), metadata.name());
+    }
+
+    private String resolveSummary(SkillMetadata metadata) {
+        return textOrFallback(metadata.summary(), metadata.description());
+    }
+
+    private String textOrFallback(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        return value.trim();
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private record DisplayMetadataOverride(String displayName, String summary) {
+        static DisplayMetadataOverride empty() {
+            return new DisplayMetadataOverride(null, null);
+        }
+
+        boolean isEmpty() {
+            return (displayName == null || displayName.isBlank())
+                    && (summary == null || summary.isBlank());
+        }
     }
 
     private void assertNamespaceWritable(Namespace namespace) {

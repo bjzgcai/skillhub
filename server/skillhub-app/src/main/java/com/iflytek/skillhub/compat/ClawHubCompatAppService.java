@@ -24,6 +24,7 @@ import com.iflytek.skillhub.domain.skill.SkillVersion;
 import com.iflytek.skillhub.domain.skill.SkillVisibility;
 import com.iflytek.skillhub.domain.skill.service.SkillPublishService;
 import com.iflytek.skillhub.domain.skill.service.SkillQueryService;
+import com.iflytek.skillhub.domain.skill.validation.PackageEntry;
 import com.iflytek.skillhub.domain.social.SkillStarService;
 import com.iflytek.skillhub.dto.SkillSummaryResponse;
 import com.iflytek.skillhub.exception.ServiceUnavailableException;
@@ -350,12 +351,23 @@ public class ClawHubCompatAppService {
                                                String userAgent) throws IOException {
         MultipartPackageExtractor.ExtractedPackage extracted = multipartPackageExtractor.extract(files, payloadJson);
         String namespace = determineNamespace(principal, extracted.payload());
+        SkillPublishService.DisplayMetadataPreview preview = skillPublishService.previewDisplayMetadata(
+                namespace,
+                extracted.entries(),
+                principal.userId()
+        );
+        String displayName = hasText(extracted.payload().displayName())
+                ? extracted.payload().displayName()
+                : preview.existingSkill() ? preview.displayName() : null;
+        String summary = preview.existingSkill() ? preview.summary() : null;
         SkillPublishService.PublishResult result = skillPublishService.publishFromEntries(
                 namespace,
                 extracted.entries(),
                 principal.userId(),
                 SkillVisibility.PUBLIC,
-                principal.platformRoles()
+                principal.platformRoles(),
+                displayName,
+                summary
         );
         recordCompatPublishAudit(principal.userId(), result.version().getId(), clientIp, userAgent,
                 "{\"namespace\":\"" + namespace + "\",\"slug\":\"" + extracted.payload().slug() + "\"}");
@@ -367,12 +379,20 @@ public class ClawHubCompatAppService {
                                           PlatformPrincipal principal,
                                           String clientIp,
                                           String userAgent) throws IOException {
+        List<PackageEntry> entries = zipPackageExtractor.extract(file);
+        SkillPublishService.DisplayMetadataPreview preview = skillPublishService.previewDisplayMetadata(
+                namespace,
+                entries,
+                principal.userId()
+        );
         SkillPublishService.PublishResult result = skillPublishService.publishFromEntries(
                 namespace,
-                zipPackageExtractor.extract(file),
+                entries,
                 principal.userId(),
                 SkillVisibility.PUBLIC,
-                principal.platformRoles()
+                principal.platformRoles(),
+                preview.existingSkill() ? preview.displayName() : null,
+                preview.existingSkill() ? preview.summary() : null
         );
         recordCompatPublishAudit(principal.userId(), result.version().getId(), clientIp, userAgent,
                 "{\"namespace\":\"" + namespace + "\"}");
@@ -892,6 +912,10 @@ public class ClawHubCompatAppService {
                 updatedAt,
                 latestVersion
         );
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private String determineNamespace(PlatformPrincipal principal, MultipartPackageExtractor.PublishPayload payload) {

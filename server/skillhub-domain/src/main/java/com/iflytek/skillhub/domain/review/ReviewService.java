@@ -339,11 +339,26 @@ public class ReviewService {
 
         try {
             SkillMetadata metadata = objectMapper.readValue(metadataJson, SkillMetadata.class);
-            skill.setDisplayName(metadata.name());
-            skill.setSummary(metadata.description());
+            skill.setDisplayName(resolveDisplayName(metadata));
+            skill.setSummary(resolveSummary(metadata));
         } catch (Exception e) {
             throw new IllegalStateException("Failed to deserialize skill metadata", e);
         }
+    }
+
+    private String resolveDisplayName(SkillMetadata metadata) {
+        return textOrFallback(metadata.displayName(), metadata.name());
+    }
+
+    private String resolveSummary(SkillMetadata metadata) {
+        return textOrFallback(metadata.summary(), metadata.description());
+    }
+
+    private String textOrFallback(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        return value.trim();
     }
 
     private void assertNamespaceActive(Namespace namespace) {

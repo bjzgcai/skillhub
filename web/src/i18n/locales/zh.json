@@ -1176,7 +1176,24 @@
     "precheckFailedDescription": "技能包中包含疑似密钥、令牌或密码内容。请将真实凭证替换为占位符后再重试。",
     "frontmatterFailedTitle": "SKILL.md 格式有误",
     "frontmatterFailedDescription": "请检查 SKILL.md 顶部 frontmatter 的 YAML 格式。若字段值中包含冒号，请用引号包裹。",
-    "selectRequired": "请选择命名空间和文件"
+    "selectRequired": "请选择命名空间和文件",
+    "displayGuidance": {
+      "title": "中文展示信息会用于技能卡片",
+      "description": "发布或更新技能时，可在页面填写中文展示名和中文描述；name 仍保留英文稳定 slug。",
+      "nameRule": "已有技能会自动带入历史中文展示名和中文描述，可按本次发布调整。",
+      "descriptionRule": "新技能默认留空，建议补充 30-80 字中文描述，说明用户能完成什么任务。",
+      "bodyRule": "如果不填写，后端会回退使用 SKILL.md 中的 name 和 description。",
+      "example": "SKILL.md 只需保留标准字段：\n---\nname: canteen-assistant\ndescription: Query canteen menus and feedback.\nversion: 1.0.0\n---"
+    },
+    "displayName": "中文展示名（可选）",
+    "displayNamePlaceholder": "例如：食堂助手",
+    "summary": "中文描述（可选）",
+    "summaryPlaceholder": "建议 30-80 字，说明用户能完成什么任务",
+    "displayMetadataPreview": {
+      "loading": "正在识别技能包，用于判断是否沿用历史中文展示信息...",
+      "existing": "已识别为现有技能 {{slug}}，已默认填入历史中文展示名和中文描述，可按本次发布调整。",
+      "new": "已识别为新技能，建议补充中文展示名和中文描述，便于首页和搜索结果展示。"
+    }
   },
   "toast": {
     "success": "成功",

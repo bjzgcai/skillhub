@@ -24,9 +24,9 @@ SKILL.md 是技能包的主入口文件，使用 YAML frontmatter + Markdown 正
 
 ```markdown
 ---
-name: my-skill
-description: 一句话描述这个技能的用途
-x-astron-category: code-review
+name: canteen-assistant
+description: Query canteen menus and feedback.
+x-astron-category: campus-service
 ---
 
 # 技能说明
@@ -38,11 +38,13 @@ x-astron-category: code-review
 
 | 字段 | 必需 | 说明 |
 |------|------|------|
-| `name` | 是 | 技能标识，kebab-case 格式 |
-| `description` | 是 | 技能简短描述 |
+| `name` | 是 | 技能稳定标识，kebab-case 格式；发布后用于 URL、安装坐标和兼容客户端发现，不要写中文 |
+| `description` | 是 | 兼容客户端使用的技能简短描述 |
 | `x-astron-category` | 否 | 分类标签 |
 | `x-astron-runtime` | 否 | 运行时要求 |
 | `x-astron-min-version` | 否 | 最低版本要求 |
+
+> Web 发布页会单独提供“中文展示名 / 中文描述”输入框。已有技能会默认带入历史中文展示信息；新技能若不填写，则回退使用 `name` / `description`。
 
 ## 文件限制
 

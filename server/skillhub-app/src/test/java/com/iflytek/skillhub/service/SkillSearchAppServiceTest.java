@@ -1,5 +1,13 @@
 package com.iflytek.skillhub.service;
 
+import com.iflytek.skillhub.auth.entity.IdentityBinding;
+import com.iflytek.skillhub.auth.repository.IdentityBindingRepository;
+import com.iflytek.skillhub.domain.label.LabelDefinition;
+import com.iflytek.skillhub.domain.label.LabelDefinitionService;
+import com.iflytek.skillhub.domain.label.LabelTranslation;
+import com.iflytek.skillhub.domain.label.LabelType;
+import com.iflytek.skillhub.domain.label.SkillLabel;
+import com.iflytek.skillhub.domain.label.SkillLabelRepository;
 import com.iflytek.skillhub.domain.namespace.Namespace;
 import com.iflytek.skillhub.domain.namespace.NamespaceRole;
 import com.iflytek.skillhub.domain.namespace.NamespaceRepository;
@@ -11,6 +19,8 @@ import com.iflytek.skillhub.domain.skill.VisibilityChecker;
 import com.iflytek.skillhub.domain.skill.SkillVersionRepository;
 import com.iflytek.skillhub.domain.skill.SkillVisibility;
 import com.iflytek.skillhub.domain.skill.service.SkillLifecycleProjectionService;
+import com.iflytek.skillhub.domain.user.UserAccount;
+import com.iflytek.skillhub.domain.user.UserAccountRepository;
 import com.iflytek.skillhub.search.SearchQueryService;
 import com.iflytek.skillhub.search.SearchResult;
 import org.mockito.ArgumentCaptor;
@@ -27,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,6 +60,21 @@ class SkillSearchAppServiceTest {
     @Mock
     private NamespaceService namespaceService;
 
+    @Mock
+    private UserAccountRepository userAccountRepository;
+
+    @Mock
+    private SkillLabelRepository skillLabelRepository;
+
+    @Mock
+    private LabelDefinitionService labelDefinitionService;
+
+    @Mock
+    private LabelLocalizationService labelLocalizationService;
+
+    @Mock
+    private IdentityBindingRepository identityBindingRepository;
+
     private SkillSearchAppService service;
 
     @BeforeEach
@@ -58,8 +84,17 @@ class SkillSearchAppServiceTest {
                 skillRepository,
                 namespaceRepository,
                 namespaceService,
-                new SkillLifecycleProjectionService(skillVersionRepository)
+                new SkillLifecycleProjectionService(skillVersionRepository),
+                userAccountRepository,
+                skillLabelRepository,
+                labelDefinitionService,
+                labelLocalizationService,
+                identityBindingRepository
         );
+        lenient().when(userAccountRepository.findByIdIn(anyList())).thenReturn(List.of());
+        lenient().when(skillLabelRepository.findBySkillIdIn(anyList())).thenReturn(List.of());
+        lenient().when(identityBindingRepository.findByProviderCodeAndUserIdIn(org.mockito.ArgumentMatchers.eq("dingtalk"), anyList()))
+                .thenReturn(List.of());
     }
 
     @Test
@@ -175,6 +210,51 @@ class SkillSearchAppServiceTest {
         verify(skillVersionRepository, times(1)).findByIdIn(List.of(101L, 102L));
         verify(skillVersionRepository, times(1))
                 .findBySkillIdInAndStatus(List.of(10L, 11L), com.iflytek.skillhub.domain.skill.SkillVersionStatus.PUBLISHED);
+    }
+
+    @Test
+    void search_shouldIncludeOwnerAndLabelMetadata() {
+        Skill skill = new Skill(1L, "canteen-assistant", "owner-1", SkillVisibility.PUBLIC);
+        setField(skill, "id", 10L);
+        skill.setLatestVersionId(101L);
+
+        Namespace namespace = new Namespace("global", "Global", "owner-1");
+        setField(namespace, "id", 1L);
+        namespace.setStatus(NamespaceStatus.ACTIVE);
+
+        UserAccount owner = new UserAccount("owner-1", "梁东", "v-ld@zgci.ac.cn", "https://example.test/avatar.png");
+        IdentityBinding dingtalkBinding = new IdentityBinding("owner-1", "dingtalk", "union-1", "梁东");
+        dingtalkBinding.setExtraJson(Map.of("userid", "ding-user-1"));
+        IdentityBinding staleDingtalkBinding = new IdentityBinding("owner-1", "dingtalk", "union-old", "梁东");
+        staleDingtalkBinding.setExtraJson(Map.of("unionid", "union-old"));
+        SkillLabel skillLabel = new SkillLabel(10L, 100L, null);
+        LabelDefinition label = new LabelDefinition("domain-campus-service", LabelType.RECOMMENDED, true, 40, null);
+        setField(label, "id", 100L);
+        LabelTranslation translation = new LabelTranslation(100L, "zh-cn", "园区服务");
+
+        when(searchQueryService.search(any()))
+                .thenReturn(new SearchResult(List.of(10L), 1, 0, 20));
+        when(skillRepository.findByIdIn(List.of(10L))).thenReturn(List.of(skill));
+        when(namespaceRepository.findByIdIn(List.of(1L))).thenReturn(List.of(namespace));
+        when(skillVersionRepository.findByIdIn(List.of(101L))).thenReturn(List.of());
+        when(skillVersionRepository.findBySkillIdInAndStatus(List.of(10L), com.iflytek.skillhub.domain.skill.SkillVersionStatus.PUBLISHED))
+                .thenReturn(List.of());
+        when(userAccountRepository.findByIdIn(List.of("owner-1"))).thenReturn(List.of(owner));
+        when(identityBindingRepository.findByProviderCodeAndUserIdIn("dingtalk", List.of("owner-1"))).thenReturn(List.of(dingtalkBinding, staleDingtalkBinding));
+        when(skillLabelRepository.findBySkillIdIn(List.of(10L))).thenReturn(List.of(skillLabel));
+        when(labelDefinitionService.listByIds(List.of(100L))).thenReturn(List.of(label));
+        when(labelDefinitionService.listTranslationsByLabelIds(List.of(100L))).thenReturn(Map.of(100L, List.of(translation)));
+        when(labelLocalizationService.resolveDisplayName("domain-campus-service", List.of(translation))).thenReturn("园区服务");
+
+        SkillSearchAppService.SearchResponse response = service.search(null, null, "downloads", 0, 20, List.of(), "internal", null, null);
+
+        assertEquals(1, response.items().size());
+        assertEquals("梁东", response.items().getFirst().owner().displayName());
+        assertEquals("https://example.test/avatar.png", response.items().getFirst().owner().avatarUrl());
+        assertEquals("ding-user-1", response.items().getFirst().owner().dingtalkUserId());
+        assertEquals(1, response.items().getFirst().labels().size());
+        assertEquals("domain-campus-service", response.items().getFirst().labels().getFirst().slug());
+        assertEquals("园区服务", response.items().getFirst().labels().getFirst().displayName());
     }
 
     @Test

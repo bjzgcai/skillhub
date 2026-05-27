@@ -6,8 +6,8 @@ import zh from './locales/zh.json'
 
 /**
  * Initializes i18next for the browser app. Language preference is restored from
- * localStorage first so the UI stays stable across reloads before falling back
- * to the browser locale.
+ * localStorage first; new visitors default to Chinese so localized API labels
+ * render with the product's primary language.
  */
 i18n
   .use(LanguageDetector)
@@ -17,12 +17,13 @@ i18n
       en: { translation: en },
       zh: { translation: zh },
     },
-    fallbackLng: 'en',
+    fallbackLng: 'zh',
     interpolation: {
       escapeValue: false,
     },
     detection: {
-      order: ['localStorage', 'navigator'],
+      order: ['localStorage'],
+      lookupLocalStorage: 'skillhubLng',
       caches: ['localStorage'],
     },
   })

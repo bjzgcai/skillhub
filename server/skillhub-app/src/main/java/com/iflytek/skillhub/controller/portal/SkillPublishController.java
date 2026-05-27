@@ -9,6 +9,7 @@ import com.iflytek.skillhub.domain.skill.service.SkillPublishService;
 import com.iflytek.skillhub.domain.skill.validation.PackageEntry;
 import com.iflytek.skillhub.dto.ApiResponse;
 import com.iflytek.skillhub.dto.ApiResponseFactory;
+import com.iflytek.skillhub.dto.PublishDisplayMetadataPreviewResponse;
 import com.iflytek.skillhub.dto.PublishResponse;
 import com.iflytek.skillhub.metrics.SkillHubMetrics;
 import com.iflytek.skillhub.ratelimit.RateLimit;
@@ -53,6 +54,8 @@ public class SkillPublishController extends BaseApiController {
             @PathVariable String namespace,
             @RequestParam("file") MultipartFile file,
             @RequestParam("visibility") String visibility,
+            @RequestParam(value = "displayName", required = false) String displayName,
+            @RequestParam(value = "summary", required = false) String summary,
             @AuthenticationPrincipal PlatformPrincipal principal) throws IOException {
 
         SkillVisibility skillVisibility = SkillVisibility.valueOf(visibility.toUpperCase());
@@ -69,7 +72,9 @@ public class SkillPublishController extends BaseApiController {
                 entries,
                 principal.userId(),
                 skillVisibility,
-                principal.platformRoles()
+                principal.platformRoles(),
+                displayName,
+                summary
         );
 
         PublishResponse response = new PublishResponse(
@@ -84,5 +89,31 @@ public class SkillPublishController extends BaseApiController {
         skillHubMetrics.incrementSkillPublish(namespace, publishResult.version().getStatus().name());
 
         return ok("response.success.published", response);
+    }
+
+    @PostMapping("/{namespace}/publish/preview")
+    @RateLimit(category = "publish", authenticated = 20, anonymous = 0)
+    public ApiResponse<PublishDisplayMetadataPreviewResponse> previewDisplayMetadata(
+            @PathVariable String namespace,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal PlatformPrincipal principal) throws IOException {
+        List<PackageEntry> entries;
+        try {
+            entries = skillPackageArchiveExtractor.extract(file);
+        } catch (IllegalArgumentException e) {
+            throw new DomainBadRequestException("error.skill.publish.package.invalid", e.getMessage());
+        }
+
+        SkillPublishService.DisplayMetadataPreview preview = skillPublishService.previewDisplayMetadata(
+                namespace,
+                entries,
+                principal.userId()
+        );
+        return ok("response.success", new PublishDisplayMetadataPreviewResponse(
+                preview.slug(),
+                preview.existingSkill(),
+                preview.displayName(),
+                preview.summary()
+        ));
     }
 }

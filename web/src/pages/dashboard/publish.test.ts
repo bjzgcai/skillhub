@@ -39,7 +39,16 @@ vi.mock('@/shared/ui/card', () => ({
   Card: ({ children }: { children: unknown }) => children,
 }))
 
+vi.mock('@/shared/ui/input', () => ({
+  Input: () => null,
+}))
+
+vi.mock('@/shared/ui/textarea', () => ({
+  Textarea: () => null,
+}))
+
 vi.mock('@/shared/hooks/use-skill-queries', () => ({
+  usePublishDisplayMetadataPreview: () => ({ mutateAsync: vi.fn(), isPending: false }),
   usePublishSkill: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 

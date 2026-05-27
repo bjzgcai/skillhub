@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { UploadZone } from '@/features/publish/upload-zone'
@@ -13,7 +13,9 @@ import {
 } from '@/shared/ui/select'
 import { Label } from '@/shared/ui/label'
 import { Card } from '@/shared/ui/card'
-import { usePublishSkill } from '@/shared/hooks/use-skill-queries'
+import { Input } from '@/shared/ui/input'
+import { Textarea } from '@/shared/ui/textarea'
+import { usePublishDisplayMetadataPreview, usePublishSkill } from '@/shared/hooks/use-skill-queries'
 import { useMyNamespaces } from '@/shared/hooks/use-namespace-queries'
 import { DashboardPageHeader } from '@/shared/components/dashboard-page-header'
 import { toast } from '@/shared/lib/toast'
@@ -63,16 +65,80 @@ export function PublishPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [namespaceSlug, setNamespaceSlug] = useState<string>('')
   const [visibility, setVisibility] = useState<string>('PUBLIC')
+  const [displayName, setDisplayName] = useState<string>('')
+  const [summary, setSummary] = useState<string>('')
+  const [previewSlug, setPreviewSlug] = useState<string>('')
+  const [isExistingSkill, setIsExistingSkill] = useState<boolean | null>(null)
+  const [isPreviewingDisplayMetadata, setIsPreviewingDisplayMetadata] = useState(false)
 
   const { data: namespaces, isLoading: isLoadingNamespaces } = useMyNamespaces()
+  const previewMutation = usePublishDisplayMetadataPreview()
   const publishMutation = usePublishSkill()
   const selectedNamespace = namespaces?.find((ns) => ns.slug === namespaceSlug)
   const namespaceOnlyLabel = selectedNamespace?.type === 'GLOBAL'
     ? t('publish.visibilityOptions.loggedInUsersOnly')
     : t('publish.visibilityOptions.namespaceOnly')
 
+  useEffect(() => {
+    if (!selectedFile || !namespaceSlug) {
+      setPreviewSlug('')
+      setIsExistingSkill(null)
+      setIsPreviewingDisplayMetadata(false)
+      return
+    }
+
+    let cancelled = false
+    setIsPreviewingDisplayMetadata(true)
+    previewMutation.mutateAsync({ namespace: namespaceSlug, file: selectedFile })
+      .then((preview) => {
+        if (cancelled) {
+          return
+        }
+        setPreviewSlug(preview.slug)
+        setIsExistingSkill(preview.existingSkill)
+        setDisplayName(preview.existingSkill ? preview.displayName : '')
+        setSummary(preview.existingSkill ? preview.summary : '')
+        setIsPreviewingDisplayMetadata(false)
+      })
+      .catch(() => {
+        if (cancelled) {
+          return
+        }
+        setPreviewSlug('')
+        setIsExistingSkill(null)
+        setIsPreviewingDisplayMetadata(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFile, namespaceSlug])
+
+  const resetDisplayMetadataPreview = () => {
+    setDisplayName('')
+    setSummary('')
+    setPreviewSlug('')
+    setIsExistingSkill(null)
+  }
+
+  const handleNamespaceChange = (value: string) => {
+    const nextNamespace = value === EMPTY_NAMESPACE_VALUE ? '' : value
+    setNamespaceSlug(nextNamespace)
+    resetDisplayMetadataPreview()
+    setIsPreviewingDisplayMetadata(Boolean(selectedFile && nextNamespace))
+  }
+
+  const handleFileSelect = (file: File) => {
+    setSelectedFile(file)
+    resetDisplayMetadataPreview()
+    setIsPreviewingDisplayMetadata(Boolean(namespaceSlug))
+  }
+
   const handleRemoveSelectedFile = () => {
     setSelectedFile(null)
+    resetDisplayMetadataPreview()
+    setIsPreviewingDisplayMetadata(false)
   }
 
   const handlePublish = async () => {
@@ -86,6 +152,8 @@ export function PublishPage() {
         namespace: namespaceSlug,
         file: selectedFile,
         visibility,
+        displayName,
+        summary,
       })
       const skillLabel = `${result.namespace}/${result.slug}@${result.version}`
       if (result.status === 'PUBLISHED') {
@@ -150,6 +218,28 @@ export function PublishPage() {
         </div>
       </Card>
 
+      <Card className="p-4 bg-amber-500/5 border-amber-500/20">
+        <div className="flex items-start gap-3">
+          <svg className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          <div className="flex-1 space-y-3">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-1">{t('publish.displayGuidance.title')}</h3>
+              <p className="text-sm text-muted-foreground">{t('publish.displayGuidance.description')}</p>
+            </div>
+            <ul className="space-y-1 text-sm text-muted-foreground list-disc pl-5">
+              <li>{t('publish.displayGuidance.nameRule')}</li>
+              <li>{t('publish.displayGuidance.descriptionRule')}</li>
+              <li>{t('publish.displayGuidance.bodyRule')}</li>
+            </ul>
+            <pre className="overflow-x-auto rounded-lg bg-background/70 border border-border/60 p-3 text-xs text-foreground">
+              <code>{t('publish.displayGuidance.example')}</code>
+            </pre>
+          </div>
+        </div>
+      </Card>
+
       <Card className="p-8 space-y-8">
         <div className="space-y-3">
           <Label htmlFor="namespace" className="text-sm font-semibold font-heading">{t('publish.namespace')}</Label>
@@ -158,9 +248,7 @@ export function PublishPage() {
           ) : (
             <Select
               value={normalizeSelectValue(namespaceSlug) ?? EMPTY_NAMESPACE_VALUE}
-              onValueChange={(value) => {
-                setNamespaceSlug(value === EMPTY_NAMESPACE_VALUE ? '' : value)
-              }}
+              onValueChange={handleNamespaceChange}
             >
               <SelectTrigger id="namespace">
                 <SelectValue />
@@ -195,7 +283,7 @@ export function PublishPage() {
           <Label className="text-sm font-semibold font-heading">{t('publish.file')}</Label>
           <UploadZone
             key={selectedFile ? `${selectedFile.name}-${selectedFile.lastModified}` : 'empty'}
-            onFileSelect={setSelectedFile}
+            onFileSelect={handleFileSelect}
             disabled={publishMutation.isPending}
           />
           {selectedFile && (
@@ -221,11 +309,46 @@ export function PublishPage() {
           )}
         </div>
 
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <Label htmlFor="displayName" className="text-sm font-semibold font-heading">{t('publish.displayName')}</Label>
+            <Input
+              id="displayName"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder={t('publish.displayNamePlaceholder')}
+              maxLength={100}
+              disabled={publishMutation.isPending || isPreviewingDisplayMetadata}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="summary" className="text-sm font-semibold font-heading">{t('publish.summary')}</Label>
+            <Textarea
+              id="summary"
+              value={summary}
+              onChange={(event) => setSummary(event.target.value)}
+              placeholder={t('publish.summaryPlaceholder')}
+              rows={3}
+              maxLength={300}
+              disabled={publishMutation.isPending || isPreviewingDisplayMetadata}
+            />
+          </div>
+          {selectedFile && (
+            <p className="text-xs text-muted-foreground">
+              {isPreviewingDisplayMetadata
+                ? t('publish.displayMetadataPreview.loading')
+                : isExistingSkill
+                  ? t('publish.displayMetadataPreview.existing', { slug: previewSlug })
+                  : t('publish.displayMetadataPreview.new')}
+            </p>
+          )}
+        </div>
+
         <Button
           className="w-full text-primary-foreground disabled:text-primary-foreground"
           size="lg"
           onClick={handlePublish}
-          disabled={!selectedFile || !namespaceSlug || publishMutation.isPending}
+          disabled={!selectedFile || !namespaceSlug || publishMutation.isPending || isPreviewingDisplayMetadata}
         >
           {publishMutation.isPending ? t('publish.publishing') : t('publish.confirm')}
         </Button>

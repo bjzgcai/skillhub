@@ -153,7 +153,6 @@ export function SkillLabelPanel({ namespace, slug, initialLabels, canManage, isS
                     >
                       {label.displayName}
                     </div>
-                    <div className="mt-1 text-xs text-muted-foreground">{label.slug}</div>
                   </div>
                   {removable ? (
                     <Button
