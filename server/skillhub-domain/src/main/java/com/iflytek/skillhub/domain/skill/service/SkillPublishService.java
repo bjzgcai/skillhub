@@ -352,6 +352,7 @@ public class SkillPublishService {
                     "error.skill.publish.precheck.failed",
                     String.join(", ", prePublishValidation.errors()));
         }
+        boolean manualReviewRequiredBySecurity = prePublishValidation.manualReviewRequired();
 
         // 6. Find or create Skill record (with owner isolation)
         List<Skill> existingSkills = skillRepository.findByNamespaceIdAndSlug(namespace.getId(), skillSlug);
@@ -403,7 +404,7 @@ public class SkillPublishService {
         // 8. Create SkillVersion
         SkillVersion version = new SkillVersion(skill.getId(), metadata.version(), publisherId);
         version.setRequestedVisibility(visibility);
-        boolean autoPublish = forceAutoPublish || isSuperAdmin || !reviewRequired;
+        boolean autoPublish = (forceAutoPublish || isSuperAdmin || !reviewRequired) && !manualReviewRequiredBySecurity;
         if (autoPublish) {
             version.setStatus(SkillVersionStatus.PUBLISHED);
             version.setPublishedAt(currentTime());
@@ -483,6 +484,10 @@ public class SkillPublishService {
         version.setDownloadReady(!skillFiles.isEmpty());
         skillVersionRepository.save(version);
 
+        Long versionId = version.getId();
+        prePublishValidation.securityAudit().ifPresent(audit ->
+                securityScanService.recordSynchronousAudit(versionId, audit.scannerType(), audit.response()));
+
         if (!autoPublish) {
             ReviewTask reviewTask = new ReviewTask(version.getId(), namespace.getId(), publisherId);
             ReviewTask savedReviewTask = reviewTaskRepository.save(reviewTask);
@@ -493,7 +498,7 @@ public class SkillPublishService {
                     savedReviewTask.getSubmittedBy(),
                     savedReviewTask.getNamespaceId()
             ));
-            if (securityScanService.isEnabled()) {
+            if (securityScanService.isEnabled() && prePublishValidation.securityAudit().isEmpty()) {
                 securityScanService.triggerScan(version.getId(), entries, publisherId);
             }
         }

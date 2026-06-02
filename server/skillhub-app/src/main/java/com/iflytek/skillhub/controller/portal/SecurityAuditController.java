@@ -28,7 +28,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -107,6 +109,7 @@ public class SecurityAuditController extends BaseApiController {
     }
 
     private SecurityAuditResponse toResponse(SecurityAudit audit) {
+        List<SecurityFinding> findings = deserializeFindings(audit.getFindings());
         return new SecurityAuditResponse(
                 audit.getId(),
                 audit.getScanId(),
@@ -114,12 +117,78 @@ public class SecurityAuditController extends BaseApiController {
                 audit.getVerdict(),
                 audit.getIsSafe(),
                 audit.getMaxSeverity(),
+                resolveRiskLevel(audit, findings),
+                resolveStringMetadata(findings, "policyVersion"),
+                resolveStringMapMetadata(findings, "scannerVersions"),
+                summarizeFindings(audit, findings),
                 audit.getFindingsCount(),
-                deserializeFindings(audit.getFindings()),
+                findings,
                 audit.getScanDurationSeconds(),
                 audit.getScannedAt(),
                 audit.getCreatedAt()
         );
+    }
+
+
+    private String resolveRiskLevel(SecurityAudit audit, List<SecurityFinding> findings) {
+        String metadataRisk = resolveStringMetadata(findings, "riskLevel");
+        if (metadataRisk != null && !metadataRisk.isBlank()) {
+            return metadataRisk;
+        }
+        return audit.getMaxSeverity();
+    }
+
+    private Map<String, Integer> summarizeFindings(SecurityAudit audit, List<SecurityFinding> findings) {
+        Map<String, Integer> summary = new LinkedHashMap<>();
+        summary.put("critical", 0);
+        summary.put("high", 0);
+        summary.put("medium", 0);
+        summary.put("low", 0);
+        summary.put("info", 0);
+        for (SecurityFinding finding : findings) {
+            if (finding.severity() == null || finding.severity().isBlank()) {
+                continue;
+            }
+            String key = finding.severity().toLowerCase(Locale.ROOT);
+            if (summary.containsKey(key)) {
+                summary.put(key, summary.get(key) + 1);
+            }
+        }
+        if (findings.isEmpty() && audit.getFindingsCount() != null && audit.getFindingsCount() > 0) {
+            String key = audit.getMaxSeverity() == null ? "info" : audit.getMaxSeverity().toLowerCase(Locale.ROOT);
+            if (!summary.containsKey(key)) {
+                key = "info";
+            }
+            summary.put(key, audit.getFindingsCount());
+        }
+        return summary;
+    }
+
+    private String resolveStringMetadata(List<SecurityFinding> findings, String key) {
+        for (SecurityFinding finding : findings) {
+            Object value = finding.metadata() == null ? null : finding.metadata().get(key);
+            if (value instanceof String stringValue && !stringValue.isBlank()) {
+                return stringValue;
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, String> resolveStringMapMetadata(List<SecurityFinding> findings, String key) {
+        for (SecurityFinding finding : findings) {
+            Object value = finding.metadata() == null ? null : finding.metadata().get(key);
+            if (value instanceof Map<?, ?> mapValue) {
+                Map<String, String> result = new LinkedHashMap<>();
+                mapValue.forEach((mapKey, mapEntryValue) -> {
+                    if (mapKey != null && mapEntryValue != null) {
+                        result.put(String.valueOf(mapKey), String.valueOf(mapEntryValue));
+                    }
+                });
+                return result;
+            }
+        }
+        return Map.of();
     }
 
     private List<SecurityFinding> deserializeFindings(String findingsJson) {

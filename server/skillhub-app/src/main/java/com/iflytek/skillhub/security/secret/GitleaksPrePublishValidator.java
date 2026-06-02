@@ -8,7 +8,7 @@ import com.iflytek.skillhub.domain.skill.validation.ValidationResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -29,7 +29,7 @@ import java.util.zip.ZipOutputStream;
 
 @Component
 @Primary
-@ConditionalOnProperty(prefix = "skillhub.security.secret-scan", name = "enabled", havingValue = "true")
+@ConditionalOnExpression("${skillhub.security.secret-scan.enabled:false} && !${skillhub.security.unified-scan.enabled:false}")
 public class GitleaksPrePublishValidator implements PrePublishValidator {
 
     private static final Logger log = LoggerFactory.getLogger(GitleaksPrePublishValidator.class);

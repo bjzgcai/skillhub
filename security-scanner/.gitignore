@@ -1,0 +1,2 @@
+# Local scanner binaries used for Docker smoke builds.
+bin/osv-scanner

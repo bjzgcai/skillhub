@@ -1317,7 +1317,9 @@
       "MEDIUM": "Medium",
       "LOW": "Low",
       "INFO": "Info"
-    }
+    },
+    "riskLevel": "Risk: {{level}}",
+    "policyVersion": "Policy: {{version}}"
   },
   "error": {
     "auth": {

@@ -80,11 +80,23 @@ function ScannerCard({ audit, versionStatus }: { audit: SecurityAuditRecord; ver
           <span>
             {t('securityAudit.findingsCount', { count: audit.findingsCount })}
           </span>
+          {audit.riskLevel && (
+            <span>{t('securityAudit.riskLevel', { level: audit.riskLevel })}</span>
+          )}
           {audit.scanDurationSeconds != null && (
             <span>{t('securityAudit.scanDuration', { seconds: audit.scanDurationSeconds })}</span>
           )}
         </div>
       </div>
+
+      {(audit.policyVersion || (audit.scannerVersions && Object.keys(audit.scannerVersions).length > 0)) && (
+        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+          {audit.policyVersion && <span>{t('securityAudit.policyVersion', { version: audit.policyVersion })}</span>}
+          {audit.scannerVersions && Object.entries(audit.scannerVersions).map(([name, version]) => (
+            <span key={name}>{name}: {version}</span>
+          ))}
+        </div>
+      )}
 
       {sortedFindings.length > 0 && (
         <>

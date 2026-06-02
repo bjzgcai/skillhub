@@ -1,0 +1,31 @@
+rules:
+  - id: skillhub-python-dangerous-shell-true
+    languages: [python]
+    severity: ERROR
+    message: Avoid running shell commands through subprocess with shell=True in skills.
+    metadata:
+      category: command_execution
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run(..., shell=True, ...)
+          - pattern: subprocess.call(..., shell=True, ...)
+          - pattern: subprocess.check_output(..., shell=True, ...)
+          - pattern: subprocess.Popen(..., shell=True, ...)
+
+  - id: skillhub-python-eval-exec
+    languages: [python]
+    severity: WARNING
+    message: Avoid dynamic eval/exec in skills.
+    metadata:
+      category: dynamic_execution
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+
+  - id: skillhub-javascript-eval
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: Avoid dynamic eval in skills.
+    metadata:
+      category: dynamic_execution
+    pattern: eval(...)

@@ -8,7 +8,10 @@ import com.iflytek.skillhub.domain.namespace.NamespaceMember;
 import com.iflytek.skillhub.domain.namespace.NamespaceMemberRepository;
 import com.iflytek.skillhub.domain.namespace.NamespaceRepository;
 import com.iflytek.skillhub.domain.namespace.NamespaceStatus;
+import com.iflytek.skillhub.domain.security.ScannerType;
+import com.iflytek.skillhub.domain.security.SecurityScanResponse;
 import com.iflytek.skillhub.domain.security.SecurityScanService;
+import com.iflytek.skillhub.domain.security.SecurityVerdict;
 import com.iflytek.skillhub.domain.review.ReviewTask;
 import com.iflytek.skillhub.domain.review.ReviewTaskRepository;
 import com.iflytek.skillhub.domain.shared.exception.DomainBadRequestException;
@@ -1226,6 +1229,172 @@ class SkillPublishServiceTest {
         assertEquals(10L, skill.getLatestVersionId());
         verify(reviewTaskRepository, never()).save(any(ReviewTask.class));
         verify(eventPublisher).publishEvent(any(SkillPublishedEvent.class));
+    }
+
+
+    @Test
+    void testPublishFromEntries_SynchronousWarnAuditDoesNotBlockAutoPublish() throws Exception {
+        SkillPublishService reviewDisabledService = new SkillPublishService(
+                namespaceRepository,
+                namespaceMemberRepository,
+                skillRepository,
+                skillVersionRepository,
+                skillFileRepository,
+                objectStorageService,
+                skillPackageValidator,
+                skillMetadataParser,
+                prePublishValidator,
+                objectMapper,
+                reviewTaskRepository,
+                securityScanService,
+                compensationService,
+                eventPublisher,
+                CLOCK,
+                false
+        );
+        String namespaceSlug = "test-ns";
+        String publisherId = "user-100";
+        String skillMdContent = "---\nname: test-skill\ndescription: Test\nversion: 1.0.0\n---\nBody";
+        PackageEntry skillMd = new PackageEntry("SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown");
+        List<PackageEntry> entries = List.of(skillMd);
+        Namespace namespace = new Namespace(namespaceSlug, "Test NS", "user-1");
+        setId(namespace, 1L);
+        NamespaceMember member = mock(NamespaceMember.class);
+        SkillMetadata metadata = new SkillMetadata("test-skill", "Test", "1.0.0", "Body", Map.of());
+        Skill skill = new Skill(1L, "test-skill", publisherId, SkillVisibility.PUBLIC);
+        setId(skill, 1L);
+        ValidationResult.SecurityAuditSnapshot audit = new ValidationResult.SecurityAuditSnapshot(
+                ScannerType.CUSTOM,
+                new SecurityScanResponse("scan-warn", SecurityVerdict.SUSPICIOUS, 1, "LOW", List.of(), 0.2)
+        );
+
+        when(namespaceRepository.findBySlug(namespaceSlug)).thenReturn(Optional.of(namespace));
+        when(namespaceMemberRepository.findByNamespaceIdAndUserId(any(), eq(publisherId))).thenReturn(Optional.of(member));
+        when(skillPackageValidator.validate(entries)).thenReturn(ValidationResult.pass());
+        when(skillMetadataParser.parse(skillMdContent)).thenReturn(metadata);
+        when(prePublishValidator.validate(any())).thenReturn(ValidationResult.pass(audit));
+        when(skillRepository.findByNamespaceIdAndSlug(any(), eq("test-skill"))).thenReturn(List.of(skill));
+        when(skillRepository.findByNamespaceIdAndSlugAndOwnerId(any(), eq("test-skill"), eq(publisherId))).thenReturn(Optional.of(skill));
+        when(skillVersionRepository.findBySkillIdAndVersion(any(), eq("1.0.0"))).thenReturn(Optional.empty());
+        when(skillVersionRepository.save(any(SkillVersion.class))).thenAnswer(invocation -> {
+            SkillVersion saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                setId(saved, 10L);
+            }
+            return saved;
+        });
+        when(skillRepository.save(any())).thenReturn(skill);
+
+        SkillPublishService.PublishResult result = reviewDisabledService.publishFromEntries(
+                namespaceSlug,
+                entries,
+                publisherId,
+                SkillVisibility.PUBLIC,
+                Set.of()
+        );
+
+        assertEquals(SkillVersionStatus.PUBLISHED, result.version().getStatus());
+        verify(securityScanService).recordSynchronousAudit(eq(10L), eq(ScannerType.CUSTOM), any(SecurityScanResponse.class));
+        verify(reviewTaskRepository, never()).save(any(ReviewTask.class));
+        verify(eventPublisher).publishEvent(any(SkillPublishedEvent.class));
+    }
+
+    @Test
+    void testPublishFromEntries_ManualReviewPrecheckForcesAdminReview() throws Exception {
+        SkillPublishService reviewDisabledService = new SkillPublishService(
+                namespaceRepository,
+                namespaceMemberRepository,
+                skillRepository,
+                skillVersionRepository,
+                skillFileRepository,
+                objectStorageService,
+                skillPackageValidator,
+                skillMetadataParser,
+                prePublishValidator,
+                objectMapper,
+                reviewTaskRepository,
+                securityScanService,
+                compensationService,
+                eventPublisher,
+                CLOCK,
+                false
+        );
+        String namespaceSlug = "test-ns";
+        String publisherId = "user-100";
+        String skillMdContent = "---\nname: test-skill\ndescription: Test\nversion: 1.0.0\n---\nBody";
+        PackageEntry skillMd = new PackageEntry("SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown");
+        List<PackageEntry> entries = List.of(skillMd);
+        Namespace namespace = new Namespace(namespaceSlug, "Test NS", "user-1");
+        setId(namespace, 1L);
+        NamespaceMember member = mock(NamespaceMember.class);
+        SkillMetadata metadata = new SkillMetadata("test-skill", "Test", "1.0.0", "Body", Map.of());
+        Skill skill = new Skill(1L, "test-skill", publisherId, SkillVisibility.PUBLIC);
+        setId(skill, 1L);
+        ValidationResult.SecurityAuditSnapshot audit = new ValidationResult.SecurityAuditSnapshot(
+                ScannerType.CUSTOM,
+                new SecurityScanResponse("scan-review", SecurityVerdict.SUSPICIOUS, 1, "MEDIUM", List.of(), 0.3)
+        );
+
+        when(namespaceRepository.findBySlug(namespaceSlug)).thenReturn(Optional.of(namespace));
+        when(namespaceMemberRepository.findByNamespaceIdAndUserId(any(), eq(publisherId))).thenReturn(Optional.of(member));
+        when(skillPackageValidator.validate(entries)).thenReturn(ValidationResult.pass());
+        when(skillMetadataParser.parse(skillMdContent)).thenReturn(metadata);
+        when(prePublishValidator.validate(any())).thenReturn(ValidationResult.manualReview(audit));
+        when(skillRepository.findByNamespaceIdAndSlug(any(), eq("test-skill"))).thenReturn(List.of(skill));
+        when(skillRepository.findByNamespaceIdAndSlugAndOwnerId(any(), eq("test-skill"), eq(publisherId))).thenReturn(Optional.of(skill));
+        when(skillVersionRepository.findBySkillIdAndVersion(any(), eq("1.0.0"))).thenReturn(Optional.empty());
+        when(skillVersionRepository.save(any(SkillVersion.class))).thenAnswer(invocation -> {
+            SkillVersion saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                setId(saved, 10L);
+            }
+            return saved;
+        });
+        when(skillRepository.save(any())).thenReturn(skill);
+
+        SkillPublishService.PublishResult result = reviewDisabledService.publishFromEntries(
+                namespaceSlug,
+                entries,
+                publisherId,
+                SkillVisibility.PUBLIC,
+                Set.of()
+        );
+
+        assertEquals(SkillVersionStatus.PENDING_REVIEW, result.version().getStatus());
+        verify(securityScanService).recordSynchronousAudit(eq(10L), eq(ScannerType.CUSTOM), any(SecurityScanResponse.class));
+        verify(reviewTaskRepository).save(any(ReviewTask.class));
+        verify(eventPublisher).publishEvent(any(ReviewSubmittedEvent.class));
+        verify(eventPublisher, never()).publishEvent(any(SkillPublishedEvent.class));
+    }
+
+    @Test
+    void testPublishFromEntries_FailPrecheckBlocksUpload() throws Exception {
+        String namespaceSlug = "test-ns";
+        String publisherId = "user-100";
+        String skillMdContent = "---\nname: test-skill\ndescription: Test\nversion: 1.0.0\n---\nBody";
+        PackageEntry skillMd = new PackageEntry("SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown");
+        List<PackageEntry> entries = List.of(skillMd);
+        Namespace namespace = new Namespace(namespaceSlug, "Test NS", "user-1");
+        setId(namespace, 1L);
+        NamespaceMember member = mock(NamespaceMember.class);
+        SkillMetadata metadata = new SkillMetadata("test-skill", "Test", "1.0.0", "Body", Map.of());
+
+        when(namespaceRepository.findBySlug(namespaceSlug)).thenReturn(Optional.of(namespace));
+        when(namespaceMemberRepository.findByNamespaceIdAndUserId(any(), eq(publisherId))).thenReturn(Optional.of(member));
+        when(skillPackageValidator.validate(entries)).thenReturn(ValidationResult.pass());
+        when(skillMetadataParser.parse(skillMdContent)).thenReturn(metadata);
+        when(prePublishValidator.validate(any())).thenReturn(ValidationResult.fail("Unified security scan verdict FAIL with risk level HIGH."));
+
+        assertThrows(DomainBadRequestException.class, () -> service.publishFromEntries(
+                namespaceSlug,
+                entries,
+                publisherId,
+                SkillVisibility.PUBLIC,
+                Set.of()
+        ));
+        verify(skillVersionRepository, never()).save(any(SkillVersion.class));
+        verify(reviewTaskRepository, never()).save(any(ReviewTask.class));
+        verify(securityScanService, never()).recordSynchronousAudit(anyLong(), any(), any());
     }
 
     private void setId(Object entity, Long id) throws Exception {
