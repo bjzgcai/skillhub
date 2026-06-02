@@ -30,6 +30,21 @@ services:
       timeout: 5s
       retries: 10
 
+  gitleaks-scanner:
+    profiles: ["secret-scan"]
+    image: ${SKILLHUB_GITLEAKS_SCANNER_IMAGE:-skillhub-gitleaks-scanner}:${SKILLHUB_GITLEAKS_SCANNER_TAG:-latest}
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      GITLEAKS_TIMEOUT_SECONDS: ${GITLEAKS_TIMEOUT_SECONDS:-30}
+      GITLEAKS_MAX_FINDINGS: ${GITLEAKS_MAX_FINDINGS:-50}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8015/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   server:
     image: ${SKILLHUB_SERVER_IMAGE:-skillhub-server}:${SKILLHUB_VERSION:-latest}
     pull_policy: never
@@ -57,6 +72,10 @@ services:
       SKILLHUB_STORAGE_S3_FORCE_PATH_STYLE: ${SKILLHUB_STORAGE_S3_FORCE_PATH_STYLE:-false}
       SKILLHUB_STORAGE_S3_AUTO_CREATE_BUCKET: ${SKILLHUB_STORAGE_S3_AUTO_CREATE_BUCKET:-false}
       SKILLHUB_STORAGE_S3_PRESIGN_EXPIRY: ${SKILLHUB_STORAGE_S3_PRESIGN_EXPIRY:-PT10M}
+      SKILLHUB_SECRET_SCAN_ENABLED: ${SKILLHUB_SECRET_SCAN_ENABLED:-false}
+      SKILLHUB_SECRET_SCAN_BASE_URL: ${SKILLHUB_SECRET_SCAN_BASE_URL:-http://gitleaks-scanner:8015}
+      SKILLHUB_SECRET_SCAN_READ_TIMEOUT: ${SKILLHUB_SECRET_SCAN_READ_TIMEOUT:-30000}
+      SKILLHUB_SECRET_SCAN_FAIL_CLOSED: ${SKILLHUB_SECRET_SCAN_FAIL_CLOSED:-true}
       SKILLHUB_SECURITY_SCANNER_ENABLED: ${SKILLHUB_SECURITY_SCANNER_ENABLED:-false}
       BOOTSTRAP_ADMIN_ENABLED: ${BOOTSTRAP_ADMIN_ENABLED:-false}
       BOOTSTRAP_ADMIN_USER_ID: ${BOOTSTRAP_ADMIN_USER_ID:-docker-admin}

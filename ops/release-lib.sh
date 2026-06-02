@@ -75,12 +75,27 @@ web_image_ref() {
   echo "${SKILLHUB_WEB_IMAGE}:${SKILLHUB_WEB_TAG}"
 }
 
+gitleaks_scanner_image_ref() {
+  echo "${SKILLHUB_GITLEAKS_SCANNER_IMAGE:-skillhub-gitleaks-scanner}:${SKILLHUB_GITLEAKS_SCANNER_TAG:-latest}"
+}
+
 server_current_image() {
   docker inspect skillhub-server-1 --format '{{.Config.Image}}'
 }
 
 web_current_image() {
   docker inspect skillhub-web-1 --format '{{.Config.Image}}'
+}
+
+gitleaks_scanner_current_image() {
+  docker inspect skillhub-gitleaks-scanner-1 --format '{{.Config.Image}}' 2>/dev/null || true
+}
+
+container_env_value() {
+  local container="$1"
+  local key="$2"
+  docker inspect "$container" --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
+    | awk -F= -v key="$key" '$1 == key {print substr($0, length(key) + 2); exit}'
 }
 
 server_storage_volume() {
@@ -94,6 +109,57 @@ remove_container_if_exists() {
   if [ -n "$cid" ]; then
     docker rm -f "$name" >/dev/null
   fi
+}
+
+run_gitleaks_scanner_container() {
+  local image_ref="${1:-}"
+  [ -n "$image_ref" ] || image_ref="$(gitleaks_scanner_image_ref)"
+  docker image inspect "$image_ref" >/dev/null 2>&1 || { echo "gitleaks scanner image not found locally: $image_ref" >&2; exit 4; }
+  docker run -d \
+    --name skillhub-gitleaks-scanner-1 \
+    --network skillhub_default \
+    --restart unless-stopped \
+    -e GITLEAKS_TIMEOUT_SECONDS="${GITLEAKS_TIMEOUT_SECONDS:-30}" \
+    -e GITLEAKS_MAX_FINDINGS="${GITLEAKS_MAX_FINDINGS:-50}" \
+    "$image_ref"
+}
+
+ensure_gitleaks_scanner_container() {
+  if [ "${SKILLHUB_SECRET_SCAN_ENABLED:-false}" != "true" ]; then
+    return 0
+  fi
+  local target_image current_image
+  target_image="$(gitleaks_scanner_image_ref)"
+  current_image="$(gitleaks_scanner_current_image)"
+  if [ "$current_image" = "$target_image" ] && [ -n "$(docker ps -qf name='^skillhub-gitleaks-scanner-1$' || true)" ]; then
+    return 0
+  fi
+  remove_container_if_exists skillhub-gitleaks-scanner-1
+  run_gitleaks_scanner_container "$target_image" >/tmp/skillhub.deploy.gitleaks-scanner.cid
+}
+
+restore_gitleaks_scanner_container() {
+  local previous_enabled="$1"
+  local previous_image="$2"
+  remove_container_if_exists skillhub-gitleaks-scanner-1
+  if [ "$previous_enabled" = "true" ] && [ -n "$previous_image" ]; then
+    run_gitleaks_scanner_container "$previous_image" >/tmp/skillhub.rollback.gitleaks-scanner.cid
+  fi
+}
+
+restore_missing_web_assets() {
+  local old_assets_dir="$1"
+  [ -d "$old_assets_dir" ] || return 0
+  [ -n "$(find "$old_assets_dir" -type f -print -quit)" ] || return 0
+  find "$old_assets_dir" -type f | while IFS= read -r asset; do
+    local rel_path="${asset#"$old_assets_dir"/}"
+    if ! docker exec skillhub-web-1 test -f "/usr/share/nginx/html/assets/$rel_path"; then
+      local parent_dir
+      parent_dir="$(dirname "$rel_path")"
+      docker exec skillhub-web-1 mkdir -p "/usr/share/nginx/html/assets/$parent_dir"
+      docker cp "$asset" "skillhub-web-1:/usr/share/nginx/html/assets/$rel_path" >/dev/null
+    fi
+  done
 }
 
 run_server_container() {
@@ -112,6 +178,10 @@ run_server_container() {
     -e SPRING_DATASOURCE_PASSWORD="${POSTGRES_PASSWORD:-skillhub_demo}" \
     -e REDIS_HOST=redis \
     -e REDIS_PORT=6379 \
+    -e SKILLHUB_SECRET_SCAN_ENABLED="${SKILLHUB_SECRET_SCAN_ENABLED:-false}" \
+    -e SKILLHUB_SECRET_SCAN_BASE_URL="${SKILLHUB_SECRET_SCAN_BASE_URL:-http://skillhub-gitleaks-scanner-1:8015}" \
+    -e SKILLHUB_SECRET_SCAN_READ_TIMEOUT="${SKILLHUB_SECRET_SCAN_READ_TIMEOUT:-30000}" \
+    -e SKILLHUB_SECRET_SCAN_FAIL_CLOSED="${SKILLHUB_SECRET_SCAN_FAIL_CLOSED:-true}" \
     -e STORAGE_BASE_PATH=/var/lib/skillhub/storage \
     -v "$(server_storage_volume)":/var/lib/skillhub/storage \
     "$image_ref"

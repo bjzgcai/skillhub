@@ -147,6 +147,14 @@ skillhub:
   device-auth:
     verification-uri: ${DEVICE_AUTH_VERIFICATION_URI:${skillhub.public.base-url:}/cli/auth}
   security:
+    secret-scan:
+      enabled: ${SKILLHUB_SECRET_SCAN_ENABLED:false}
+      base-url: ${SKILLHUB_SECRET_SCAN_BASE_URL:http://gitleaks-scanner:8015}
+      scan-path: ${SKILLHUB_SECRET_SCAN_PATH:/scan-upload}
+      connect-timeout-ms: ${SKILLHUB_SECRET_SCAN_CONNECT_TIMEOUT:5000}
+      read-timeout-ms: ${SKILLHUB_SECRET_SCAN_READ_TIMEOUT:30000}
+      max-findings: ${SKILLHUB_SECRET_SCAN_MAX_FINDINGS:50}
+      fail-closed: ${SKILLHUB_SECRET_SCAN_FAIL_CLOSED:true}
     scanner:
       enabled: ${SKILLHUB_SECURITY_SCANNER_ENABLED:false}
       base-url: ${SKILLHUB_SECURITY_SCANNER_URL:http://localhost:8000}

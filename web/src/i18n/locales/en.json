@@ -1192,7 +1192,8 @@
     "displayMetadataPreview": {
       "loading": "Reading the package to check whether existing Chinese display metadata can be reused...",
       "existing": "Recognized existing skill {{slug}}. Historical Chinese display name and summary have been filled in; you can adjust them for this publish.",
-      "new": "Recognized a new skill. Add a Chinese display name and summary so cards and search results read clearly."
+      "new": "Recognized a new skill. Add a Chinese display name and summary so cards and search results read clearly.",
+      "selectNamespaceFirst": "Select a namespace before confirming publish."
     }
   },
   "toast": {
