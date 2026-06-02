@@ -25,6 +25,19 @@ done
 server_cid="$(docker ps -qf name='^skillhub-server-1$' || true)"
 [ -n "$server_cid" ] || { echo 'server container not running' >&2; exit 1; }
 
+if docker inspect skillhub-server-1 --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -Fx 'SKILLHUB_SECRET_SCAN_ENABLED=true' >/dev/null; then
+  scanner_ok=0
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    scanner_cid="$(docker ps -qf name='^skillhub-gitleaks-scanner-1$' || true)"
+    if [ -n "$scanner_cid" ] && docker exec skillhub-gitleaks-scanner-1 wget -qO- http://127.0.0.1:8015/health | grep -q '"ok":true'; then
+      scanner_ok=1
+      break
+    fi
+    sleep 1
+  done
+  [ "$scanner_ok" -eq 1 ] || { echo 'gitleaks scanner health check failed' >&2; exit 1; }
+fi
+
 ok=0
 for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
   if curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '"status":"UP"'; then

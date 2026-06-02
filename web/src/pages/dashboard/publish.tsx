@@ -78,6 +78,17 @@ export function PublishPage() {
   const namespaceOnlyLabel = selectedNamespace?.type === 'GLOBAL'
     ? t('publish.visibilityOptions.loggedInUsersOnly')
     : t('publish.visibilityOptions.namespaceOnly')
+  const publishDisabledReason = selectedFile && !namespaceSlug
+    ? t('publish.displayMetadataPreview.selectNamespaceFirst')
+    : null
+
+  useEffect(() => {
+    if (namespaceSlug || !namespaces?.length) {
+      return
+    }
+    const defaultNamespace = namespaces.find((ns) => ns.type === 'GLOBAL') ?? namespaces[0]
+    setNamespaceSlug(defaultNamespace.slug)
+  }, [namespaceSlug, namespaces])
 
   useEffect(() => {
     if (!selectedFile || !namespaceSlug) {
@@ -335,11 +346,12 @@ export function PublishPage() {
           </div>
           {selectedFile && (
             <p className="text-xs text-muted-foreground">
-              {isPreviewingDisplayMetadata
-                ? t('publish.displayMetadataPreview.loading')
-                : isExistingSkill
-                  ? t('publish.displayMetadataPreview.existing', { slug: previewSlug })
-                  : t('publish.displayMetadataPreview.new')}
+              {publishDisabledReason
+                ?? (isPreviewingDisplayMetadata
+                  ? t('publish.displayMetadataPreview.loading')
+                  : isExistingSkill
+                    ? t('publish.displayMetadataPreview.existing', { slug: previewSlug })
+                    : t('publish.displayMetadataPreview.new'))}
             </p>
           )}
         </div>

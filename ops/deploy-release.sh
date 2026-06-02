@@ -57,15 +57,22 @@ if [ "$APPLY" -eq 0 ]; then
 fi
 
 apply_web() {
-  local image_ref prev_image
+  local image_ref prev_image current_server_image old_assets_dir
   [ -n "$WEB_TAG_OVERRIDE" ] || { echo '--apply for web requires explicit --web-tag <tag>' >&2; exit 3; }
   image_ref="$(web_image_ref)"
   docker image inspect "$image_ref" >/dev/null 2>&1 || { echo "image not found locally: $image_ref" >&2; exit 4; }
   prev_image="$(web_current_image)"
-  write_manifest "$out_dir" "web" "$prev_release_dir" "" "$prev_image" "$(server_image_ref)" "$image_ref"
+  current_server_image="$(server_current_image)"
+  old_assets_dir="$(mktemp -d /tmp/skillhub-web-assets.XXXXXX)"
+  if docker ps -qf name='^skillhub-web-1$' >/dev/null; then
+    docker cp skillhub-web-1:/usr/share/nginx/html/assets/. "$old_assets_dir/" >/dev/null 2>&1 || true
+  fi
+  write_manifest "$out_dir" "web" "$prev_release_dir" "$current_server_image" "$prev_image" "$current_server_image" "$image_ref"
   append_release_log "$out_dir" deploy.log "starting web deploy prev=$prev_image target=$image_ref"
   remove_container_if_exists skillhub-web-1
   run_web_container "$image_ref" >/tmp/skillhub.deploy.web.cid
+  restore_missing_web_assets "$old_assets_dir"
+  rm -rf "$old_assets_dir"
   if ! "$BASE/ops/verify-web-release.sh" >> "$out_dir/verify.log" 2>&1; then
     append_release_log "$out_dir" deploy.log "web verify failed, attempting rollback to $prev_image"
     remove_container_if_exists skillhub-web-1
@@ -77,19 +84,27 @@ apply_web() {
 }
 
 apply_server() {
-  local image_ref prev_image
+  local image_ref prev_image current_web_image prev_secret_scan_enabled prev_secret_scan_base_url prev_scanner_image
   [ -n "$SERVER_TAG_OVERRIDE" ] || { echo '--apply for server requires explicit --server-tag <tag>' >&2; exit 3; }
   image_ref="$(server_image_ref)"
   docker image inspect "$image_ref" >/dev/null 2>&1 || { echo "image not found locally: $image_ref" >&2; exit 4; }
   prev_image="$(server_current_image)"
-  write_manifest "$out_dir" "server" "$prev_release_dir" "$prev_image" "" "$image_ref" "$(web_image_ref)"
+  current_web_image="$(web_current_image)"
+  prev_secret_scan_enabled="$(container_env_value skillhub-server-1 SKILLHUB_SECRET_SCAN_ENABLED)"
+  prev_secret_scan_base_url="$(container_env_value skillhub-server-1 SKILLHUB_SECRET_SCAN_BASE_URL)"
+  prev_scanner_image="$(gitleaks_scanner_current_image)"
+  write_manifest "$out_dir" "server" "$prev_release_dir" "$prev_image" "$current_web_image" "$image_ref" "$current_web_image"
   append_release_log "$out_dir" deploy.log "starting server deploy prev=$prev_image target=$image_ref"
+  ensure_gitleaks_scanner_container
   remove_container_if_exists skillhub-server-1
   run_server_container "$image_ref" "$SHARED/env.release" >/tmp/skillhub.deploy.server.cid
   if ! "$BASE/ops/verify-server-release.sh" \
     --expect-public-base-url "$SKILLHUB_PUBLIC_BASE_URL" \
     --expect-dingtalk-redirect-uri "${SKILLHUB_AUTH_DINGTALK_REDIRECT_URI:-}" >> "$out_dir/verify.log" 2>&1; then
     append_release_log "$out_dir" deploy.log "server verify failed, attempting rollback to $prev_image"
+    SKILLHUB_SECRET_SCAN_ENABLED="${prev_secret_scan_enabled:-false}"
+    SKILLHUB_SECRET_SCAN_BASE_URL="${prev_secret_scan_base_url:-http://skillhub-gitleaks-scanner-1:8015}"
+    restore_gitleaks_scanner_container "$SKILLHUB_SECRET_SCAN_ENABLED" "$prev_scanner_image"
     remove_container_if_exists skillhub-server-1
     if [ -n "$prev_release_dir" ] && [ -f "$prev_release_dir/release.env" ]; then
       run_server_container "$prev_image" "$prev_release_dir/release.env" >/tmp/skillhub.rollback.server.cid

@@ -1,4 +1,17 @@
 services:
+  gitleaks-scanner:
+    build: ./secret-scanner/gitleaks
+    ports:
+      - "127.0.0.1:8015:8015"
+    environment:
+      GITLEAKS_TIMEOUT_SECONDS: ${GITLEAKS_TIMEOUT_SECONDS:-30}
+      GITLEAKS_MAX_FINDINGS: ${GITLEAKS_MAX_FINDINGS:-50}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8015/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   skill-scanner:
     build: ./scanner
     ports:
