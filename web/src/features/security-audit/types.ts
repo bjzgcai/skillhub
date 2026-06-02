@@ -23,6 +23,10 @@ export interface SecurityAuditRecord {
   verdict: SecurityVerdict
   isSafe: boolean
   maxSeverity: string | null
+  riskLevel?: string | null
+  policyVersion?: string | null
+  scannerVersions?: Record<string, string>
+  summary?: Record<string, number>
   findingsCount: number
   findings: SecurityFinding[]
   scanDurationSeconds: number | null

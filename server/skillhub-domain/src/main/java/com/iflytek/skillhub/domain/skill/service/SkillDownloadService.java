@@ -7,11 +7,13 @@ import com.iflytek.skillhub.domain.namespace.NamespaceRole;
 import com.iflytek.skillhub.domain.namespace.NamespaceType;
 import com.iflytek.skillhub.domain.shared.exception.DomainBadRequestException;
 import com.iflytek.skillhub.domain.shared.exception.DomainForbiddenException;
+import com.iflytek.skillhub.domain.security.SecurityGateService;
 import com.iflytek.skillhub.domain.skill.*;
 import com.iflytek.skillhub.storage.ObjectStorageService;
 import com.iflytek.skillhub.storage.ObjectMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -46,6 +48,7 @@ public class SkillDownloadService {
     private final VisibilityChecker visibilityChecker;
     private final ApplicationEventPublisher eventPublisher;
     private final SkillSlugResolutionService skillSlugResolutionService;
+    private final SecurityGateService securityGateService;
 
     public SkillDownloadService(
             NamespaceRepository namespaceRepository,
@@ -58,6 +61,34 @@ public class SkillDownloadService {
             VisibilityChecker visibilityChecker,
             ApplicationEventPublisher eventPublisher,
             SkillSlugResolutionService skillSlugResolutionService) {
+        this(
+                namespaceRepository,
+                skillRepository,
+                skillVersionRepository,
+                skillVersionStatsRepository,
+                skillFileRepository,
+                skillTagRepository,
+                objectStorageService,
+                visibilityChecker,
+                eventPublisher,
+                skillSlugResolutionService,
+                SecurityGateService.disabled()
+        );
+    }
+
+    @Autowired
+    public SkillDownloadService(
+            NamespaceRepository namespaceRepository,
+            SkillRepository skillRepository,
+            SkillVersionRepository skillVersionRepository,
+            SkillVersionStatsRepository skillVersionStatsRepository,
+            SkillFileRepository skillFileRepository,
+            SkillTagRepository skillTagRepository,
+            ObjectStorageService objectStorageService,
+            VisibilityChecker visibilityChecker,
+            ApplicationEventPublisher eventPublisher,
+            SkillSlugResolutionService skillSlugResolutionService,
+            SecurityGateService securityGateService) {
         this.namespaceRepository = namespaceRepository;
         this.skillRepository = skillRepository;
         this.skillVersionRepository = skillVersionRepository;
@@ -68,6 +99,7 @@ public class SkillDownloadService {
         this.visibilityChecker = visibilityChecker;
         this.eventPublisher = eventPublisher;
         this.skillSlugResolutionService = skillSlugResolutionService;
+        this.securityGateService = securityGateService;
     }
 
     public record DownloadResult(
@@ -165,6 +197,7 @@ public class SkillDownloadService {
     private DownloadResult downloadVersion(Skill skill, SkillVersion version) {
         assertPublishedAccessible(skill);
         assertPublishedVersion(version);
+        securityGateService.assertDownloadAllowed(version);
         DownloadResult result = buildDownloadResult(skill, version);
 
         skillRepository.incrementDownloadCount(skill.getId());

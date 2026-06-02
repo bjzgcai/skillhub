@@ -95,6 +95,21 @@ public class SecurityScanService {
         SkillVersion version = skillVersionRepository.findById(versionId)
                 .orElseThrow(() -> new IllegalStateException("SkillVersion not found: " + versionId));
 
+        applyScanResponse(audit, response);
+        auditRepository.save(audit);
+
+        version.setStatus(SkillVersionStatus.PENDING_REVIEW);
+        skillVersionRepository.save(version);
+    }
+
+    @Transactional
+    public void recordSynchronousAudit(Long versionId, ScannerType scannerType, SecurityScanResponse response) {
+        SecurityAudit audit = new SecurityAudit(versionId, scannerType);
+        applyScanResponse(audit, response);
+        auditRepository.save(audit);
+    }
+
+    private void applyScanResponse(SecurityAudit audit, SecurityScanResponse response) {
         audit.setScanId(response.scanId());
         audit.setVerdict(response.verdict());
         audit.setIsSafe(response.verdict() == SecurityVerdict.SAFE);
@@ -103,10 +118,6 @@ public class SecurityScanService {
         audit.setFindings(serializeFindings(response.findings()));
         audit.setScanDurationSeconds(response.scanDurationSeconds());
         audit.setScannedAt(Instant.now(Clock.systemUTC()));
-        auditRepository.save(audit);
-
-        version.setStatus(SkillVersionStatus.PENDING_REVIEW);
-        skillVersionRepository.save(version);
     }
 
     private Path saveTempDirectory(Long versionId, List<PackageEntry> entries) {

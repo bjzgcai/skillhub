@@ -82,3 +82,5 @@ docs/prds/
 
 #local
 *.local.json
+# OpenClaw local integration-test runtime/artifacts
+.openclaw-test/

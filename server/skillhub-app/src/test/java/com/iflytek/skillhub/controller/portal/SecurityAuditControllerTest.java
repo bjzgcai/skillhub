@@ -36,7 +36,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(properties = {
+        "skillhub.auth.dingtalk.enabled=true",
+        "skillhub.auth.dingtalk.app-key=test-app-key",
+        "skillhub.auth.dingtalk.app-secret=test-app-secret",
+        "skillhub.auth.dingtalk.redirect-uri=http://localhost/auth/dingtalk/callback"
+})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class SecurityAuditControllerTest {
@@ -84,6 +89,9 @@ class SecurityAuditControllerTest {
                 .andExpect(jsonPath("$.data[0].scanId").value("scan-123"))
                 .andExpect(jsonPath("$.data[0].scannerType").value("skill-scanner"))
                 .andExpect(jsonPath("$.data[0].verdict").value("DANGEROUS"))
+                .andExpect(jsonPath("$.data[0].riskLevel").value("HIGH"))
+                .andExpect(jsonPath("$.data[0].summary.high").value(1))
+                .andExpect(jsonPath("$.data[0].scannerVersions").isMap())
                 .andExpect(jsonPath("$.data[0].findingsCount").value(1))
                 .andExpect(jsonPath("$.data[0].findings[0].ruleId").value("STATIC-001"));
     }

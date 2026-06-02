@@ -1317,7 +1317,9 @@
       "MEDIUM": "中危",
       "LOW": "低危",
       "INFO": "信息"
-    }
+    },
+    "riskLevel": "风险等级：{{level}}",
+    "policyVersion": "策略版本：{{version}}"
   },
   "error": {
     "auth": {

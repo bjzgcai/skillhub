@@ -1,0 +1,166 @@
+openapi: 3.1.0
+info:
+  title: Skill Security Scanner API
+  version: 0.1.0
+  description: Unified scanner API for SkillHub publish, rescan, resolve, and download gates.
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Scanner is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, service, version, policy_version]
+                properties:
+                  ok:
+                    type: boolean
+                  service:
+                    type: string
+                  version:
+                    type: string
+                  policy_version:
+                    type: string
+  /v1/scans:sync:
+    post:
+      summary: Run a synchronous security scan for a skill bundle
+      description: Designed for SkillHub pre-publish blocking gates. The service validates the zip and returns a normalized report.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                namespace:
+                  type: string
+                slug:
+                  type: string
+                version:
+                  type: string
+                skill_id:
+                  type: string
+                version_id:
+                  type: string
+                publisher_id:
+                  type: string
+                source:
+                  type: string
+                  enum: [skillhub_publish, skillhub_rescan, mirror_ingest]
+                  default: skillhub_publish
+                policy_preset:
+                  type: string
+                  enum: [strict, balanced, permissive]
+                  default: balanced
+                timeout_ms:
+                  type: integer
+                  default: 60000
+      responses:
+        '200':
+          description: Normalized scan report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncScanResponse'
+        '400':
+          description: Invalid zip package or unsafe archive path
+        '413':
+          description: Package exceeds scanner size limit
+components:
+  schemas:
+    SyncScanResponse:
+      type: object
+      required: [scan_id, status, verdict, risk_level, policy_version, scanner_versions, scanners, summary, findings, duration_seconds]
+      properties:
+        scan_id:
+          type: string
+        status:
+          type: string
+          enum: [completed, failed]
+        verdict:
+          type: string
+          enum: [PASS, WARN, FAIL, MANUAL_REVIEW]
+        risk_level:
+          type: string
+          enum: [NONE, LOW, MEDIUM, HIGH, CRITICAL]
+        policy_version:
+          type: string
+        scanner_versions:
+          type: object
+          additionalProperties:
+            type: string
+            nullable: true
+        scanners:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScannerStatus'
+        summary:
+          $ref: '#/components/schemas/ScanSummary'
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Finding'
+        duration_seconds:
+          type: number
+    ScannerStatus:
+      type: object
+      required: [name, status, duration_seconds]
+      properties:
+        name:
+          type: string
+          enum: [skill-vetter, semgrep, osv-scanner]
+        status:
+          type: string
+          enum: [pending, completed, failed, skipped]
+        version:
+          type: string
+          nullable: true
+        duration_seconds:
+          type: number
+        message:
+          type: string
+          nullable: true
+    ScanSummary:
+      type: object
+      required: [critical, high, medium, low, info]
+      properties:
+        critical:
+          type: integer
+        high:
+          type: integer
+        medium:
+          type: integer
+        low:
+          type: integer
+        info:
+          type: integer
+    Finding:
+      type: object
+      required: [scanner, rule_id, severity, category, message, metadata]
+      properties:
+        scanner:
+          type: string
+        rule_id:
+          type: string
+        severity:
+          type: string
+          enum: [INFO, LOW, MEDIUM, HIGH, CRITICAL]
+        category:
+          type: string
+        file:
+          type: string
+          nullable: true
+        line:
+          type: integer
+          nullable: true
+        message:
+          type: string
+        metadata:
+          type: object

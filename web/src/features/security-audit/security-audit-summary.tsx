@@ -41,7 +41,14 @@ export function SecurityAuditSummary({ skillId, versionId, versionStatus }: Secu
               key={audit.id}
               className="flex items-center justify-between rounded-xl border border-border/60 bg-secondary/20 p-3"
             >
-              <span className="text-xs font-mono text-muted-foreground">{audit.scannerType}</span>
+              <div className="min-w-0">
+                <span className="block truncate text-xs font-mono text-muted-foreground">{audit.scannerType}</span>
+                {audit.riskLevel && (
+                  <span className="block text-[11px] text-muted-foreground">
+                    {t('securityAudit.riskLevel', { level: audit.riskLevel })}
+                  </span>
+                )}
+              </div>
               <VerdictBadge displayState={getSecurityAuditDisplayState(audit, versionStatus)} />
             </div>
           ))}
