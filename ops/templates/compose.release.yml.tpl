@@ -44,6 +44,17 @@ services:
       retries: 5
       start_period: 10s
 
+  security-scanner:
+    profiles: ["unified-scan"]
+    image: ${SKILLHUB_SECURITY_SCANNER_IMAGE:-skill-security-scanner}:${SKILLHUB_SECURITY_SCANNER_TAG:-latest}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8020/health', timeout=2).read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
   server:
     image: ${SKILLHUB_SERVER_IMAGE:?missing}:${SKILLHUB_SERVER_TAG:?missing}
     restart: unless-stopped
@@ -74,6 +85,11 @@ services:
       SKILLHUB_SECRET_SCAN_BASE_URL: ${SKILLHUB_SECRET_SCAN_BASE_URL:-http://gitleaks-scanner:8015}
       SKILLHUB_SECRET_SCAN_READ_TIMEOUT: ${SKILLHUB_SECRET_SCAN_READ_TIMEOUT:-30000}
       SKILLHUB_SECRET_SCAN_FAIL_CLOSED: ${SKILLHUB_SECRET_SCAN_FAIL_CLOSED:-true}
+      SKILLHUB_SECURITY_UNIFIED_SCAN_ENABLED: ${SKILLHUB_SECURITY_UNIFIED_SCAN_ENABLED:-false}
+      SKILLHUB_SECURITY_UNIFIED_SCAN_BASE_URL: ${SKILLHUB_SECURITY_UNIFIED_SCAN_BASE_URL:-http://security-scanner:8020}
+      SKILLHUB_SECURITY_UNIFIED_SCAN_BLOCK_WARN: ${SKILLHUB_SECURITY_UNIFIED_SCAN_BLOCK_WARN:-false}
+      SKILLHUB_SECURITY_UNIFIED_SCAN_BLOCK_MANUAL_REVIEW: ${SKILLHUB_SECURITY_UNIFIED_SCAN_BLOCK_MANUAL_REVIEW:-false}
+      SKILLHUB_SECURITY_UNIFIED_SCAN_FAIL_CLOSED: ${SKILLHUB_SECURITY_UNIFIED_SCAN_FAIL_CLOSED:-true}
       SKILLHUB_SECURITY_SCANNER_ENABLED: ${SKILLHUB_SECURITY_SCANNER_ENABLED:-false}
       BOOTSTRAP_ADMIN_ENABLED: ${BOOTSTRAP_ADMIN_ENABLED:-false}
       BOOTSTRAP_ADMIN_USER_ID: ${BOOTSTRAP_ADMIN_USER_ID:-docker-admin}

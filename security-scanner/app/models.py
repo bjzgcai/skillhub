@@ -33,7 +33,7 @@ class FindingSeverity(str, Enum):
 
 
 class ScannerStatus(BaseModel):
-    name: Literal["skill-vetter", "semgrep", "osv-scanner"]
+    name: Literal["skill-vetter", "semgrep", "osv-scanner", "gitleaks"]
     status: Literal["pending", "completed", "failed", "skipped"]
     version: str | None = None
     duration_seconds: float = 0

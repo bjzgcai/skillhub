@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,6 +44,7 @@ class AdapterResult:
 def run_all_adapters(skill_dir: str, timeout_ms: int) -> list[AdapterResult]:
     return [
         run_skill_vetter(skill_dir),
+        run_gitleaks(skill_dir, timeout_ms),
         run_semgrep(skill_dir, timeout_ms),
         run_osv_scanner(skill_dir, timeout_ms),
     ]
@@ -139,6 +141,66 @@ def run_skill_vetter(skill_dir: str) -> AdapterResult:
     )
 
 
+def run_gitleaks(skill_dir: str, timeout_ms: int) -> AdapterResult:
+    started = time.monotonic()
+    gitleaks = shutil.which("gitleaks")
+    if gitleaks is None:
+        return _skipped("gitleaks", started, "gitleaks binary not found")
+
+    timeout = max(1, timeout_ms // 1000)
+    with tempfile.NamedTemporaryFile(prefix="gitleaks-report-", suffix=".json", delete=False) as report:
+        report_path = report.name
+    command = [
+        gitleaks,
+        "dir",
+        skill_dir,
+        "--config",
+        settings.gitleaks_config,
+        "--report-format",
+        "json",
+        "--report-path",
+        report_path,
+        "--redact=100",
+        "--ignore-gitleaks-allow",
+        "--max-archive-depth",
+        "1",
+        "--no-banner",
+        "--exit-code",
+        "0",
+    ]
+    try:
+        completed = subprocess.run(command, capture_output=True, text=True, timeout=timeout, check=False)
+        findings = _parse_gitleaks_findings(report_path)
+    except subprocess.TimeoutExpired:
+        return _failed("gitleaks", started, "gitleaks timed out")
+    finally:
+        try:
+            os.unlink(report_path)
+        except OSError:
+            pass
+
+    if completed.returncode not in (0, 1):
+        return AdapterResult(
+            status=ScannerStatus(
+                name="gitleaks",
+                status="failed",
+                duration_seconds=round(time.monotonic() - started, 3),
+                message=_short(completed.stderr or completed.stdout or "gitleaks failed"),
+            ),
+            findings=findings,
+        )
+    return AdapterResult(
+        status=ScannerStatus(
+            name="gitleaks",
+            status="completed",
+            version=_tool_version(gitleaks),
+            duration_seconds=round(time.monotonic() - started, 3),
+            message=f"Found {len(findings)} finding(s)",
+        ),
+        findings=findings,
+    )
+
+
 def run_semgrep(skill_dir: str, timeout_ms: int) -> AdapterResult:
     started = time.monotonic()
     semgrep = shutil.which("semgrep")
@@ -221,6 +283,40 @@ def run_osv_scanner(skill_dir: str, timeout_ms: int) -> AdapterResult:
         ),
         findings=findings,
     )
+
+
+def _parse_gitleaks_findings(report_path: str) -> list[Finding]:
+    if not os.path.exists(report_path) or os.path.getsize(report_path) == 0:
+        return []
+    try:
+        payload = json.loads(Path(report_path).read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return []
+
+    findings: list[Finding] = []
+    if not isinstance(payload, list):
+        return findings
+    for item in payload:
+        if not isinstance(item, dict):
+            continue
+        findings.append(
+            Finding(
+                scanner="gitleaks",
+                rule_id=str(item.get("RuleID") or item.get("rule_id") or "gitleaks-secret"),
+                severity=FindingSeverity.HIGH,
+                category="secret_exposure",
+                file=item.get("File") or item.get("file"),
+                line=item.get("StartLine") or item.get("line"),
+                message=str(item.get("Description") or "Potential secret detected by gitleaks."),
+                metadata={
+                    "commit": item.get("Commit"),
+                    "entropy": item.get("Entropy"),
+                    "fingerprint": item.get("Fingerprint"),
+                    "tags": item.get("Tags") or [],
+                },
+            )
+        )
+    return findings
 
 
 def _parse_semgrep_findings(raw_json: str) -> list[Finding]:

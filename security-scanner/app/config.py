@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     max_uncompressed_size_bytes: int = Field(default=100 * 1024 * 1024, ge=1)
     policy_version: str = "2026-06-02.1"
     semgrep_config: str = "/app/rules/semgrep"
+    gitleaks_config: str = "/app/rules/gitleaks/skillhub-gitleaks.toml"
 
 
 settings = Settings()

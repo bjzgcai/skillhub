@@ -115,7 +115,7 @@ components:
       properties:
         name:
           type: string
-          enum: [skill-vetter, semgrep, osv-scanner]
+          enum: [skill-vetter, gitleaks, semgrep, osv-scanner]
         status:
           type: string
           enum: [pending, completed, failed, skipped]

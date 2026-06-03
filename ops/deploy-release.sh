@@ -84,7 +84,7 @@ apply_web() {
 }
 
 apply_server() {
-  local image_ref prev_image current_web_image prev_secret_scan_enabled prev_secret_scan_base_url prev_scanner_image
+  local image_ref prev_image current_web_image prev_secret_scan_enabled prev_secret_scan_base_url prev_scanner_image prev_unified_scan_enabled prev_unified_scanner_image
   [ -n "$SERVER_TAG_OVERRIDE" ] || { echo '--apply for server requires explicit --server-tag <tag>' >&2; exit 3; }
   image_ref="$(server_image_ref)"
   docker image inspect "$image_ref" >/dev/null 2>&1 || { echo "image not found locally: $image_ref" >&2; exit 4; }
@@ -93,9 +93,12 @@ apply_server() {
   prev_secret_scan_enabled="$(container_env_value skillhub-server-1 SKILLHUB_SECRET_SCAN_ENABLED)"
   prev_secret_scan_base_url="$(container_env_value skillhub-server-1 SKILLHUB_SECRET_SCAN_BASE_URL)"
   prev_scanner_image="$(gitleaks_scanner_current_image)"
+  prev_unified_scan_enabled="$(container_env_value skillhub-server-1 SKILLHUB_SECURITY_UNIFIED_SCAN_ENABLED)"
+  prev_unified_scanner_image="$(unified_scanner_current_image)"
   write_manifest "$out_dir" "server" "$prev_release_dir" "$prev_image" "$current_web_image" "$image_ref" "$current_web_image"
   append_release_log "$out_dir" deploy.log "starting server deploy prev=$prev_image target=$image_ref"
   ensure_gitleaks_scanner_container
+  ensure_unified_scanner_container
   remove_container_if_exists skillhub-server-1
   run_server_container "$image_ref" "$SHARED/env.release" >/tmp/skillhub.deploy.server.cid
   if ! "$BASE/ops/verify-server-release.sh" \
@@ -104,7 +107,9 @@ apply_server() {
     append_release_log "$out_dir" deploy.log "server verify failed, attempting rollback to $prev_image"
     SKILLHUB_SECRET_SCAN_ENABLED="${prev_secret_scan_enabled:-false}"
     SKILLHUB_SECRET_SCAN_BASE_URL="${prev_secret_scan_base_url:-http://skillhub-gitleaks-scanner-1:8015}"
+    SKILLHUB_SECURITY_UNIFIED_SCAN_ENABLED="${prev_unified_scan_enabled:-false}"
     restore_gitleaks_scanner_container "$SKILLHUB_SECRET_SCAN_ENABLED" "$prev_scanner_image"
+    restore_unified_scanner_container "$SKILLHUB_SECURITY_UNIFIED_SCAN_ENABLED" "$prev_unified_scanner_image"
     remove_container_if_exists skillhub-server-1
     if [ -n "$prev_release_dir" ] && [ -f "$prev_release_dir/release.env" ]; then
       run_server_container "$prev_image" "$prev_release_dir/release.env" >/tmp/skillhub.rollback.server.cid

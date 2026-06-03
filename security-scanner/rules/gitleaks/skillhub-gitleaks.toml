@@ -1,0 +1,62 @@
+title = "SkillHub Gitleaks Config"
+
+[extend]
+useDefault = true
+# The generic keyword rule is too noisy for skill source packages. SkillHub uses
+# a narrower custom rule for high-risk literal assignments instead.
+disabledRules = ["generic-api-key"]
+
+[[rules]]
+id = "skillhub-sensitive-assignment"
+description = "Detected a high-risk SkillHub secret assignment."
+regex = '''(?i)\b[A-Z0-9_]*(?:CLIENT_SECRET|APP_SECRET|API_KEY|ACCESS_TOKEN|REFRESH_TOKEN|PRIVATE_KEY|WEBHOOK_SECRET|SIGNING_SECRET|PASSWORD)\b\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9_\-./+=:]{15,})["']?'''
+secretGroup = 1
+entropy = 3
+keywords = [
+  "client_secret",
+  "app_secret",
+  "api_key",
+  "access_token",
+  "refresh_token",
+  "private_key",
+  "webhook_secret",
+  "signing_secret",
+  "password"
+]
+
+[[allowlists]]
+description = "Ignore common generated and dependency files"
+paths = [
+  '''(?i)(^|/)node_modules/''',
+  '''(?i)(^|/)dist/''',
+  '''(?i)(^|/)build/''',
+  '''(?i)(^|/)\.venv/''',
+  '''(?i)(^|/)venv/''',
+  '''(?i)(^|/)package-lock\.json$''',
+  '''(?i)(^|/)pnpm-lock\.yaml$''',
+  '''(?i)(^|/)yarn\.lock$''',
+  '''(?i)(^|/)poetry\.lock$''',
+  '''(?i)(^|/)Pipfile\.lock$'''
+]
+
+[[allowlists]]
+description = "Ignore placeholder secret values only"
+regexTarget = "secret"
+regexes = [
+  '''(?i)^(your|example|sample|placeholder|changeme|replace|dummy|mock|todo|xxx|redacted)([_-]?(client[_-]?)?(secret|token|password|api[_-]?key|access[_-]?key))?$'''
+]
+
+[[allowlists]]
+description = "Ignore non-literal code references"
+regexTarget = "line"
+regexes = [
+  '''(?i)\b(token|secret|password|api[_-]?key|access[_-]?key)\s*=\s*[A-Za-z_][A-Za-z0-9_]*\s*\(''',
+  '''(?i)\b(token|secret|password|api[_-]?key|access[_-]?key)\s*=\s*[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+''',
+  '''(?i)\b(token|secret|password|api[_-]?key|access[_-]?key)\s*=\s*(os\.)?environ|getenv|settings\.|config\.''',
+  '''(?i)\b(client_?secret|app_?secret|api_?key|access_?token|refresh_?token|private_?key|webhook_?secret|signing_?secret|password)\s*[:=]\s*[A-Za-z_][A-Za-z0-9_]*\s*\(''',
+  '''(?i)\b(client_?secret|app_?secret|api_?key|access_?token|refresh_?token|private_?key|webhook_?secret|signing_?secret|password)\s*[:=]\s*[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+\b''',
+  '''(?i)\b(client_?secret|app_?secret|api_?key|access_?token|refresh_?token|private_?key|webhook_?secret|signing_?secret|password)\s*[:=]\s*(os\.)?getenv\s*\(''',
+  '''(?i)\bclient_?secret\s*[:=]\s*client_?secret\b''',
+  '''(?i)\btoken\s*[:=]\s*token\b''',
+  '''(?i)\bsecret\s*[:=]\s*secret\b'''
+]
