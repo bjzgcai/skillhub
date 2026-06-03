@@ -23,6 +23,27 @@
 - `rollback-release.sh`：标准回滚入口，支持 `server|web|all`
 - `status.sh`：查看 current release、组件状态、release summary 与 recent logs
 - `sync-to-runtime.sh`：把 repo 中脚本和模板同步到 `/opt/skillhub`
+- `recommend-external-skill.sh`：下载外部 skill bundle，发布缓存到本地 SkillHub，校验可下载后按 `namespace/slug` 加入推荐列表
+
+## 外部技能推荐脚本
+
+`recommend-external-skill.sh` 的边界是：**外部 URL 先导入成本地可下载技能，再调用推荐 API**。推荐 API 本身仍只管理已缓存技能，不直接接收外部链接。
+
+示例：
+
+```bash
+SKILLHUB_ADMIN_USERNAME=admin SKILLHUB_ADMIN_PASSWORD='***' \
+  ./ops/recommend-external-skill.sh https://example.com/skill.zip \
+    --base-url http://127.0.0.1:8080 \
+    --namespace global \
+    --title '推荐技能' \
+    --summary '技能简介' \
+    --reason '推荐理由' \
+    --badge '推荐' \
+    --priority 100
+```
+
+脚本会依次执行：下载 zip、登录、发布到 SkillHub、校验版本为 `PUBLISHED`、校验下载入口可访问、调用 `POST /api/v1/admin/recommendations/{namespace}/{slug}`。
 
 ## 同步方式
 
