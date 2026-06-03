@@ -5,22 +5,26 @@ import { Card } from '@/shared/ui/card'
 import { NamespaceBadge } from '@/shared/components/namespace-badge'
 import { getHeadlineVersion } from '@/shared/lib/skill-lifecycle'
 import { formatCompactCount } from '@/shared/lib/number-format'
+import type { RecommendationRiskInfo } from '@/shared/lib/recommendation-risk'
+import { getSkillAvatar } from '@/shared/lib/skill-avatar'
 import { Bookmark } from 'lucide-react'
 
 interface SkillCardProps {
   skill: SkillSummary
   onClick?: () => void
   highlightStarred?: boolean
+  riskInfo?: RecommendationRiskInfo
 }
 
 /**
  * Reusable card for displaying one skill in lists such as landing, namespace, search, and stars.
  */
-export function SkillCard({ skill, onClick, highlightStarred = true }: SkillCardProps) {
+export function SkillCard({ skill, onClick, highlightStarred = true, riskInfo }: SkillCardProps) {
   const { isAuthenticated } = useAuth()
   const { data: starStatus } = useStar(skill.id, highlightStarred && isAuthenticated)
   const showStarredHighlight = highlightStarred && isAuthenticated && starStatus?.starred
   const headlineVersion = getHeadlineVersion(skill)
+  const avatar = getSkillAvatar(skill.displayName, skill.slug)
 
   return (
     <Card
@@ -29,11 +33,31 @@ export function SkillCard({ skill, onClick, highlightStarred = true }: SkillCard
         onClick={onClick}
       >
         <div className="flex h-full flex-col">
-          <div className="flex items-start justify-between mb-3">
-            <div className="space-y-2">
-              <h3 className="font-semibold text-lg group-hover:text-primary transition-colors" style={{ color: 'hsl(var(--foreground))' }}>
-                {skill.displayName}
-              </h3>
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-bold ring-1 ${avatar.color.bg} ${avatar.color.text} ${avatar.color.ring}`}>
+                {avatar.initial}
+              </div>
+              <div className="min-w-0 space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-semibold text-lg group-hover:text-primary transition-colors" style={{ color: 'hsl(var(--foreground))' }}>
+                    {skill.displayName}
+                  </h3>
+                  {riskInfo?.riskBadge && (
+                    <span className="group/risk relative inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+                      {riskInfo.riskBadge}
+                      {riskInfo.riskNote && (
+                        <span className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-72 rounded-xl border border-amber-200 bg-white p-3 text-left text-xs font-normal leading-relaxed text-amber-900 shadow-xl group-hover/risk:block">
+                          {riskInfo.riskNote}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
+                <p className="font-mono text-sm text-muted-foreground">
+                  {skill.slug}
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <NamespaceBadge type="TEAM" name={`@${skill.namespace}`} />

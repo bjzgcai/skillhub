@@ -77,9 +77,11 @@ vi.mock('@/app/page-shell-style', () => ({
 }))
 
 const useSearchSkillsMock = vi.fn()
+const useRecommendationsMock = vi.fn()
 
 vi.mock('@/shared/hooks/use-skill-queries', () => ({
   useSearchSkills: () => useSearchSkillsMock(),
+  useRecommendations: () => useRecommendationsMock(),
 }))
 
 vi.mock('@/shared/hooks/use-label-queries', () => ({
@@ -117,6 +119,7 @@ describe('SearchPage', () => {
     useSearchMock.mockReturnValue({
       q: 'agent',
       label: 'code-generation',
+      source: 'all',
       sort: 'downloads',
       page: 1,
       starredOnly: false,
@@ -128,6 +131,11 @@ describe('SearchPage', () => {
         page: 1,
         size: 12,
       },
+      isLoading: false,
+      isFetching: false,
+    })
+    useRecommendationsMock.mockReturnValue({
+      data: { items: [], total: 0, page: 0, size: 200 },
       isLoading: false,
       isFetching: false,
     })
@@ -151,6 +159,7 @@ describe('SearchPage', () => {
       search: {
         q: 'agent',
         label: '',
+        source: 'all',
         sort: 'downloads',
         page: 0,
         starredOnly: false,
@@ -168,6 +177,7 @@ describe('SearchPage', () => {
       search: {
         q: 'agent',
         label: 'code-generation',
+        source: 'all',
         sort: 'newest',
         page: 0,
         starredOnly: false,
@@ -186,6 +196,7 @@ describe('SearchPage', () => {
       search: {
         q: 'agent',
         label: 'code-generation',
+        source: 'all',
         sort: 'downloads',
         page: 2,
         starredOnly: false,
@@ -196,6 +207,7 @@ describe('SearchPage', () => {
       search: {
         q: 'agent',
         label: 'code-generation',
+        source: 'all',
         sort: 'downloads',
         page: 0,
         starredOnly: true,
