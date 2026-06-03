@@ -67,6 +67,7 @@ const LoginPage = createLazyRouteComponent(() => import('@/pages/login'), 'Login
 const RegisterPage = createLazyRouteComponent(() => import('@/pages/register'), 'RegisterPage')
 const PrivacyPolicyPage = createLazyRouteComponent(() => import('@/pages/privacy'), 'PrivacyPolicyPage')
 const SearchPage = createLazyRouteComponent(() => import('@/pages/search'), 'SearchPage')
+const RecommendationsPage = createLazyRouteComponent(() => import('@/pages/recommendations'), 'RecommendationsPage')
 const TermsOfServicePage = createLazyRouteComponent(() => import('@/pages/terms'), 'TermsOfServicePage')
 const NamespacePage = createLazyRouteComponent(() => import('@/pages/namespace'), 'NamespacePage')
 const SkillDetailPage = createLazyRouteComponent(() => import('@/pages/skill-detail'), 'SkillDetailPage')
@@ -206,6 +207,16 @@ const searchRoute = createRoute({
       starredOnly: search.starredOnly === true || search.starredOnly === 'true',
     }
   },
+})
+
+const recommendationsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'recommendations',
+  component: RecommendationsPage,
+  validateSearch: (search: Record<string, unknown>): { page: number; label?: string } => ({
+    page: Number(search.page) || 0,
+    label: typeof search.label === 'string' && search.label ? search.label : undefined,
+  }),
 })
 
 const termsRoute = createRoute({
@@ -402,6 +413,7 @@ const routeTree = rootRoute.addChildren([
   registerRoute,
   privacyRoute,
   searchRoute,
+  recommendationsRoute,
   termsRoute,
   namespaceRoute,
   skillDetailRoute,

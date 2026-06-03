@@ -266,6 +266,31 @@ export interface SearchParams {
   starredOnly?: boolean
 }
 
+export interface RecommendationItem {
+  sourceType: 'LOCAL_SKILL' | string
+  status: string
+  cacheStatus: string
+  skillId?: number
+  namespace: string
+  slug: string
+  title: string
+  summary?: string
+  reason?: string
+  badge?: string
+  priority: number
+  startAt?: string
+  endAt?: string
+  cacheError?: string
+  skill?: SkillSummary
+  createdAt: string
+  updatedAt: string
+}
+
+export interface RecommendationParams {
+  page?: number
+  size?: number
+}
+
 export interface PagedResponse<T> {
   items: T[]
   total: number

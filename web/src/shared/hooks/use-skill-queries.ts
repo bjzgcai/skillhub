@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { SkillSummary, SkillDetail, SkillVersion, SkillVersionDetail, SkillFile, SearchParams, PagedResponse, PublishResult, PublishDisplayMetadataPreview } from '@/api/types'
+import type { SkillSummary, SkillDetail, SkillVersion, SkillVersionDetail, SkillFile, SearchParams, RecommendationItem, RecommendationParams, PagedResponse, PublishResult, PublishDisplayMetadataPreview } from '@/api/types'
 import { fetchJson, fetchText, getCsrfHeaders, skillLifecycleApi, WEB_API_PREFIX } from '@/api/client'
 import { clearDeletedSkillQueries } from '@/features/skill/skill-delete-flow'
 import { getSkillDetailQueryKey } from './query-keys'
@@ -9,6 +9,14 @@ const PUBLISH_REQUEST_TIMEOUT_MS = 60_000
 
 async function searchSkills(params: SearchParams): Promise<PagedResponse<SkillSummary>> {
   return fetchJson<PagedResponse<SkillSummary>>(buildSkillSearchUrl(params))
+}
+
+async function getRecommendations(params: RecommendationParams): Promise<PagedResponse<RecommendationItem>> {
+  const searchParams = new URLSearchParams({
+    page: String(params.page ?? 0),
+    size: String(params.size ?? 20),
+  })
+  return fetchJson<PagedResponse<RecommendationItem>>(`${WEB_API_PREFIX}/recommendations?${searchParams.toString()}`)
 }
 
 async function getSkillDetail(namespace: string, slug: string): Promise<SkillDetail> {
@@ -75,6 +83,13 @@ export function useSearchSkills(params: SearchParams) {
     queryKey: ['skills', 'search', params],
     queryFn: () => searchSkills(params),
     enabled: params.starredOnly !== true,
+  })
+}
+
+export function useRecommendations(params: RecommendationParams) {
+  return useQuery({
+    queryKey: ['recommendations', params],
+    queryFn: () => getRecommendations(params),
   })
 }
 

@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from 'react'
+import { startTransition, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
@@ -9,10 +9,11 @@ import { SkillCard } from '@/features/skill/skill-card'
 import { SkeletonList } from '@/shared/components/skeleton-loader'
 import { EmptyState } from '@/shared/components/empty-state'
 import { Pagination } from '@/shared/components/pagination'
-import { useSearchSkills } from '@/shared/hooks/use-skill-queries'
+import { useRecommendations, useSearchSkills } from '@/shared/hooks/use-skill-queries'
 import { useVisibleLabels } from '@/shared/hooks/use-label-queries'
 import { useMyStars } from '@/shared/hooks/use-user-queries'
 import { normalizeSearchQuery } from '@/shared/lib/search-query'
+import { getRiskBadge, splitRecommendationSummary } from '@/shared/lib/recommendation-risk'
 import { Button } from '@/shared/ui/button'
 import { APP_SHELL_PAGE_CLASS_NAME } from '@/app/page-shell-style'
 
@@ -76,6 +77,7 @@ export function SearchPage() {
     starredOnly,
   })
   const { data: labels } = useVisibleLabels()
+  const { data: recommendationData } = useRecommendations({ page: 0, size: 200 })
   const {
     data: starredSkills,
     isLoading: isLoadingStarred,
@@ -127,6 +129,10 @@ export function SearchPage() {
     navigate({ to: '/search', search: { q, label: nextLabel, source: selectedSource, sort, page: 0, starredOnly } })
   }
 
+  const handleLabelClear = () => {
+    navigate({ to: '/search', search: { q, label: '', source: selectedSource, sort, page: 0, starredOnly } })
+  }
+
   const handleStarredToggle = () => {
     if (!isAuthenticated) {
       navigate({
@@ -161,6 +167,26 @@ export function SearchPage() {
       ? Math.ceil(data.total / data.size)
       : 0
   const displayItems = starredOnly ? starredPageItems : (data?.items ?? [])
+  const riskBySkillKey = useMemo(() => {
+    const entries = new Map<string, { riskBadge?: string; riskNote?: string }>()
+    for (const recommendation of recommendationData?.items ?? []) {
+      const riskBadge = getRiskBadge(recommendation.badge)
+      const { riskNote } = splitRecommendationSummary(recommendation.summary || recommendation.skill?.summary)
+      if (!riskBadge) {
+        continue
+      }
+      const skill = recommendation.skill
+      const keys = [
+        recommendation.skillId ? String(recommendation.skillId) : undefined,
+        skill ? `${skill.namespace}/${skill.slug}` : undefined,
+        recommendation.namespace && recommendation.slug ? `${recommendation.namespace}/${recommendation.slug}` : undefined,
+      ].filter(Boolean) as string[]
+      for (const key of keys) {
+        entries.set(key, { riskBadge, riskNote })
+      }
+    }
+    return entries
+  }, [recommendationData?.items])
   const isPageLoading = starredOnly ? isLoadingStarred : isLoading
   const isUpdatingResults = starredOnly ? isFetchingStarred && !isLoadingStarred : isFetching && !isLoading
   const resultCount = starredOnly ? filteredStarredSkills.length : (data?.total ?? 0)
@@ -254,17 +280,30 @@ export function SearchPage() {
               {t('search.source.clawhub')}
             </Button>
           </div>
-          {!starredOnly && labels?.map((label) => (
-            <Button
-              key={label.slug}
-              variant={selectedLabel === label.slug ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => handleLabelToggle(label.slug)}
-            >
-              {label.displayName}
-            </Button>
-          ))}
         </div>
+
+        {!starredOnly && labels?.length ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-muted-foreground">{t('search.labels.label')}</span>
+            <Button
+              variant={!selectedLabel ? 'default' : 'outline'}
+              size="sm"
+              onClick={handleLabelClear}
+            >
+              {t('search.labels.all')}
+            </Button>
+            {labels.map((label) => (
+              <Button
+                key={label.slug}
+                variant={selectedLabel === label.slug ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleLabelToggle(label.slug)}
+              >
+                {label.displayName}
+              </Button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {/* Results */}
@@ -278,6 +317,7 @@ export function SearchPage() {
                 <SkillCard
                   skill={skill}
                   highlightStarred
+                  riskInfo={riskBySkillKey.get(String(skill.id)) ?? riskBySkillKey.get(`${skill.namespace}/${skill.slug}`)}
                   onClick={() => handleSkillClick(skill.namespace, skill.slug)}
                 />
               </div>

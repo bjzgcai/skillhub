@@ -59,11 +59,12 @@ describe('RegisterPage', () => {
     expect(typeof RegisterPage).toBe('function')
   })
 
-  it('renders the registration title and form fields', () => {
+  it('renders the registration disabled notice and login link', () => {
     const html = renderToStaticMarkup(<RegisterPage />)
 
     expect(html).toContain('register.title')
-    expect(html).toContain('register.subtitle')
-    expect(html).toContain('register.submit')
+    expect(html).toContain('DingTalk SSO is the only supported sign-in method')
+    expect(html).toContain('Local account registration has been disabled')
+    expect(html).toContain('register.login')
   })
 })

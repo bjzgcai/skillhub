@@ -136,6 +136,8 @@
     "description": "Efficient skill management, distribution, and collaboration platform for developers",
     "browseSkills": "Browse Skills",
     "publishSkill": "Publish Skill",
+    "recommendationsTitle": "Global Recommendations",
+    "recommendationsDescription": "Curated skills and content selected by operations",
     "popularTitle": "Popular Downloads",
     "popularDescription": "Most popular internal skills",
     "latestTitle": "Latest Releases",
@@ -164,11 +166,23 @@
       }
     }
   },
+  "recommendations": {
+    "eyebrow": "Curated",
+    "title": "Global Recommendations",
+    "description": "Curated skills from SkillHub and the broader ecosystem, cached locally for safer discovery.",
+    "allDomains": "All",
+    "emptyTitle": "No recommendations yet",
+    "emptyDescription": "Recommendations will appear here once operations publishes them."
+  },
   "search": {
     "title": "Search Skills",
     "placeholder": "Search skills...",
     "filters": {
       "label": "Filter:"
+    },
+    "labels": {
+      "label": "Labels:",
+      "all": "All"
     },
     "source": {
       "label": "Source:",

@@ -38,6 +38,10 @@ vi.mock('@/shared/components/skeleton-loader', () => ({
 }))
 
 vi.mock('@/shared/hooks/use-skill-queries', () => ({
+  useRecommendations: () => ({
+    data: { items: [] },
+    isLoading: false,
+  }),
   useSearchSkills: () => ({
     data: { items: [] },
     isLoading: false,

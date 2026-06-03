@@ -4,8 +4,9 @@ import { normalizeSearchQuery } from '@/shared/lib/search-query'
 import { Search as SearchIcon } from 'lucide-react'
 import { LandingQuickStartSection } from '@/shared/components/landing-quick-start'
 import { SkillCard } from '@/features/skill/skill-card'
+import { RecommendationCard } from '@/features/recommendation/recommendation-card'
 import { SkeletonList } from '@/shared/components/skeleton-loader'
-import { useSearchSkills } from '@/shared/hooks/use-skill-queries'
+import { useRecommendations, useSearchSkills } from '@/shared/hooks/use-skill-queries'
 import { useInView } from '@/shared/hooks/use-in-view'
 import { buildHomeSearchParams, HOME_DISCOVERY_SOURCE } from '@/shared/lib/home-discovery'
 import { Button } from '@/shared/ui/button'
@@ -19,6 +20,10 @@ import { Button } from '@/shared/ui/button'
 export function LandingPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+
+  const { data: recommendations, isLoading: isLoadingRecommendations } = useRecommendations({
+    size: 6,
+  })
 
   const { data: popularSkills, isLoading: isLoadingPopular } = useSearchSkills({
     source: HOME_DISCOVERY_SOURCE,
@@ -113,6 +118,40 @@ export function LandingPage() {
         </div>
 
       </main>
+
+      {/* Global Recommendations Section */}
+      <section className="relative z-10 w-full py-20 md:py-24 px-6 scroll-fade-up in-view" style={{ background: 'var(--bg-page, hsl(var(--background)))' }}>
+        <div className="max-w-6xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight mb-2" style={{ color: 'hsl(var(--foreground))' }}>
+                {t('home.recommendationsTitle')}
+              </h2>
+              <p style={{ color: 'hsl(var(--text-secondary))' }}>{t('home.recommendationsDescription')}</p>
+            </div>
+            <Button
+              variant="ghost"
+              onClick={() => navigate({ to: '/search', search: { q: '', source: 'all', sort: 'downloads', page: 0, starredOnly: false } })}
+            >
+              {t('home.viewAll')}
+            </Button>
+          </div>
+          {isLoadingRecommendations ? (
+            <SkeletonList count={6} />
+          ) : recommendations?.items.length ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {recommendations.items.map((recommendation, idx) => (
+                <div key={`${recommendation.namespace}/${recommendation.slug}`} className={`animate-fade-up delay-${Math.min(idx + 1, 6)}`}>
+                  <RecommendationCard
+                    recommendation={recommendation}
+                    onClick={() => recommendation.skill && handleSkillClick(recommendation.skill.namespace, recommendation.skill.slug)}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </section>
 
       {/* Popular Downloads Section */}
       <section ref={popularView.ref} className={`relative z-10 w-full py-20 md:py-24 px-6 scroll-fade-up${popularView.inView ? ' in-view' : ''}`} style={{ background: 'var(--bg-page, hsl(var(--background)))' }}>

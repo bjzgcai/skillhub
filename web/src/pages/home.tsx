@@ -2,9 +2,10 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { SearchBar } from '@/features/search/search-bar'
 import { SkillCard } from '@/features/skill/skill-card'
+import { RecommendationCard } from '@/features/recommendation/recommendation-card'
 import { SkeletonList } from '@/shared/components/skeleton-loader'
 import { QuickStartSection } from '@/shared/components/quick-start'
-import { useSearchSkills } from '@/shared/hooks/use-skill-queries'
+import { useRecommendations, useSearchSkills } from '@/shared/hooks/use-skill-queries'
 import { normalizeSearchQuery } from '@/shared/lib/search-query'
 import { buildHomeSearchParams, HOME_DISCOVERY_SOURCE } from '@/shared/lib/home-discovery'
 import { Button } from '@/shared/ui/button'
@@ -12,6 +13,10 @@ import { Button } from '@/shared/ui/button'
 export function HomePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+
+  const { data: recommendations, isLoading: isLoadingRecommendations } = useRecommendations({
+    size: 6,
+  })
 
   const { data: popularSkills, isLoading: isLoadingPopular } = useSearchSkills({
     source: HOME_DISCOVERY_SOURCE,
@@ -69,6 +74,38 @@ export function HomePage() {
           </button>
         </div>
       </div>
+
+      {/* Global Recommendations Section */}
+      <section className="space-y-6 animate-fade-up">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight mb-2" style={{ color: 'hsl(var(--foreground))' }}>
+              {t('home.recommendationsTitle')}
+            </h2>
+            <p style={{ color: 'hsl(var(--text-secondary))' }}>{t('home.recommendationsDescription')}</p>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={() => navigate({ to: '/search', search: { q: '', source: 'all', sort: 'downloads', page: 0, starredOnly: false } })}
+          >
+            {t('home.viewAll')}
+          </Button>
+        </div>
+        {isLoadingRecommendations ? (
+          <SkeletonList count={6} />
+        ) : recommendations?.items.length ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {recommendations.items.map((recommendation, idx) => (
+              <div key={`${recommendation.namespace}/${recommendation.slug}`} className={`animate-fade-up delay-${Math.min(idx + 1, 6)}`}>
+                <RecommendationCard
+                  recommendation={recommendation}
+                  onClick={() => recommendation.skill && handleSkillClick(recommendation.skill.namespace, recommendation.skill.slug)}
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
 
       {/* Popular Downloads Section */}
       <section className="space-y-6 animate-fade-up">

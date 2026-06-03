@@ -136,6 +136,8 @@
     "description": "为开发者提供高效的技能管理、分发和协作平台",
     "browseSkills": "浏览技能",
     "publishSkill": "发布技能",
+    "recommendationsTitle": "全网推荐",
+    "recommendationsDescription": "运营精选的优质技能与内容",
     "popularTitle": "热门下载",
     "popularDescription": "两院最受欢迎的技能",
     "latestTitle": "最新发布",
@@ -164,11 +166,23 @@
       }
     }
   },
+  "recommendations": {
+    "eyebrow": "运营精选",
+    "title": "全网推荐",
+    "description": "汇集来自 SkillHub 与外部生态的精选技能，统一缓存后安全展示。",
+    "allDomains": "全部",
+    "emptyTitle": "暂无全网推荐",
+    "emptyDescription": "运营推荐上线后会显示在这里。"
+  },
   "search": {
     "title": "搜索技能",
     "placeholder": "搜索技能...",
     "filters": {
       "label": "筛选:"
+    },
+    "labels": {
+      "label": "标签:",
+      "all": "全部"
     },
     "source": {
       "label": "来源:",
