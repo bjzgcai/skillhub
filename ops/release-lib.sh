@@ -79,6 +79,10 @@ gitleaks_scanner_image_ref() {
   echo "${SKILLHUB_GITLEAKS_SCANNER_IMAGE:-skillhub-gitleaks-scanner}:${SKILLHUB_GITLEAKS_SCANNER_TAG:-latest}"
 }
 
+unified_scanner_image_ref() {
+  echo "${SKILLHUB_SECURITY_SCANNER_IMAGE:-skill-security-scanner}:${SKILLHUB_SECURITY_SCANNER_TAG:-latest}"
+}
+
 server_current_image() {
   docker inspect skillhub-server-1 --format '{{.Config.Image}}'
 }
@@ -89,6 +93,10 @@ web_current_image() {
 
 gitleaks_scanner_current_image() {
   docker inspect skillhub-gitleaks-scanner-1 --format '{{.Config.Image}}' 2>/dev/null || true
+}
+
+unified_scanner_current_image() {
+  docker inspect skillhub-security-scanner-1 --format '{{.Config.Image}}' 2>/dev/null || true
 }
 
 container_env_value() {
@@ -147,6 +155,40 @@ restore_gitleaks_scanner_container() {
   fi
 }
 
+run_unified_scanner_container() {
+  local image_ref="${1:-}"
+  [ -n "$image_ref" ] || image_ref="$(unified_scanner_image_ref)"
+  docker image inspect "$image_ref" >/dev/null 2>&1 || { echo "unified scanner image not found locally: $image_ref" >&2; exit 4; }
+  docker run -d \
+    --name skillhub-security-scanner-1 \
+    --network skillhub_default \
+    --restart unless-stopped \
+    "$image_ref"
+}
+
+ensure_unified_scanner_container() {
+  if [ "${SKILLHUB_SECURITY_UNIFIED_SCAN_ENABLED:-false}" != "true" ]; then
+    return 0
+  fi
+  local target_image current_image
+  target_image="$(unified_scanner_image_ref)"
+  current_image="$(unified_scanner_current_image)"
+  if [ "$current_image" = "$target_image" ] && [ -n "$(docker ps -qf name='^skillhub-security-scanner-1$' || true)" ]; then
+    return 0
+  fi
+  remove_container_if_exists skillhub-security-scanner-1
+  run_unified_scanner_container "$target_image" >/tmp/skillhub.deploy.unified-scanner.cid
+}
+
+restore_unified_scanner_container() {
+  local previous_enabled="$1"
+  local previous_image="$2"
+  remove_container_if_exists skillhub-security-scanner-1
+  if [ "$previous_enabled" = "true" ] && [ -n "$previous_image" ]; then
+    run_unified_scanner_container "$previous_image" >/tmp/skillhub.rollback.unified-scanner.cid
+  fi
+}
+
 restore_missing_web_assets() {
   local old_assets_dir="$1"
   [ -d "$old_assets_dir" ] || return 0
@@ -182,6 +224,11 @@ run_server_container() {
     -e SKILLHUB_SECRET_SCAN_BASE_URL="${SKILLHUB_SECRET_SCAN_BASE_URL:-http://skillhub-gitleaks-scanner-1:8015}" \
     -e SKILLHUB_SECRET_SCAN_READ_TIMEOUT="${SKILLHUB_SECRET_SCAN_READ_TIMEOUT:-30000}" \
     -e SKILLHUB_SECRET_SCAN_FAIL_CLOSED="${SKILLHUB_SECRET_SCAN_FAIL_CLOSED:-true}" \
+    -e SKILLHUB_SECURITY_UNIFIED_SCAN_ENABLED="${SKILLHUB_SECURITY_UNIFIED_SCAN_ENABLED:-false}" \
+    -e SKILLHUB_SECURITY_UNIFIED_SCAN_BASE_URL="${SKILLHUB_SECURITY_UNIFIED_SCAN_BASE_URL:-http://skillhub-security-scanner-1:8020}" \
+    -e SKILLHUB_SECURITY_UNIFIED_SCAN_BLOCK_WARN="${SKILLHUB_SECURITY_UNIFIED_SCAN_BLOCK_WARN:-false}" \
+    -e SKILLHUB_SECURITY_UNIFIED_SCAN_BLOCK_MANUAL_REVIEW="${SKILLHUB_SECURITY_UNIFIED_SCAN_BLOCK_MANUAL_REVIEW:-false}" \
+    -e SKILLHUB_SECURITY_UNIFIED_SCAN_FAIL_CLOSED="${SKILLHUB_SECURITY_UNIFIED_SCAN_FAIL_CLOSED:-true}" \
     -e STORAGE_BASE_PATH=/var/lib/skillhub/storage \
     -v "$(server_storage_volume)":/var/lib/skillhub/storage \
     "$image_ref"

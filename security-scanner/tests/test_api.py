@@ -30,7 +30,7 @@ def test_sync_scan_returns_contract_shape():
     data = response.json()
     assert data["scan_id"].startswith("scan_")
     assert data["verdict"] == "PASS"
-    assert {item["name"] for item in data["scanners"]} == {"skill-vetter", "semgrep", "osv-scanner"}
+    assert {item["name"] for item in data["scanners"]} == {"skill-vetter", "gitleaks", "semgrep", "osv-scanner"}
     assert next(item for item in data["scanners"] if item["name"] == "skill-vetter")["status"] == "completed"
 
 
@@ -71,8 +71,46 @@ def test_sync_scan_warns_on_medium_skill_vetter_finding():
     data = response.json()
     assert data["verdict"] == "WARN"
     assert data["risk_level"] == "MEDIUM"
-    assert data["summary"]["medium"] == 1
-    assert data["findings"][0]["rule_id"] == "dynamic-code-execution"
+    assert data["summary"]["medium"] >= 1
+    assert any(item["rule_id"] == "dynamic-code-execution" for item in data["findings"])
+
+
+def test_sync_scan_blocks_gitleaks_secret_finding(monkeypatch):
+    from app import main
+    from app.adapters import AdapterResult
+    from app.models import Finding, FindingSeverity, ScannerStatus
+
+    def fake_run_all_adapters(_extract_dir, _timeout_ms):
+        return [
+            AdapterResult(
+                status=ScannerStatus(name="gitleaks", status="completed", version="test", duration_seconds=0.01),
+                findings=[
+                    Finding(
+                        scanner="gitleaks",
+                        rule_id="skillhub-sensitive-assignment",
+                        severity=FindingSeverity.HIGH,
+                        category="secret_exposure",
+                        file="main.py",
+                        line=1,
+                        message="Potential secret detected by gitleaks.",
+                    )
+                ],
+            )
+        ]
+
+    monkeypatch.setattr(main, "run_all_adapters", fake_run_all_adapters)
+
+    response = TestClient(app).post(
+        "/v1/scans:sync",
+        files={"file": ("bundle.zip", bundle_bytes(), "application/zip")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["verdict"] == "FAIL"
+    assert data["risk_level"] == "HIGH"
+    assert data["findings"][0]["scanner"] == "gitleaks"
+
 
 
 def test_sync_scan_routes_generic_high_to_manual_review(monkeypatch):

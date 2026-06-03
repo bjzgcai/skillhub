@@ -21,6 +21,15 @@ def test_policy_fails_blocking_skill_vetter_high():
     assert risk == RiskLevel.HIGH
 
 
+def test_policy_fails_gitleaks_secret_high():
+    verdict, risk = evaluate_policy([
+        finding(FindingSeverity.HIGH, scanner="gitleaks", category="secret_exposure")
+    ])
+
+    assert verdict == GateVerdict.FAIL
+    assert risk == RiskLevel.HIGH
+
+
 def test_policy_routes_generic_high_to_manual_review():
     verdict, risk = evaluate_policy([finding(FindingSeverity.HIGH)])
 

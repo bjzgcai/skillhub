@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from .models import Finding, FindingSeverity, GateVerdict, RiskLevel, ScanSummary
 
-_BLOCKING_SKILL_VETTER_CATEGORIES = {
+_BLOCKING_HIGH_CATEGORIES = {
     "credential_access",
     "external_execute",
     "private_memory_access",
     "privilege_escalation",
     "obfuscation",
+    "secret_exposure",
 }
 
 
@@ -35,13 +36,13 @@ def evaluate_policy(findings: list[Finding]) -> tuple[GateVerdict, RiskLevel]:
     if any(f.severity == FindingSeverity.CRITICAL for f in findings):
         return GateVerdict.FAIL, RiskLevel.CRITICAL
 
-    has_blocking_skill_vetter = any(
-        f.scanner == "skill-vetter"
+    has_blocking_high_finding = any(
+        f.scanner in {"skill-vetter", "gitleaks"}
         and f.severity == FindingSeverity.HIGH
-        and f.category in _BLOCKING_SKILL_VETTER_CATEGORIES
+        and f.category in _BLOCKING_HIGH_CATEGORIES
         for f in findings
     )
-    if has_blocking_skill_vetter:
+    if has_blocking_high_finding:
         return GateVerdict.FAIL, RiskLevel.HIGH
 
     if any(f.severity == FindingSeverity.HIGH for f in findings):
