@@ -266,7 +266,7 @@ public class SkillQueryService {
         SkillVersion skillVersion = findVersion(skill, version);
         assertPreviewAccessible(skill, skillVersion, version, currentUserId, userNsRoles);
 
-        return availableFiles(skillVersion.getId());
+        return indexedFiles(skillVersion.getId());
     }
 
     public List<SkillFile> listFilesByTag(
@@ -279,7 +279,7 @@ public class SkillQueryService {
         Skill skill = resolveVisibleSkill(namespace.getId(), skillSlug, currentUserId);
         assertPublishedAccessible(namespace, skill, currentUserId, userNsRoles);
         SkillVersion skillVersion = resolveVersionEntity(skill, null, tagName, null);
-        return availableFiles(skillVersion.getId());
+        return indexedFiles(skillVersion.getId());
     }
 
     /**
@@ -498,8 +498,14 @@ public class SkillQueryService {
                 .orElseThrow(() -> new DomainBadRequestException("error.skill.file.notFound", filePath));
     }
 
-    private List<SkillFile> availableFiles(Long versionId) {
+    private List<SkillFile> indexedFiles(Long versionId) {
         return skillFileRepository.findByVersionId(versionId).stream()
+                .sorted(Comparator.comparing(SkillFile::getFilePath))
+                .toList();
+    }
+
+    private List<SkillFile> availableFiles(Long versionId) {
+        return indexedFiles(versionId).stream()
                 .filter(file -> objectStorageService.exists(file.getStorageKey()))
                 .toList();
     }

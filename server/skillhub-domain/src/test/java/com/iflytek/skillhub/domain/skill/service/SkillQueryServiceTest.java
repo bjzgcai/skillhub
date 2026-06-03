@@ -328,7 +328,6 @@ class SkillQueryServiceTest {
         when(visibilityChecker.canAccess(skill, "user-100", userNsRoles)).thenReturn(true);
         when(skillVersionRepository.findBySkillIdAndVersion(1L, version)).thenReturn(Optional.of(skillVersion));
         when(skillFileRepository.findByVersionId(1L)).thenReturn(List.of(file1));
-        when(objectStorageService.exists("key1")).thenReturn(true);
 
         // Act
         List<SkillFile> result = service.listFiles(namespaceSlug, skillSlug, version, "user-100", userNsRoles);
@@ -400,7 +399,7 @@ class SkillQueryServiceTest {
     }
 
     @Test
-    void testListFiles_ShouldHideEntriesWhoseStorageObjectIsMissing() throws Exception {
+    void testListFiles_ShouldReturnIndexedEntriesEvenWhenStorageObjectIsMissing() throws Exception {
         String namespaceSlug = "test-ns";
         String skillSlug = "test-skill";
         String version = "1.0.0";
@@ -422,13 +421,13 @@ class SkillQueryServiceTest {
         when(visibilityChecker.canAccess(skill, "user-100", userNsRoles)).thenReturn(true);
         when(skillVersionRepository.findBySkillIdAndVersion(1L, version)).thenReturn(Optional.of(skillVersion));
         when(skillFileRepository.findByVersionId(1L)).thenReturn(List.of(availableFile, missingFile));
-        when(objectStorageService.exists("skills/1/1/SKILL.md")).thenReturn(true);
-        when(objectStorageService.exists("skills/1/1/_meta.json")).thenReturn(false);
 
         List<SkillFile> result = service.listFiles(namespaceSlug, skillSlug, version, "user-100", userNsRoles);
 
-        assertEquals(1, result.size());
+        assertEquals(2, result.size());
         assertEquals("SKILL.md", result.get(0).getFilePath());
+        assertEquals("_meta.json", result.get(1).getFilePath());
+        verify(objectStorageService, never()).exists(anyString());
     }
 
     @Test
@@ -519,7 +518,6 @@ class SkillQueryServiceTest {
         when(visibilityChecker.canAccess(skill, "user-100", userNsRoles)).thenReturn(true);
         when(skillVersionRepository.findById(11L)).thenReturn(Optional.of(latestVersion));
         when(skillFileRepository.findByVersionId(11L)).thenReturn(List.of(file));
-        when(objectStorageService.exists("storage-key")).thenReturn(true);
 
         List<SkillFile> result = service.listFilesByTag(namespaceSlug, skillSlug, "latest", "user-100", userNsRoles);
 
@@ -963,7 +961,6 @@ class SkillQueryServiceTest {
         when(visibilityChecker.canAccess(skill, ownerId, userNsRoles)).thenReturn(true);
         when(skillVersionRepository.findBySkillIdAndVersion(1L, version)).thenReturn(Optional.of(pending));
         when(skillFileRepository.findByVersionId(11L)).thenReturn(List.of(file));
-        when(objectStorageService.exists("storage-key")).thenReturn(true);
 
         List<SkillFile> result = service.listFiles(namespaceSlug, skillSlug, version, ownerId, userNsRoles);
 
