@@ -57,25 +57,16 @@ export function LandingPage() {
   return (
     <>
       {/* Hero Section */}
-      <main ref={heroView.ref} className={`relative z-10 flex flex-col items-center pt-16 pb-20 px-4 md:pt-24 scroll-fade-up${heroView.inView ? ' in-view' : ''}`}>
-        <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-brand-gradient mb-4">
-          SkillHub（内测版）
-        </h1>
-        <h2
-          className="text-xl md:text-2xl font-semibold tracking-tight text-center mb-3"
+      <main ref={heroView.ref} className={`relative z-10 flex flex-col items-center px-4 pb-8 pt-10 md:pb-10 md:pt-14 scroll-fade-up${heroView.inView ? ' in-view' : ''}`}>
+        <h1
+          className="text-2xl md:text-3xl font-semibold tracking-tight text-center mb-7"
           style={{ color: 'hsl(var(--foreground))' }}
         >
           {t('landing.hero.title')}
-        </h2>
-        <p
-          className="text-base md:text-lg text-center max-w-2xl mb-10 leading-relaxed"
-          style={{ color: 'hsl(var(--text-secondary))' }}
-        >
-          {t('landing.hero.subtitle')}
-        </p>
+        </h1>
 
         {/* Search box */}
-        <div className="w-full max-w-2xl mb-8">
+        <div className="w-full max-w-2xl mb-5">
           <div
             className="flex items-center bg-white rounded-xl border shadow-sm px-5 py-3.5"
             style={{ borderColor: 'hsl(var(--border))' }}
@@ -96,7 +87,7 @@ export function LandingPage() {
         </div>
 
         {/* CTA buttons */}
-        <div className="flex flex-wrap justify-center gap-4 mb-14">
+        <div className="flex flex-wrap justify-center gap-4 mb-6">
           <Link
             to="/search"
             search={buildHomeSearchParams('relevance')}
@@ -120,7 +111,7 @@ export function LandingPage() {
       </main>
 
       {/* Global Recommendations Section */}
-      <section className="relative z-10 w-full py-20 md:py-24 px-6 scroll-fade-up in-view" style={{ background: 'var(--bg-page, hsl(var(--background)))' }}>
+      <section className="relative z-10 w-full px-6 py-10 md:py-12 scroll-fade-up in-view" style={{ background: 'var(--bg-page, hsl(var(--background)))' }}>
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -154,7 +145,7 @@ export function LandingPage() {
       </section>
 
       {/* Popular Downloads Section */}
-      <section ref={popularView.ref} className={`relative z-10 w-full py-20 md:py-24 px-6 scroll-fade-up${popularView.inView ? ' in-view' : ''}`} style={{ background: 'var(--bg-page, hsl(var(--background)))' }}>
+      <section ref={popularView.ref} className={`relative z-10 w-full px-6 py-10 md:py-12 scroll-fade-up${popularView.inView ? ' in-view' : ''}`} style={{ background: 'var(--bg-page, hsl(var(--background)))' }}>
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -188,7 +179,7 @@ export function LandingPage() {
       </section>
 
       {/* Latest Releases Section */}
-      <section ref={latestView.ref} className={`relative z-10 w-full py-20 md:py-24 px-6 scroll-fade-up${latestView.inView ? ' in-view' : ''}`} style={{ background: 'var(--bg-page, hsl(var(--background)))' }}>
+      <section ref={latestView.ref} className={`relative z-10 w-full px-6 py-10 md:py-12 scroll-fade-up${latestView.inView ? ' in-view' : ''}`} style={{ background: 'var(--bg-page, hsl(var(--background)))' }}>
         <div className="max-w-6xl mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div>
