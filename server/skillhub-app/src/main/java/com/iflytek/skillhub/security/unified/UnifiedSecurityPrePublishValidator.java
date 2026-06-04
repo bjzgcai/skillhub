@@ -107,8 +107,8 @@ public class UnifiedSecurityPrePublishValidator implements PrePublishValidator {
             return ValidationResult.pass(audit);
         }
         if ("WARN".equalsIgnoreCase(verdict) && !properties.isBlockWarn()) {
-            log.warn("Unified security scan returned WARN but publishing is allowed by policy");
-            return ValidationResult.pass(audit);
+            log.warn("Unified security scan returned WARN; publishing will be routed to administrator review");
+            return ValidationResult.manualReview(audit);
         }
         if ("MANUAL_REVIEW".equalsIgnoreCase(verdict) && !properties.isBlockManualReview()) {
             log.warn("Unified security scan returned MANUAL_REVIEW; publishing will be routed to administrator review");

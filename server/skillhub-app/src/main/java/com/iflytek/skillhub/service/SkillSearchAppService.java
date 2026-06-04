@@ -16,6 +16,7 @@ import com.iflytek.skillhub.domain.skill.SkillRepository;
 import com.iflytek.skillhub.domain.skill.service.SkillLifecycleProjectionService;
 import com.iflytek.skillhub.domain.user.UserAccount;
 import com.iflytek.skillhub.domain.user.UserAccountRepository;
+import com.iflytek.skillhub.dto.SkillBadgeDto;
 import com.iflytek.skillhub.dto.SkillLabelDto;
 import com.iflytek.skillhub.dto.SkillOwnerResponse;
 import com.iflytek.skillhub.dto.SkillSummaryResponse;
@@ -54,6 +55,7 @@ public class SkillSearchAppService {
     private final SkillLabelRepository skillLabelRepository;
     private final LabelDefinitionService labelDefinitionService;
     private final LabelLocalizationService labelLocalizationService;
+    private final SkillBadgeAppService skillBadgeAppService;
     private final IdentityBindingRepository identityBindingRepository;
 
     public SkillSearchAppService(
@@ -66,6 +68,7 @@ public class SkillSearchAppService {
             SkillLabelRepository skillLabelRepository,
             LabelDefinitionService labelDefinitionService,
             LabelLocalizationService labelLocalizationService,
+            SkillBadgeAppService skillBadgeAppService,
             IdentityBindingRepository identityBindingRepository) {
         this.searchQueryService = searchQueryService;
         this.skillRepository = skillRepository;
@@ -76,6 +79,7 @@ public class SkillSearchAppService {
         this.skillLabelRepository = skillLabelRepository;
         this.labelDefinitionService = labelDefinitionService;
         this.labelLocalizationService = labelLocalizationService;
+        this.skillBadgeAppService = skillBadgeAppService;
         this.identityBindingRepository = identityBindingRepository;
     }
 
@@ -220,6 +224,7 @@ public class SkillSearchAppService {
                 skillLifecycleProjectionService.projectPublishedSummaries(matchedSkills);
         Map<String, SkillOwnerResponse> ownersByUserId = buildOwnersByUserId(matchedSkills);
         Map<Long, List<SkillLabelDto>> labelsBySkillId = buildLabelsBySkillId(skillIds);
+        Map<Long, List<SkillBadgeDto>> badgesBySkillId = skillBadgeAppService.buildBadgesBySkillId(skillIds);
 
         return skillIds.stream()
                 .map(skillsById::get)
@@ -229,7 +234,8 @@ public class SkillSearchAppService {
                         namespaceSlugsById,
                         projectionsBySkillId.get(skill.getId()),
                         ownersByUserId.get(skill.getOwnerId()),
-                        labelsBySkillId.getOrDefault(skill.getId(), List.of())))
+                        labelsBySkillId.getOrDefault(skill.getId(), List.of()),
+                        badgesBySkillId.getOrDefault(skill.getId(), List.of())))
                 .toList();
     }
 
@@ -329,7 +335,8 @@ public class SkillSearchAppService {
             Map<Long, String> namespaceSlugsById,
             SkillLifecycleProjectionService.Projection projection,
             SkillOwnerResponse owner,
-            List<SkillLabelDto> labels) {
+            List<SkillLabelDto> labels,
+            List<SkillBadgeDto> badges) {
         String namespaceSlug = namespaceSlugsById.get(skill.getNamespaceId());
 
         return new SkillSummaryResponse(
@@ -345,6 +352,7 @@ public class SkillSearchAppService {
                 namespaceSlug,
                 owner,
                 labels,
+                badges,
                 skill.getUpdatedAt(),
                 false,
                 toLifecycleVersion(projection.headlineVersion()),

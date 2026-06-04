@@ -1,5 +1,11 @@
 package com.iflytek.skillhub.service;
 
+import com.iflytek.skillhub.domain.label.LabelDefinition;
+import com.iflytek.skillhub.domain.label.LabelDefinitionService;
+import com.iflytek.skillhub.domain.label.LabelTranslation;
+import com.iflytek.skillhub.domain.label.LabelType;
+import com.iflytek.skillhub.domain.label.SkillLabel;
+import com.iflytek.skillhub.domain.label.SkillLabelRepository;
 import com.iflytek.skillhub.domain.namespace.Namespace;
 import com.iflytek.skillhub.domain.namespace.NamespaceRepository;
 import com.iflytek.skillhub.domain.recommendation.OperationRecommendation;
@@ -28,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,6 +55,18 @@ class RecommendationAppServiceTest {
     @Mock
     private SkillLifecycleProjectionService projectionService;
 
+    @Mock
+    private SkillLabelRepository skillLabelRepository;
+
+    @Mock
+    private LabelDefinitionService labelDefinitionService;
+
+    @Mock
+    private LabelLocalizationService labelLocalizationService;
+
+    @Mock
+    private SkillBadgeAppService skillBadgeAppService;
+
     private RecommendationAppService service;
 
     @BeforeEach
@@ -57,7 +76,11 @@ class RecommendationAppServiceTest {
                 skillRepository,
                 skillVersionRepository,
                 namespaceRepository,
-                projectionService
+                projectionService,
+                skillLabelRepository,
+                labelDefinitionService,
+                labelLocalizationService,
+                skillBadgeAppService
         );
         when(recommendationRepository.save(any(OperationRecommendation.class))).thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -85,6 +108,26 @@ class RecommendationAppServiceTest {
         assertEquals(100, response.priority());
         assertNotNull(response.skill());
         assertEquals("global", response.skill().namespace());
+    }
+
+    @Test
+    void create_shouldIncludeSkillBadgesInRecommendationSkillSummary() {
+        Skill skill = recommendableSkill();
+        stubSkillLookup(skill);
+        when(recommendationRepository.findNonDeletedBySkillId(42L)).thenReturn(Optional.empty());
+        stubResponseProjection(skill);
+        when(skillBadgeAppService.buildBadgesBySkillId(List.of(42L)))
+                .thenReturn(Map.of(42L, List.of(new com.iflytek.skillhub.dto.SkillBadgeDto("SCANNED_SAFE", "扫描安全", "SCANNER_PASS"))));
+
+        RecommendationResponse response = service.create(
+                new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", 100, null, null),
+                "admin-1"
+        );
+
+        assertNotNull(response.skill());
+        assertEquals(1, response.skill().badges().size());
+        assertEquals("SCANNED_SAFE", response.skill().badges().get(0).type());
+        assertEquals("扫描安全", response.skill().badges().get(0).displayName());
     }
 
     @Test

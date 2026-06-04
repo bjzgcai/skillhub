@@ -4,6 +4,7 @@ import type { LabelDefinition, LabelItem, LabelTranslation } from '@/api/types'
 import { Button } from '@/shared/ui/button'
 import { Card } from '@/shared/ui/card'
 import { toast } from '@/shared/lib/toast'
+import { getSkillLabelClassName } from '@/shared/lib/skill-labels'
 import { cn } from '@/shared/lib/utils'
 import {
   useAdminLabelDefinitions,
@@ -146,9 +147,7 @@ export function SkillLabelPanel({ namespace, slug, initialLabels, canManage, isS
                     <div
                       className={cn(
                         'inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium',
-                        label.type === 'PRIVILEGED'
-                          ? 'border-amber-500/40 bg-amber-100 text-amber-900'
-                          : 'border-slate-300 bg-slate-100 text-slate-800',
+                        getSkillLabelClassName(label),
                       )}
                     >
                       {label.displayName}

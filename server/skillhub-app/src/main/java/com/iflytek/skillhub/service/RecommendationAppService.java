@@ -1,5 +1,10 @@
 package com.iflytek.skillhub.service;
 
+import com.iflytek.skillhub.domain.label.LabelDefinition;
+import com.iflytek.skillhub.domain.label.LabelDefinitionService;
+import com.iflytek.skillhub.domain.label.LabelTranslation;
+import com.iflytek.skillhub.domain.label.SkillLabel;
+import com.iflytek.skillhub.domain.label.SkillLabelRepository;
 import com.iflytek.skillhub.domain.namespace.Namespace;
 import com.iflytek.skillhub.domain.namespace.NamespaceRepository;
 import com.iflytek.skillhub.domain.recommendation.OperationRecommendation;
@@ -19,6 +24,8 @@ import com.iflytek.skillhub.dto.PageResponse;
 import com.iflytek.skillhub.dto.RecommendationCreateRequest;
 import com.iflytek.skillhub.dto.RecommendationResponse;
 import com.iflytek.skillhub.dto.RecommendationUpdateRequest;
+import com.iflytek.skillhub.dto.SkillBadgeDto;
+import com.iflytek.skillhub.dto.SkillLabelDto;
 import com.iflytek.skillhub.dto.SkillLifecycleVersionResponse;
 import com.iflytek.skillhub.dto.SkillSummaryResponse;
 import java.time.Clock;
@@ -38,6 +45,9 @@ import org.springframework.util.StringUtils;
 @Service
 public class RecommendationAppService {
 
+    private record LabelSummary(LabelDefinition definition, List<LabelTranslation> translations) {
+    }
+
     private static final String DEFAULT_NAMESPACE = "global";
 
     private final OperationRecommendationRepository recommendationRepository;
@@ -45,6 +55,10 @@ public class RecommendationAppService {
     private final SkillVersionRepository skillVersionRepository;
     private final NamespaceRepository namespaceRepository;
     private final SkillLifecycleProjectionService projectionService;
+    private final SkillLabelRepository skillLabelRepository;
+    private final LabelDefinitionService labelDefinitionService;
+    private final LabelLocalizationService labelLocalizationService;
+    private final SkillBadgeAppService skillBadgeAppService;
     private final Clock clock;
 
     public RecommendationAppService(
@@ -52,12 +66,20 @@ public class RecommendationAppService {
             SkillRepository skillRepository,
             SkillVersionRepository skillVersionRepository,
             NamespaceRepository namespaceRepository,
-            SkillLifecycleProjectionService projectionService) {
+            SkillLifecycleProjectionService projectionService,
+            SkillLabelRepository skillLabelRepository,
+            LabelDefinitionService labelDefinitionService,
+            LabelLocalizationService labelLocalizationService,
+            SkillBadgeAppService skillBadgeAppService) {
         this.recommendationRepository = recommendationRepository;
         this.skillRepository = skillRepository;
         this.skillVersionRepository = skillVersionRepository;
         this.namespaceRepository = namespaceRepository;
         this.projectionService = projectionService;
+        this.skillLabelRepository = skillLabelRepository;
+        this.labelDefinitionService = labelDefinitionService;
+        this.labelLocalizationService = labelLocalizationService;
+        this.skillBadgeAppService = skillBadgeAppService;
         this.clock = Clock.systemUTC();
     }
 
@@ -200,13 +222,24 @@ public class RecommendationAppService {
                 .stream()
                 .collect(Collectors.toMap(Namespace::getId, Function.identity()));
         Map<Long, SkillLifecycleProjectionService.Projection> projections = projectionService.projectPublishedSummaries(skills);
-        return skills.stream().collect(Collectors.toMap(Skill::getId, skill -> toSkillSummary(skill, namespacesById, projections.get(skill.getId()))));
+        Map<Long, List<SkillLabelDto>> labelsBySkillId = buildLabelsBySkillId(skillIds);
+        Map<Long, List<SkillBadgeDto>> badgesBySkillId = skillBadgeAppService.buildBadgesBySkillId(skillIds);
+        return skills.stream().collect(Collectors.toMap(
+                Skill::getId,
+                skill -> toSkillSummary(
+                        skill,
+                        namespacesById,
+                        projections.get(skill.getId()),
+                        labelsBySkillId.getOrDefault(skill.getId(), List.of()),
+                        badgesBySkillId.getOrDefault(skill.getId(), List.of()))));
     }
 
     private SkillSummaryResponse toSkillSummary(
             Skill skill,
             Map<Long, Namespace> namespacesById,
-            SkillLifecycleProjectionService.Projection projection) {
+            SkillLifecycleProjectionService.Projection projection,
+            List<SkillLabelDto> labels,
+            List<SkillBadgeDto> badges) {
         Namespace namespace = namespacesById.get(skill.getNamespaceId());
         return new SkillSummaryResponse(
                 skill.getId(),
@@ -219,12 +252,59 @@ public class RecommendationAppService {
                 skill.getRatingAvg(),
                 skill.getRatingCount(),
                 namespace != null ? namespace.getSlug() : null,
+                null,
+                labels,
+                badges,
                 skill.getUpdatedAt(),
                 false,
                 toLifecycleVersion(projection != null ? projection.headlineVersion() : null),
                 toLifecycleVersion(projection != null ? projection.publishedVersion() : null),
                 toLifecycleVersion(projection != null ? projection.ownerPreviewVersion() : null),
                 projection != null ? projection.resolutionMode().name() : null);
+    }
+
+    private Map<Long, List<SkillLabelDto>> buildLabelsBySkillId(List<Long> skillIds) {
+        if (skillIds.isEmpty()) {
+            return Map.of();
+        }
+        List<SkillLabel> skillLabels = skillLabelRepository.findBySkillIdIn(skillIds);
+        if (skillLabels.isEmpty()) {
+            return Map.of();
+        }
+        List<Long> labelIds = skillLabels.stream()
+                .map(SkillLabel::getLabelId)
+                .distinct()
+                .toList();
+        Map<Long, LabelSummary> labelsById = labelDefinitionService.listByIds(labelIds).stream()
+                .collect(Collectors.toMap(
+                        LabelDefinition::getId,
+                        definition -> new LabelSummary(definition, List.of())));
+        Map<Long, List<LabelTranslation>> translationsByLabelId = labelDefinitionService.listTranslationsByLabelIds(labelIds);
+        labelsById = labelsById.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> new LabelSummary(
+                                entry.getValue().definition(),
+                                translationsByLabelId.getOrDefault(entry.getKey(), List.of()))));
+
+        Map<Long, LabelSummary> finalLabelsById = labelsById;
+        return skillLabels.stream()
+                .map(skillLabel -> new java.util.AbstractMap.SimpleImmutableEntry<>(
+                        skillLabel,
+                        finalLabelsById.get(skillLabel.getLabelId())))
+                .filter(entry -> entry.getValue() != null)
+                .collect(Collectors.groupingBy(
+                        entry -> entry.getKey().getSkillId(),
+                        Collectors.collectingAndThen(Collectors.toList(), labels -> labels.stream()
+                                .map(Map.Entry::getValue)
+                                .sorted(java.util.Comparator
+                                        .comparingInt((LabelSummary label) -> label.definition().getSortOrder())
+                                        .thenComparing(label -> label.definition().getSlug()))
+                                .map(label -> new SkillLabelDto(
+                                        label.definition().getSlug(),
+                                        label.definition().getType().name(),
+                                        labelLocalizationService.resolveDisplayName(label.definition().getSlug(), label.translations())))
+                                .toList())));
     }
 
     private SkillLifecycleVersionResponse toLifecycleVersion(SkillLifecycleProjectionService.VersionProjection projection) {
