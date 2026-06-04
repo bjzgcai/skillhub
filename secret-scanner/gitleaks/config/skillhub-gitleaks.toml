@@ -45,6 +45,8 @@ regexTarget = "secret"
 regexes = [
   '''(?i)^(your|example|sample|placeholder|changeme|replace|dummy|mock|todo|xxx|redacted|test|fake)([_-]?(client[_-]?)?(secret|token|password|api[_-]?key|access[_-]?key))?$''',
   '''(?i)^(your|example|sample|placeholder|changeme|replace|dummy|mock|todo|xxx|redacted|test|fake)[_-].*[_-](secret|token|password|api[_-]?key|access[_-]?key)$''',
+  '''(?i)^your[_-].*[_-]here$''',
+  '''(?i)^example[_-].*[_-]key$''',
   '''(?i)^(your|example|sample|placeholder|changeme|replace|dummy|mock|todo|xxx|redacted|test|fake)[_-].*[_-]here$''',
   '''(?i)^.*[_-](secret|token|password|api[_-]?key|access[_-]?key)[_-]here$''',
   '''(?i)^.*[_-](example|sample|placeholder|dummy|mock|test|fake|redacted)$'''
