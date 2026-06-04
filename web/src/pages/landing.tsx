@@ -9,6 +9,7 @@ import { SkeletonList } from '@/shared/components/skeleton-loader'
 import { useRecommendations, useSearchSkills } from '@/shared/hooks/use-skill-queries'
 import { useInView } from '@/shared/hooks/use-in-view'
 import { buildHomeSearchParams, HOME_DISCOVERY_SOURCE } from '@/shared/lib/home-discovery'
+import { dedupeRecommendationsBySkillSlug, dedupeSkillsBySlug } from '@/shared/lib/skill-dedupe'
 import { Button } from '@/shared/ui/button'
 
 /**
@@ -36,6 +37,10 @@ export function LandingPage() {
     sort: 'newest',
     size: 6,
   })
+
+  const recommendationItems = dedupeRecommendationsBySkillSlug(recommendations?.items ?? [])
+  const popularItems = dedupeSkillsBySlug(popularSkills?.items ?? [])
+  const latestItems = dedupeSkillsBySlug(latestSkills?.items ?? [])
 
   const handleSkillClick = (namespace: string, slug: string) => {
     navigate({ to: `/space/${namespace}/${slug}` })
@@ -129,9 +134,9 @@ export function LandingPage() {
           </div>
           {isLoadingRecommendations ? (
             <SkeletonList count={6} />
-          ) : recommendations?.items.length ? (
+          ) : recommendationItems.length ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {recommendations.items.map((recommendation, idx) => (
+              {recommendationItems.map((recommendation, idx) => (
                 <div key={`${recommendation.namespace}/${recommendation.slug}`} className={`animate-fade-up delay-${Math.min(idx + 1, 6)}`}>
                   <RecommendationCard
                     recommendation={recommendation}
@@ -165,7 +170,7 @@ export function LandingPage() {
             <SkeletonList count={6} />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {popularSkills?.items.map((skill, idx) => (
+              {popularItems.map((skill, idx) => (
                 <div key={skill.id} className={`animate-fade-up delay-${Math.min(idx + 1, 6)}`}>
                   <SkillCard
                     skill={skill}
@@ -199,7 +204,7 @@ export function LandingPage() {
             <SkeletonList count={6} />
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {latestSkills?.items.map((skill, idx) => (
+              {latestItems.map((skill, idx) => (
                 <div key={skill.id} className={`animate-fade-up delay-${Math.min(idx + 1, 6)}`}>
                   <SkillCard
                     skill={skill}

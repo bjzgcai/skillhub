@@ -12,6 +12,7 @@ import { Pagination } from '@/shared/components/pagination'
 import { useSearchSkills } from '@/shared/hooks/use-skill-queries'
 import { useVisibleLabels } from '@/shared/hooks/use-label-queries'
 import { useMyStars } from '@/shared/hooks/use-user-queries'
+import { dedupeSkillsBySlug } from '@/shared/lib/skill-dedupe'
 import { normalizeSearchQuery } from '@/shared/lib/search-query'
 import { Button } from '@/shared/ui/button'
 import { APP_SHELL_PAGE_CLASS_NAME } from '@/app/page-shell-style'
@@ -156,19 +157,15 @@ export function SearchPage() {
   const filteredStarredSkills = starredOnly
     ? sortStarredSkills(filterStarredSkills(starredSkills ?? [], q), sort)
     : []
+  const dedupedSearchItems = dedupeSkillsBySlug(data?.items ?? [])
   const starredPageItems = starredOnly
     ? filteredStarredSkills.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
     : []
-  const totalPages = starredOnly
-    ? Math.ceil(filteredStarredSkills.length / PAGE_SIZE)
-    : data
-      ? Math.ceil(data.total / data.size)
-      : 0
-  const displayItems = starredOnly ? starredPageItems : (data?.items ?? [])
+  const resultCount = starredOnly ? filteredStarredSkills.length : (data?.total ?? 0)
+  const totalPages = Math.ceil(resultCount / PAGE_SIZE)
+  const displayItems = starredOnly ? starredPageItems : dedupedSearchItems
   const isPageLoading = starredOnly ? isLoadingStarred : isLoading
   const isUpdatingResults = starredOnly ? isFetchingStarred && !isLoadingStarred : isFetching && !isLoading
-  const resultCount = starredOnly ? filteredStarredSkills.length : (data?.total ?? 0)
-
   return (
     <div className={APP_SHELL_PAGE_CLASS_NAME}>
       {/* Search Bar */}
