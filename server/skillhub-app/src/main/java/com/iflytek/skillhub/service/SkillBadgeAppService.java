@@ -38,8 +38,13 @@ public class SkillBadgeAppService {
     private int sortOrder(String type) {
         return switch (type) {
             case SkillBadgeTypes.SCANNED_SAFE -> 10;
-            case SkillBadgeTypes.REQUIRES_API_KEY -> 20;
-            case SkillBadgeTypes.REQUIRES_OAUTH -> 30;
+            case SkillBadgeTypes.FALSE_POSITIVE_ALLOWED -> 20;
+            case SkillBadgeTypes.CREDENTIAL_RISK -> 30;
+            case SkillBadgeTypes.MEMORY_WRITE -> 40;
+            case SkillBadgeTypes.LOCAL_FILE_SYNC -> 50;
+            case SkillBadgeTypes.PENDING_REVIEW -> 60;
+            case SkillBadgeTypes.REQUIRES_API_KEY -> 70;
+            case SkillBadgeTypes.REQUIRES_OAUTH -> 80;
             default -> 100;
         };
     }
@@ -47,6 +52,11 @@ public class SkillBadgeAppService {
     private String displayName(String type) {
         return switch (type) {
             case SkillBadgeTypes.SCANNED_SAFE -> "扫描安全";
+            case SkillBadgeTypes.FALSE_POSITIVE_ALLOWED -> "误报放行";
+            case SkillBadgeTypes.CREDENTIAL_RISK -> "凭证风险";
+            case SkillBadgeTypes.MEMORY_WRITE -> "记忆写入";
+            case SkillBadgeTypes.LOCAL_FILE_SYNC -> "本地文件同步";
+            case SkillBadgeTypes.PENDING_REVIEW -> "待审核";
             case SkillBadgeTypes.REQUIRES_API_KEY -> "需要 API Key";
             case SkillBadgeTypes.REQUIRES_OAUTH -> "需要 OAuth 授权";
             default -> type;
