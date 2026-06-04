@@ -34,6 +34,9 @@ public class SkillBadge {
     @Column(name = "security_audit_id")
     private Long securityAuditId;
 
+    @Column(name = "description", columnDefinition = "TEXT")
+    private String description;
+
     @Column(name = "created_by", length = 128)
     private String createdBy;
 
@@ -73,6 +76,7 @@ public class SkillBadge {
     public String getSource() { return source; }
     public Long getSkillVersionId() { return skillVersionId; }
     public Long getSecurityAuditId() { return securityAuditId; }
+    public String getDescription() { return description; }
     public String getCreatedBy() { return createdBy; }
 
     public void refresh(String source, Long skillVersionId, Long securityAuditId, String createdBy) {
@@ -80,5 +84,9 @@ public class SkillBadge {
         this.skillVersionId = skillVersionId;
         this.securityAuditId = securityAuditId;
         this.createdBy = createdBy;
+    }
+
+    public void updateDescription(String description) {
+        this.description = description;
     }
 }

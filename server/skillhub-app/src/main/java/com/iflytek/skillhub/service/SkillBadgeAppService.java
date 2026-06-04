@@ -32,7 +32,7 @@ public class SkillBadgeAppService {
     }
 
     private SkillBadgeDto toDto(SkillBadge badge) {
-        return new SkillBadgeDto(badge.getBadgeType(), displayName(badge.getBadgeType()), badge.getSource());
+        return new SkillBadgeDto(badge.getBadgeType(), displayName(badge.getBadgeType()), badge.getSource(), badge.getDescription());
     }
 
     private int sortOrder(String type) {
