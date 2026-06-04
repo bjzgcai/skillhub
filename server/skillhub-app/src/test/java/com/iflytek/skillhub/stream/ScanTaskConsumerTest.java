@@ -362,7 +362,7 @@ class ScanTaskConsumerTest {
 
         private StubSecurityScanService() {
             super(null, null, task -> {
-            }, new com.fasterxml.jackson.databind.ObjectMapper(), "local", true);
+            }, null, new com.fasterxml.jackson.databind.ObjectMapper(), "local", true);
         }
 
         @Override

@@ -128,6 +128,12 @@ export interface NamespaceCandidateUser {
 }
 
 // Skill types
+export interface SkillBadge {
+  type: string
+  displayName: string
+  source?: string | null
+}
+
 export interface SkillSummary {
   id: number
   slug: string
@@ -145,6 +151,8 @@ export interface SkillSummary {
   publishedVersion?: SkillLifecycleVersion
   ownerPreviewVersion?: SkillLifecycleVersion
   resolutionMode?: string
+  labels?: LabelItem[]
+  badges?: SkillBadge[]
 }
 
 export type LabelItem = Omit<components['schemas']['SkillLabelDto'], 'slug' | 'type' | 'displayName'> & {

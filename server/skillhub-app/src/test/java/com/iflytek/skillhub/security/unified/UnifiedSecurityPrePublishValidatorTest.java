@@ -112,7 +112,7 @@ class UnifiedSecurityPrePublishValidatorTest {
 
 
     @Test
-    void validatorPassesWarnAndCarriesFindingsForAuditDisplay() throws Exception {
+    void validatorRoutesWarnToManualReviewAndCarriesFindingsForAuditDisplay() throws Exception {
         try (StubScanner scanner = StubScanner.respondingWith("""
                 {
                   "scan_id": "scan_warn",
@@ -139,7 +139,7 @@ class UnifiedSecurityPrePublishValidatorTest {
             ValidationResult result = validator.validate(contextWithEntry("main.py", "eval(user_input)"));
 
             assertThat(result.passed()).isTrue();
-            assertThat(result.manualReviewRequired()).isFalse();
+            assertThat(result.manualReviewRequired()).isTrue();
             assertThat(result.securityAudit()).isPresent();
             assertThat(result.securityAudit().orElseThrow().response().verdict().name()).isEqualTo("SUSPICIOUS");
             assertThat(result.securityAudit().orElseThrow().response().findings()).hasSize(1);

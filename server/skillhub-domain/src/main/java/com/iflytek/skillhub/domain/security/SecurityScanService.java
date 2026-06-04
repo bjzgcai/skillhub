@@ -32,6 +32,7 @@ public class SecurityScanService {
     private final SecurityAuditRepository auditRepository;
     private final SkillVersionRepository skillVersionRepository;
     private final ScanTaskProducer scanTaskProducer;
+    private final SecuritySafetyBadgeService securitySafetyBadgeService;
     private final ObjectMapper objectMapper;
     private final String scanMode;
     private final boolean enabled;
@@ -39,12 +40,14 @@ public class SecurityScanService {
     public SecurityScanService(SecurityAuditRepository auditRepository,
                                SkillVersionRepository skillVersionRepository,
                                ScanTaskProducer scanTaskProducer,
+                               SecuritySafetyBadgeService securitySafetyBadgeService,
                                ObjectMapper objectMapper,
                                @Value("${skillhub.security.scanner.mode:local}") String scanMode,
                                @Value("${skillhub.security.scanner.enabled:false}") boolean enabled) {
         this.auditRepository = auditRepository;
         this.skillVersionRepository = skillVersionRepository;
         this.scanTaskProducer = scanTaskProducer;
+        this.securitySafetyBadgeService = securitySafetyBadgeService;
         this.objectMapper = objectMapper;
         this.scanMode = scanMode;
         this.enabled = enabled;
@@ -97,6 +100,7 @@ public class SecurityScanService {
 
         applyScanResponse(audit, response);
         auditRepository.save(audit);
+        securitySafetyBadgeService.syncSafetyBadge(version, response.verdict());
 
         version.setStatus(SkillVersionStatus.PENDING_REVIEW);
         skillVersionRepository.save(version);
@@ -107,6 +111,8 @@ public class SecurityScanService {
         SecurityAudit audit = new SecurityAudit(versionId, scannerType);
         applyScanResponse(audit, response);
         auditRepository.save(audit);
+        skillVersionRepository.findById(versionId)
+                .ifPresent(version -> securitySafetyBadgeService.syncSafetyBadge(version, response.verdict()));
     }
 
     private void applyScanResponse(SecurityAudit audit, SecurityScanResponse response) {

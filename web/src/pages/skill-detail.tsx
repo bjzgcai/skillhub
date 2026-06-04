@@ -30,6 +30,7 @@ import { getSkillSquareSearch, normalizeSkillDetailReturnTo } from '@/shared/lib
 import { formatCompactCount } from '@/shared/lib/number-format'
 import { resolveDocumentationFilePath } from '@/shared/lib/skill-documentation'
 import { getHeadlineVersion, getOwnerPreviewVersion, getPublishedVersion } from '@/shared/lib/skill-lifecycle'
+import { getSkillLabelClassName } from '@/shared/lib/skill-labels'
 import { NamespaceBadge } from '@/shared/components/namespace-badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/ui/tabs'
 import { Button } from '@/shared/ui/button'
@@ -705,9 +706,7 @@ export function SkillDetailPage() {
                   key={label.slug}
                   className={cn(
                     'inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium',
-                    label.type === 'PRIVILEGED'
-                      ? 'border-amber-500/40 bg-amber-100 text-amber-900'
-                      : 'border-slate-300 bg-slate-100 text-slate-800',
+                    getSkillLabelClassName(label),
                   )}
                 >
                   {label.displayName}

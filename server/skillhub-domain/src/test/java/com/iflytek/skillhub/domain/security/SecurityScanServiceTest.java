@@ -34,6 +34,9 @@ class SecurityScanServiceTest {
     @Mock
     private ScanTaskProducer scanTaskProducer;
 
+    @Mock
+    private SecuritySafetyBadgeService securitySafetyBadgeService;
+
     private SecurityScanService service;
 
     @BeforeEach
@@ -42,6 +45,7 @@ class SecurityScanServiceTest {
                 auditRepository,
                 skillVersionRepository,
                 scanTaskProducer,
+                securitySafetyBadgeService,
                 new ObjectMapper(),
                 "local",
                 true
@@ -98,6 +102,7 @@ class SecurityScanServiceTest {
                 auditRepository,
                 skillVersionRepository,
                 scanTaskProducer,
+                securitySafetyBadgeService,
                 new ObjectMapper(),
                 "upload",
                 true
@@ -148,6 +153,7 @@ class SecurityScanServiceTest {
                 auditRepository,
                 skillVersionRepository,
                 scanTaskProducer,
+                securitySafetyBadgeService,
                 new ObjectMapper(),
                 "upload",
                 true
@@ -207,6 +213,7 @@ class SecurityScanServiceTest {
         assertThat(audit.getScannedAt()).isNotNull();
         assertThat(version.getStatus()).isEqualTo(SkillVersionStatus.PENDING_REVIEW);
         verify(auditRepository).save(audit);
+        verify(securitySafetyBadgeService).syncSafetyBadge(version, SecurityVerdict.DANGEROUS);
         verify(skillVersionRepository).save(version);
     }
 

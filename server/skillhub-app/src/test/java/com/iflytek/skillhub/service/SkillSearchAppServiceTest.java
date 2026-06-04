@@ -73,6 +73,9 @@ class SkillSearchAppServiceTest {
     private LabelLocalizationService labelLocalizationService;
 
     @Mock
+    private SkillBadgeAppService skillBadgeAppService;
+
+    @Mock
     private IdentityBindingRepository identityBindingRepository;
 
     private SkillSearchAppService service;
@@ -89,10 +92,12 @@ class SkillSearchAppServiceTest {
                 skillLabelRepository,
                 labelDefinitionService,
                 labelLocalizationService,
+                skillBadgeAppService,
                 identityBindingRepository
         );
         lenient().when(userAccountRepository.findByIdIn(anyList())).thenReturn(List.of());
         lenient().when(skillLabelRepository.findBySkillIdIn(anyList())).thenReturn(List.of());
+        lenient().when(skillBadgeAppService.buildBadgesBySkillId(anyList())).thenReturn(Map.of());
         lenient().when(identityBindingRepository.findByProviderCodeAndUserIdIn(org.mockito.ArgumentMatchers.eq("dingtalk"), anyList()))
                 .thenReturn(List.of());
     }

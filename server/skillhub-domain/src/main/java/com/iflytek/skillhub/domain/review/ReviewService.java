@@ -12,6 +12,7 @@ import com.iflytek.skillhub.domain.event.SkillPublishedEvent;
 import com.iflytek.skillhub.domain.governance.GovernanceNotificationService;
 import com.iflytek.skillhub.domain.shared.exception.DomainBadRequestException;
 import com.iflytek.skillhub.domain.shared.exception.DomainForbiddenException;
+import com.iflytek.skillhub.domain.security.SecuritySafetyBadgeService;
 import com.iflytek.skillhub.domain.shared.exception.DomainNotFoundException;
 import com.iflytek.skillhub.domain.skill.Skill;
 import com.iflytek.skillhub.domain.skill.SkillRepository;
@@ -51,6 +52,7 @@ public class ReviewService {
     private final ObjectMapper objectMapper;
     private final SkillGovernanceService skillGovernanceService;
     private final GovernanceNotificationService governanceNotificationService;
+    private final SecuritySafetyBadgeService securitySafetyBadgeService;
     private final Clock clock;
 
     public ReviewService(ReviewTaskRepository reviewTaskRepository,
@@ -62,6 +64,7 @@ public class ReviewService {
                          ObjectMapper objectMapper,
                          SkillGovernanceService skillGovernanceService,
                          GovernanceNotificationService governanceNotificationService,
+                         SecuritySafetyBadgeService securitySafetyBadgeService,
                          Clock clock) {
         this.reviewTaskRepository = reviewTaskRepository;
         this.skillVersionRepository = skillVersionRepository;
@@ -72,6 +75,7 @@ public class ReviewService {
         this.objectMapper = objectMapper;
         this.skillGovernanceService = skillGovernanceService;
         this.governanceNotificationService = governanceNotificationService;
+        this.securitySafetyBadgeService = securitySafetyBadgeService;
         this.clock = clock;
     }
 
@@ -219,6 +223,7 @@ public class ReviewService {
         applyPublishedMetadata(skill, skillVersion);
         skill.setUpdatedBy(reviewerId);
         skillRepository.save(skill);
+        securitySafetyBadgeService.syncSafetyBadgeFromLatestAudits(skillVersion);
 
         eventPublisher.publishEvent(new SkillPublishedEvent(
                 skill.getId(), skillVersion.getId(), reviewerId));

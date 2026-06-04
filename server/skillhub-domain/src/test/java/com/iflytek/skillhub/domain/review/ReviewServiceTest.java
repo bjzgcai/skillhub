@@ -7,6 +7,7 @@ import com.iflytek.skillhub.domain.namespace.Namespace;
 import com.iflytek.skillhub.domain.namespace.NamespaceRepository;
 import com.iflytek.skillhub.domain.namespace.NamespaceRole;
 import com.iflytek.skillhub.domain.namespace.NamespaceStatus;
+import com.iflytek.skillhub.domain.security.SecuritySafetyBadgeService;
 import com.iflytek.skillhub.domain.shared.exception.DomainBadRequestException;
 import com.iflytek.skillhub.domain.shared.exception.DomainForbiddenException;
 import com.iflytek.skillhub.domain.shared.exception.DomainNotFoundException;
@@ -54,6 +55,7 @@ class ReviewServiceTest {
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private SkillGovernanceService skillGovernanceService;
     @Mock private GovernanceNotificationService governanceNotificationService;
+    @Mock private SecuritySafetyBadgeService securitySafetyBadgeService;
 
     private ReviewService reviewService;
 
@@ -70,7 +72,8 @@ class ReviewServiceTest {
         objectMapper = new ObjectMapper();
         reviewService = new ReviewService(
                 reviewTaskRepository, skillVersionRepository, skillRepository,
-                namespaceRepository, permissionChecker, eventPublisher, objectMapper, skillGovernanceService, governanceNotificationService, CLOCK);
+                namespaceRepository, permissionChecker, eventPublisher, objectMapper, skillGovernanceService,
+                governanceNotificationService, securitySafetyBadgeService, CLOCK);
     }
 
     private SkillVersion createDraftSkillVersion() {
@@ -259,6 +262,7 @@ class ReviewServiceTest {
             assertEquals("Approved Name", skill.getDisplayName());
             assertEquals("Approved Summary", skill.getSummary());
             assertEquals(REVIEWER_ID, skill.getUpdatedBy());
+            verify(securitySafetyBadgeService).syncSafetyBadgeFromLatestAudits(sv);
             verify(eventPublisher).publishEvent(any(SkillPublishedEvent.class));
             verify(governanceNotificationService).notifyUser(eq(USER_ID), eq("REVIEW"), eq("REVIEW_TASK"), eq(REVIEW_TASK_ID), eq("Review approved"), any());
         }

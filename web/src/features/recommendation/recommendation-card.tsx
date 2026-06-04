@@ -1,10 +1,10 @@
 import type { RecommendationItem } from '@/api/types'
 import { Card } from '@/shared/ui/card'
-import { NamespaceBadge } from '@/shared/components/namespace-badge'
 import { getHeadlineVersion } from '@/shared/lib/skill-lifecycle'
 import { formatCompactCount } from '@/shared/lib/number-format'
-import { getRiskBadge, splitRecommendationSummary } from '@/shared/lib/recommendation-risk'
+import { splitRecommendationSummary } from '@/shared/lib/recommendation-risk'
 import { getSkillAvatar } from '@/shared/lib/skill-avatar'
+import { SkillCardBadges } from '@/features/skill/skill-card-badges'
 import { Bookmark } from 'lucide-react'
 
 interface RecommendationCardProps {
@@ -22,8 +22,7 @@ export function RecommendationCard({ recommendation, onClick }: RecommendationCa
     displayName: recommendation.title || recommendation.skill.displayName,
   }
   const headlineVersion = getHeadlineVersion(skill)
-  const riskBadge = getRiskBadge(recommendation.badge)
-  const { summary, riskNote } = splitRecommendationSummary(recommendation.summary || recommendation.skill.summary)
+  const { summary } = splitRecommendationSummary(recommendation.summary || recommendation.skill.summary)
   const avatar = getSkillAvatar(skill.displayName, skill.slug)
 
   return (
@@ -43,23 +42,13 @@ export function RecommendationCard({ recommendation, onClick }: RecommendationCa
                 <h3 className="font-semibold text-lg leading-tight transition-colors group-hover:text-primary" style={{ color: 'hsl(var(--foreground))' }}>
                   {skill.displayName}
                 </h3>
-                {riskBadge && (
-                  <span className="group/risk relative inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
-                    {riskBadge}
-                    {riskNote && (
-                      <span className="pointer-events-none absolute left-0 top-full z-20 mt-2 hidden w-72 rounded-xl border border-amber-200 bg-white p-3 text-left text-xs font-normal leading-relaxed text-amber-900 shadow-xl group-hover/risk:block">
-                        {riskNote}
-                      </span>
-                    )}
-                  </span>
-                )}
               </div>
               <p className="font-mono text-sm text-muted-foreground">
                 {skill.slug}
               </p>
             </div>
           </div>
-          <NamespaceBadge type="TEAM" name={`@${skill.namespace}`} />
+          <SkillCardBadges badges={skill.badges} />
         </div>
 
         {summary && (
