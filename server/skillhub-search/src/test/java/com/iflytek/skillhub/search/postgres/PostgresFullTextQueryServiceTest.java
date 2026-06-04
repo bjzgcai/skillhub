@@ -578,4 +578,70 @@ class PostgresFullTextQueryServiceTest {
         assertThat(sqlCaptor.getAllValues().getFirst()).contains("JOIN label_definition ld ON ld.id = sl.label_id");
         assertThat(sqlCaptor.getAllValues().getFirst()).contains("WHERE LOWER(ld.slug) IN :labelSlugs");
     }
+
+    @Test
+    void clawhubSourceFilterShouldUseExistsWithoutJoiningMirrorRows() {
+        EntityManager entityManager = mock(EntityManager.class);
+        Query nativeQuery = mock(Query.class);
+        Query countQuery = mock(Query.class);
+        when(entityManager.createNativeQuery(anyString()))
+                .thenReturn(nativeQuery)
+                .thenReturn(countQuery);
+        when(nativeQuery.setParameter(anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(nativeQuery);
+        when(countQuery.setParameter(anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(countQuery);
+        when(nativeQuery.getResultList()).thenReturn(List.of(31L));
+        when(countQuery.getSingleResult()).thenReturn(1L);
+
+        PostgresFullTextQueryService service = new PostgresFullTextQueryService(entityManager);
+
+        service.search(new SearchQuery(
+                null,
+                null,
+                new SearchVisibilityScope(null, Set.of(), Set.of()),
+                "newest",
+                0,
+                20,
+                List.of(),
+                "clawhub"
+        ));
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(entityManager, org.mockito.Mockito.times(2)).createNativeQuery(sqlCaptor.capture());
+        assertThat(sqlCaptor.getAllValues().getFirst()).contains("EXISTS (SELECT 1 FROM remote_mirror_record rmr WHERE rmr.skill_id = d.skill_id AND LOWER(rmr.source_registry) = 'clawhub')");
+        assertThat(sqlCaptor.getAllValues().getFirst()).doesNotContain("JOIN remote_mirror_record");
+        assertThat(sqlCaptor.getAllValues().get(1)).contains("EXISTS (SELECT 1 FROM remote_mirror_record rmr WHERE rmr.skill_id = d.skill_id AND LOWER(rmr.source_registry) = 'clawhub')");
+    }
+
+    @Test
+    void internalSourceFilterShouldUseNotExistsWithoutJoiningMirrorRows() {
+        EntityManager entityManager = mock(EntityManager.class);
+        Query nativeQuery = mock(Query.class);
+        Query countQuery = mock(Query.class);
+        when(entityManager.createNativeQuery(anyString()))
+                .thenReturn(nativeQuery)
+                .thenReturn(countQuery);
+        when(nativeQuery.setParameter(anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(nativeQuery);
+        when(countQuery.setParameter(anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(countQuery);
+        when(nativeQuery.getResultList()).thenReturn(List.of(1L));
+        when(countQuery.getSingleResult()).thenReturn(1L);
+
+        PostgresFullTextQueryService service = new PostgresFullTextQueryService(entityManager);
+
+        service.search(new SearchQuery(
+                null,
+                null,
+                new SearchVisibilityScope(null, Set.of(), Set.of()),
+                "newest",
+                0,
+                20,
+                List.of(),
+                "internal"
+        ));
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(entityManager, org.mockito.Mockito.times(2)).createNativeQuery(sqlCaptor.capture());
+        assertThat(sqlCaptor.getAllValues().getFirst()).contains("NOT EXISTS (SELECT 1 FROM remote_mirror_record rmr WHERE rmr.skill_id = d.skill_id)");
+        assertThat(sqlCaptor.getAllValues().getFirst()).doesNotContain("JOIN remote_mirror_record");
+    }
+
 }
