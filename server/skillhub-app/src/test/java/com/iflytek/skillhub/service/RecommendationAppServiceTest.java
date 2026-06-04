@@ -117,7 +117,7 @@ class RecommendationAppServiceTest {
         when(recommendationRepository.findNonDeletedBySkillId(42L)).thenReturn(Optional.empty());
         stubResponseProjection(skill);
         when(skillBadgeAppService.buildBadgesBySkillId(List.of(42L)))
-                .thenReturn(Map.of(42L, List.of(new com.iflytek.skillhub.dto.SkillBadgeDto("SCANNED_SAFE", "扫描安全", "SCANNER_PASS"))));
+                .thenReturn(Map.of(42L, List.of(new com.iflytek.skillhub.dto.SkillBadgeDto("SCANNED_SAFE", "扫描安全", "SCANNER_PASS", null))));
 
         RecommendationResponse response = service.create(
                 new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", 100, null, null),

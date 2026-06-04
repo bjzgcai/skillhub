@@ -19,11 +19,17 @@ export function SkillCardBadges({ badges }: SkillCardBadgesProps) {
         <span
           key={badge.type}
           className={cn(
-            'inline-flex rounded-full border px-2.5 py-1 text-xs font-medium',
+            'group/badge relative inline-flex rounded-full border px-2.5 py-1 text-xs font-medium',
+            badge.description ? 'cursor-help' : '',
             getSkillBadgeClassName(badge),
           )}
         >
           {badge.displayName}
+          {badge.description && (
+            <span className="pointer-events-none absolute right-0 top-full z-30 mt-2 hidden w-72 rounded-xl border border-slate-200 bg-white p-3 text-left text-xs font-normal leading-relaxed text-slate-800 shadow-xl group-hover/badge:block">
+              {badge.description}
+            </span>
+          )}
         </span>
       ))}
     </div>

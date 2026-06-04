@@ -132,6 +132,7 @@ export interface SkillBadge {
   type: string
   displayName: string
   source?: string | null
+  description?: string | null
 }
 
 export interface SkillSummary {
