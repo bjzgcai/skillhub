@@ -102,4 +102,17 @@ PY
   fi
 fi
 
+# Local storage must be writable by the non-root app user, otherwise publish can
+# pass health checks but fail when writing bundles/files during final upload.
+docker exec skillhub-server-1 sh -lc '
+  set -eu
+  base=/var/lib/skillhub/storage
+  suffix=.verify-write-$(date +%s)-$$
+  for parent in skills packages; do
+    probe="$base/$parent/$suffix"
+    mkdir "$probe"
+    rmdir "$probe"
+  done
+' || { echo 'server storage write permission check failed' >&2; exit 1; }
+
 echo 'server verify ok'
