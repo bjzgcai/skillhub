@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate, useRouterState, useSearch } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowUpCircle, ChevronDown, ChevronUp, Clock, Folder, RefreshCw, ShieldCheck, Terminal, User } from 'lucide-react'
+import { createSkillMarkdownAssetResolver } from '@/features/skill/markdown-assets'
 import { MarkdownRenderer } from '@/features/skill/markdown-renderer'
 import { FileTree } from '@/features/skill/file-tree'
 import { FilePreviewDialog } from '@/features/skill/file-preview-dialog'
 import type { FileTreeNode } from '@/features/skill/file-tree-builder'
+import { isImageFile } from '@/features/skill/file-type-utils'
 import { InstallCommand } from '@/features/skill/install-command'
 import { ShareButton } from '@/features/skill/share-button'
 import { SkillLabelPanel } from '@/features/skill/skill-label-panel'
@@ -141,13 +143,46 @@ export function SkillDetailPage() {
   const selectedVersionEntry = versions?.find((version) => version.version === selectedVersion) ?? versions?.[0]
   const { data: files } = useSkillFiles(qns, qslug, selectedVersion, skillReady)
   const documentationPath = resolveDocumentationFilePath(files)
+  const readmeImageUrlResolver = useMemo(
+    () => selectedVersion && documentationPath
+      ? createSkillMarkdownAssetResolver({
+        namespace: qns,
+        slug: qslug,
+        version: selectedVersion,
+        baseFilePath: documentationPath,
+      })
+      : undefined,
+    [documentationPath, qns, qslug, selectedVersion]
+  )
+  const previewImageUrlResolver = useMemo(
+    () => selectedVersion && previewNode?.path
+      ? createSkillMarkdownAssetResolver({
+        namespace: qns,
+        slug: qslug,
+        version: selectedVersion,
+        baseFilePath: previewNode.path,
+      })
+      : undefined,
+    [previewNode?.path, qns, qslug, selectedVersion]
+  )
+  const previewFileUrl = useMemo(
+    () => selectedVersion && previewNode?.path
+      ? createSkillMarkdownAssetResolver({
+        namespace: qns,
+        slug: qslug,
+        version: selectedVersion,
+      })(previewNode.path)
+      : undefined,
+    [previewNode?.path, qns, qslug, selectedVersion]
+  )
+  const isPreviewImage = previewNode ? isImageFile(previewNode.name) : false
   const { data: readme, error: readmeError } = useSkillReadme(qns, qslug, selectedVersion, documentationPath, skillReady)
   const { data: previewContent, isLoading: isLoadingPreview, error: previewError } = useSkillFile(
     qns,
     qslug,
     selectedVersion,
     previewNode?.path || null,
-    previewDialogOpen && !!previewNode && skillReady
+    previewDialogOpen && !!previewNode && !isPreviewImage && skillReady
   )
   const { data: diffSourceDetail } = useSkillVersionDetail(qns, qslug, diffSourceVersion ?? undefined, skillReady)
   const { data: diffCompareDetail } = useSkillVersionDetail(qns, qslug, diffCompareVersion ?? undefined, skillReady)
@@ -760,7 +795,7 @@ export function SkillDetailPage() {
                     style={!isOverviewExpanded && isOverviewCollapsible ? { maxHeight: `${overviewMaxHeight}px` } : undefined}
                   >
                     <div ref={overviewContentRef}>
-                      <MarkdownRenderer content={readme} />
+                      <MarkdownRenderer content={readme} imageUrlResolver={readmeImageUrlResolver} />
                     </div>
                     {!isOverviewExpanded && isOverviewCollapsible ? (
                       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-card via-card/95 to-transparent" />
@@ -1465,6 +1500,8 @@ export function SkillDetailPage() {
         isLoading={isLoadingPreview}
         error={previewError}
         onDownload={handleDownloadFile}
+        imageUrlResolver={previewImageUrlResolver}
+        fileUrl={previewFileUrl}
       />
     </div>
   )

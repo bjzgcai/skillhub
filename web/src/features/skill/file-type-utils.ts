@@ -21,9 +21,11 @@ const PREVIEWABLE_EXTENSIONS = new Set([
   'vue', 'svelte',
 ])
 
-// Binary file extensions that cannot be previewed
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'svg', 'webp'])
+
+// Binary file extensions that cannot be previewed as text.
 const BINARY_EXTENSIONS = new Set([
-  'png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'svg',
+  ...IMAGE_EXTENSIONS,
   'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm',
   'mp3', 'wav', 'ogg', 'flac',
   'zip', 'tar', 'gz', 'rar', '7z',
@@ -49,6 +51,10 @@ export function getFileExtension(fileName: string): string {
  * @param fileSize - The size of the file in bytes
  * @returns True if the file can be previewed
  */
+export function isImageFile(fileName: string): boolean {
+  return IMAGE_EXTENSIONS.has(getFileExtension(fileName))
+}
+
 export function isPreviewable(fileName: string, fileSize: number): boolean {
   if (fileSize > MAX_PREVIEW_SIZE) {
     return false

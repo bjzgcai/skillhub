@@ -7,7 +7,7 @@ import { MarkdownRenderer } from './markdown-renderer'
 import { CodeRenderer } from './code-renderer'
 import { toast } from '@/shared/lib/toast'
 import { copyToClipboard } from '@/shared/lib/clipboard'
-import { getFileTypeLabel, canPreviewFile, getLanguageForHighlight } from './file-type-utils'
+import { getFileTypeLabel, canPreviewFile, getLanguageForHighlight, isImageFile } from './file-type-utils'
 import type { FileTreeNode } from './file-tree-builder'
 
 interface FilePreviewDialogProps {
@@ -18,6 +18,8 @@ interface FilePreviewDialogProps {
   isLoading: boolean
   error: Error | null
   onDownload: () => void
+  imageUrlResolver?: (src: string) => string
+  fileUrl?: string
 }
 
 /**
@@ -33,6 +35,8 @@ export function FilePreviewDialog({
   isLoading,
   error,
   onDownload,
+  imageUrlResolver,
+  fileUrl,
 }: FilePreviewDialogProps) {
   const { t } = useTranslation()
   // Tracks the copy animation state: idle → spinning → done
@@ -42,6 +46,7 @@ export function FilePreviewDialog({
 
   const fileTypeLabel = getFileTypeLabel(node.name)
   const previewCheck = canPreviewFile(node.name, node.file?.fileSize || 0)
+  const isImage = isImageFile(node.name)
   const isMarkdown = ['md', 'mdx', 'markdown'].includes(fileTypeLabel)
   const fileSize = node.file?.fileSize || 0
   const language = getLanguageForHighlight(node.name)
@@ -131,6 +136,10 @@ export function FilePreviewDialog({
               <p className="text-sm font-medium text-foreground">{t('filePreview.loadError')}</p>
               <p className="text-sm text-muted-foreground mt-2">{error.message}</p>
             </div>
+          ) : isImage && fileUrl ? (
+            <div className="flex min-h-[360px] items-center justify-center rounded-xl bg-muted/20 p-4">
+              <img className="max-h-[70vh] max-w-full rounded-lg object-contain shadow-sm" src={fileUrl} alt={node.name} />
+            </div>
           ) : !previewCheck.canPreview ? (
             <div className="text-center py-12 space-y-4">
               <p className="text-sm font-medium text-foreground">
@@ -143,7 +152,7 @@ export function FilePreviewDialog({
               <Button onClick={onDownload}>{t('filePreview.downloadHint', { name: node.name })}</Button>
             </div>
           ) : content && isMarkdown ? (
-            <MarkdownRenderer content={content} />
+            <MarkdownRenderer content={content} imageUrlResolver={imageUrlResolver} />
           ) : content && shouldHighlight ? (
             <CodeRenderer code={content} language={language} />
           ) : content ? (
