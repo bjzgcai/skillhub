@@ -23,6 +23,8 @@ PROD_PG = ["docker", "exec", "-i", "skillhub-postgres-1", "psql", "-U", "skillhu
 ACTOR = "openclaw-rollout"
 OWNER = "docker-admin"
 PROD_VOLUME = "skillhub_skillhub_storage"
+STORAGE_APP_UID = 100
+STORAGE_APP_GID = 101
 
 
 def run(cmd, input_text=None, capture=True):
@@ -258,7 +260,13 @@ ON CONFLICT (skill_id, label_id) DO NOTHING;
                 out.write_text(content, encoding="utf-8")
 
         print("Copying reconstructed bundles/files into prod storage volume...")
-        run(["docker", "run", "--rm", "-v", f"{PROD_VOLUME}:/storage", "-v", f"{storage_root}:/import:ro", "alpine", "sh", "-c", "cp -a /import/. /storage/"], capture=False)
+        run([
+            "docker", "run", "--rm",
+            "-v", f"{PROD_VOLUME}:/storage",
+            "-v", f"{storage_root}:/import:ro",
+            "alpine", "sh", "-c",
+            f"cp -a /import/. /storage/ && chown -R {STORAGE_APP_UID}:{STORAGE_APP_GID} /storage/packages /storage/skills",
+        ], capture=False)
 
         file_rows = ["BEGIN;"]
         for item in bundle_copies:
