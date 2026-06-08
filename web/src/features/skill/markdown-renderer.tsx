@@ -11,6 +11,7 @@ export const MARKDOWN_IMAGE_CLASS_NAME = 'h-auto max-w-full'
 interface MarkdownRendererProps {
   content: string
   className?: string
+  imageUrlResolver?: (src: string) => string
 }
 
 /**
@@ -18,7 +19,7 @@ interface MarkdownRendererProps {
  * Frontmatter is stripped before render because package metadata is surfaced in
  * dedicated UI sections and should not appear twice in the document body.
  */
-export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className, imageUrlResolver }: MarkdownRendererProps) {
   const containerClassName = [
     className,
     'max-w-none break-words text-sm text-foreground/90 [overflow-wrap:anywhere]',
@@ -187,8 +188,13 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
               {children}
             </td>
           ),
-          img: ({ className: imageClassName, alt, ...props }) => (
-            <img className={cn(MARKDOWN_IMAGE_CLASS_NAME, imageClassName)} alt={alt ?? ''} {...props} />
+          img: ({ className: imageClassName, alt, src, ...props }) => (
+            <img
+              className={cn(MARKDOWN_IMAGE_CLASS_NAME, imageClassName)}
+              alt={alt ?? ''}
+              src={typeof src === 'string' && imageUrlResolver ? imageUrlResolver(src) : src}
+              {...props}
+            />
           ),
         }}
       >

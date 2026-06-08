@@ -1,7 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { isPreviewable, getFileTypeLabel, canPreviewFile } from './file-type-utils'
+import { isPreviewable, getFileTypeLabel, canPreviewFile, isImageFile } from './file-type-utils'
 
 describe('file-type-utils', () => {
+  describe('isImageFile', () => {
+    it('identifies image assets separately from text preview support', () => {
+      expect(isImageFile('cover.png')).toBe(true)
+      expect(isImageFile('screenshots/hero.webp')).toBe(true)
+      expect(isImageFile('README.md')).toBe(false)
+    })
+  })
+
   describe('isPreviewable', () => {
     it('should identify markdown files as previewable', () => {
       expect(isPreviewable('README.md', 1024)).toBe(true)

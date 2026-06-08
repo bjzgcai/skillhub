@@ -24,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.MediaTypeFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -258,7 +259,7 @@ public class SkillController extends BaseApiController {
         );
 
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentType(resolveFileContentType(path))
                 .body(new InputStreamResource(content));
     }
 
@@ -281,8 +282,13 @@ public class SkillController extends BaseApiController {
         );
 
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentType(resolveFileContentType(path))
                 .body(new InputStreamResource(content));
+    }
+
+    private MediaType resolveFileContentType(String path) {
+        return MediaTypeFactory.getMediaType(path)
+                .orElse(MediaType.APPLICATION_OCTET_STREAM);
     }
 
     /**
