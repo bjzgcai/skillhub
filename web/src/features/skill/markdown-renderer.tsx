@@ -4,6 +4,7 @@ import rehypeSanitize from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/shared/lib/utils'
 import { remarkInferCodeLanguage } from './code-language'
+import { normalizeMarkdownHtml } from './markdown-html-compat'
 import { stripMarkdownFrontmatter } from './markdown-frontmatter'
 
 export const MARKDOWN_IMAGE_CLASS_NAME = 'h-auto max-w-full'
@@ -26,7 +27,7 @@ export function MarkdownRenderer({ content, className, imageUrlResolver }: Markd
   ]
     .filter(Boolean)
     .join(' ')
-  const normalizedContent = stripMarkdownFrontmatter(content)
+  const normalizedContent = normalizeMarkdownHtml(stripMarkdownFrontmatter(content))
 
   return (
     <div className={containerClassName}>

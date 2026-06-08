@@ -28,4 +28,21 @@ describe('MarkdownRenderer', () => {
     expect(html).toContain('path=%E6%83%85%E6%8A%A5%E5%BC%95%E6%93%8E%E7%AE%80%E4%BB%8B.png')
     expect(html).not.toContain('%25E6')
   })
+
+  it('renders package images embedded in sanitized html tables', () => {
+    const html = renderToStaticMarkup(
+      <MarkdownRenderer
+        content={'<table><tr><td><img src="current-adaptive-swiss-grid.png" alt="自适应瑞士网格"></td></tr></table>'}
+        imageUrlResolver={createSkillMarkdownAssetResolver({
+          namespace: 'global',
+          slug: 'doc2brief-weekly-report',
+          version: '20260608.113054',
+          baseFilePath: 'README.md',
+        })}
+      />
+    )
+
+    expect(html).toContain('/api/web/skills/global/doc2brief-weekly-report/versions/20260608.113054/file?path=current-adaptive-swiss-grid.png')
+    expect(html).toContain('自适应瑞士网格')
+  })
 })
