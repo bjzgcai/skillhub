@@ -1,4 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const routerState = vi.hoisted(() => ({ pathname: '/', resolvedPathname: '/' }))
+const useAuthMock = vi.hoisted(() => vi.fn(() => ({ user: null, isLoading: false })))
 
 // Layout is a component-only file with no exported pure functions or constants.
 // We verify that the named export exists for the router to consume.
@@ -6,7 +11,7 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('@tanstack/react-router', () => ({
   Outlet: () => null,
   Link: ({ children }: { children: unknown }) => children,
-  useRouterState: () => ({ pathname: '/', resolvedPathname: '/' }),
+  useRouterState: () => routerState,
 }))
 
 vi.mock('react-i18next', async () => {
@@ -21,10 +26,7 @@ vi.mock('react-i18next', async () => {
 })
 
 vi.mock('@/features/auth/use-auth', () => ({
-  useAuth: () => ({
-    user: null,
-    isLoading: false,
-  }),
+  useAuth: useAuthMock,
 }))
 
 vi.mock('@/shared/components/language-switcher', () => ({
@@ -40,6 +42,7 @@ vi.mock('./layout-header-style', () => ({
 }))
 
 vi.mock('./layout-main-content', () => ({
+  WUKONG_EMBEDDED_PATH: '/wukong',
   resolveAppMainContentPathname: (p: string) => p,
   getAppMainContentLayout: () => ({
     mainClassName: 'main-class',
@@ -50,8 +53,29 @@ vi.mock('./layout-main-content', () => ({
 import { Layout } from './layout'
 
 describe('Layout', () => {
+  beforeEach(() => {
+    routerState.pathname = '/'
+    routerState.resolvedPathname = '/'
+    useAuthMock.mockClear()
+  })
+
   it('exports a named Layout component function', () => {
     expect(typeof Layout).toBe('function')
     expect(Layout.name).toBe('Layout')
+  })
+
+  it('keeps auth enabled for regular app routes', () => {
+    renderToStaticMarkup(createElement(Layout))
+
+    expect(useAuthMock).toHaveBeenCalledWith(true)
+  })
+
+  it('disables auth lookups for the Wukong embedded route', () => {
+    routerState.pathname = '/wukong'
+    routerState.resolvedPathname = '/wukong'
+
+    renderToStaticMarkup(createElement(Layout))
+
+    expect(useAuthMock).toHaveBeenCalledWith(false)
   })
 })

@@ -68,6 +68,7 @@ const RegisterPage = createLazyRouteComponent(() => import('@/pages/register'), 
 const PrivacyPolicyPage = createLazyRouteComponent(() => import('@/pages/privacy'), 'PrivacyPolicyPage')
 const SearchPage = createLazyRouteComponent(() => import('@/pages/search'), 'SearchPage')
 const RecommendationsPage = createLazyRouteComponent(() => import('@/pages/recommendations'), 'RecommendationsPage')
+const WukongPage = createLazyRouteComponent(() => import('@/pages/wukong'), 'WukongPage')
 const TermsOfServicePage = createLazyRouteComponent(() => import('@/pages/terms'), 'TermsOfServicePage')
 const NamespacePage = createLazyRouteComponent(() => import('@/pages/namespace'), 'NamespacePage')
 const SkillDetailPage = createLazyRouteComponent(() => import('@/pages/skill-detail'), 'SkillDetailPage')
@@ -217,6 +218,12 @@ const recommendationsRoute = createRoute({
     page: Number(search.page) || 0,
     label: typeof search.label === 'string' && search.label ? search.label : undefined,
   }),
+})
+
+const wukongRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'wukong',
+  component: WukongPage,
 })
 
 const termsRoute = createRoute({
@@ -414,6 +421,7 @@ const routeTree = rootRoute.addChildren([
   privacyRoute,
   searchRoute,
   recommendationsRoute,
+  wukongRoute,
   termsRoute,
   namespaceRoute,
   skillDetailRoute,

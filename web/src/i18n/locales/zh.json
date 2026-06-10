@@ -174,6 +174,27 @@
     "emptyTitle": "暂无全网推荐",
     "emptyDescription": "运营推荐上线后会显示在这里。"
   },
+  "wukong": {
+    "title": "悟空技能中心",
+    "subtitle": "选择公开技能并安装到当前悟空客户端",
+    "searchPlaceholder": "搜索技能名称或关键词",
+    "search": "搜索",
+    "refresh": "刷新",
+    "install": "安装",
+    "installing": "安装中...",
+    "installed": "已安装",
+    "retry": "重试",
+    "downloads": "下载 {{value}}",
+    "bridge": {
+      "ready": "悟空已连接",
+      "unavailable": "预览模式",
+      "preview": "正在检测悟空客户端连接；本地预览或连接失败时安装不可用。"
+    },
+    "empty": {
+      "title": "暂无可安装技能",
+      "description": "换个关键词再试一次。"
+    }
+  },
   "search": {
     "title": "搜索技能",
     "placeholder": "搜索技能...",
