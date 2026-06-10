@@ -43,7 +43,7 @@ SKILLHUB_ADMIN_USERNAME=admin SKILLHUB_ADMIN_PASSWORD='***' \
     --priority 100
 ```
 
-脚本会依次执行：下载 zip、登录、发布到 SkillHub、校验版本为 `PUBLISHED`、校验下载入口可访问、调用 `POST /api/v1/admin/recommendations/{namespace}/{slug}`。
+脚本会依次执行：下载 zip、登录、发布到 SkillHub、可选写入来源镜像记录（`remote_mirror_record`）、校验版本为 `PUBLISHED`、校验下载入口可访问、调用 `POST /api/v1/admin/recommendations/{namespace}/{slug}`。
 
 ## 同步方式
 
@@ -80,3 +80,23 @@ cd /home/ubuntu/bjzgcai/skillhub
 - `opsGitCommit`
 - 更细的 deploy / verify / rollback 结构化结果
 - current 与运行态 drift 的显式判定
+
+### 外部来源标记
+
+导入外部 registry 技能时，应同时标记来源，便于后续按 `source=clawhub` 过滤、审计和追溯：
+
+```bash
+SKILLHUB_ADMIN_USERNAME=admin SKILLHUB_ADMIN_PASSWORD='***' \
+  ./ops/recommend-external-skill.sh 'https://clawhub.ai/api/v1/download?slug=mineru-document-extractor&version=0.1.30' \
+    --base-url http://127.0.0.1:8080 \
+    --namespace global \
+    --title 'MinerU 文档提取工具' \
+    --summary 'PDF、扫描件、Office 文档和网页转 Markdown/HTML/DOCX' \
+    --reason '文档解析、OCR、表格/公式提取等场景常用' \
+    --badge '推荐' \
+    --priority 100 \
+    --source-registry clawhub \
+    --source-namespace mineru-extract \
+    --source-slug mineru-document-extractor \
+    --source-version 0.1.30
+```
