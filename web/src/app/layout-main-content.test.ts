@@ -4,6 +4,8 @@ import {
   CENTERED_MAIN_CLASS_NAME,
   CENTERED_SEARCH_CONTENT_CLASS_NAME,
   DEFAULT_MAIN_CLASS_NAME,
+  EMBEDDED_MAIN_CLASS_NAME,
+  WUKONG_EMBEDDED_PATH,
   getAppMainContentLayout,
   resolveAppMainContentPathname,
 } from './layout-main-content'
@@ -12,6 +14,13 @@ describe('getAppMainContentLayout', () => {
   it('keeps the landing page full width without the app-shell padding wrapper', () => {
     expect(getAppMainContentLayout('/')).toEqual({
       mainClassName: 'flex-1 relative z-10',
+      contentClassName: '',
+    })
+  })
+
+  it('uses full-screen embedded layout for the Wukong client page', () => {
+    expect(getAppMainContentLayout(WUKONG_EMBEDDED_PATH)).toEqual({
+      mainClassName: EMBEDDED_MAIN_CLASS_NAME,
       contentClassName: '',
     })
   })

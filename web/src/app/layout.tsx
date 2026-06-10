@@ -6,7 +6,7 @@ import { LanguageSwitcher } from '@/shared/components/language-switcher'
 import { UserMenu } from '@/shared/components/user-menu'
 import { NotificationBell } from '@/features/notification/notification-bell'
 import { getAppHeaderClassName } from './layout-header-style'
-import { getAppMainContentLayout, resolveAppMainContentPathname } from './layout-main-content'
+import { getAppMainContentLayout, resolveAppMainContentPathname, WUKONG_EMBEDDED_PATH } from './layout-main-content'
 
 /**
  * Application shell shared by all routed pages.
@@ -22,10 +22,11 @@ export function Layout() {
       resolvedPathname: s.resolvedLocation?.pathname,
     }),
   })
-  const { user, isLoading } = useAuth()
   const [isHeaderElevated, setIsHeaderElevated] = useState(false)
   const contentLayoutPathname = resolveAppMainContentPathname(pathname, resolvedPathname)
   const mainContentLayout = getAppMainContentLayout(contentLayoutPathname)
+  const isEmbeddedRoute = contentLayoutPathname === WUKONG_EMBEDDED_PATH
+  const { user, isLoading } = useAuth(!isEmbeddedRoute)
 
   useEffect(() => {
     const updateHeaderElevation = () => {
@@ -67,6 +68,24 @@ export function Layout() {
     window.requestAnimationFrame(() => {
       scrollToTop()
     })
+  }
+
+  if (isEmbeddedRoute) {
+    return (
+      <main className={mainContentLayout.mainClassName}>
+        <Suspense
+          fallback={
+            <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+              {t('layout.loading')}
+            </div>
+          }
+        >
+          <div className={mainContentLayout.contentClassName}>
+            <Outlet />
+          </div>
+        </Suspense>
+      </main>
+    )
   }
 
   return (
