@@ -120,6 +120,7 @@ validate_port POSTGRES_PORT
 validate_port REDIS_PORT
 validate_port API_PORT
 validate_port WEB_PORT
+validate_port SKILLHUB_WEB_PORT
 
 require_non_empty POSTGRES_DB
 require_non_empty POSTGRES_USER
@@ -180,6 +181,11 @@ fi
 
 if [ "${REDIS_BIND_ADDRESS:-127.0.0.1}" != "127.0.0.1" ]; then
   warn "REDIS_BIND_ADDRESS is not 127.0.0.1; confirm Redis exposure is intended"
+fi
+
+web_bind_address="${SKILLHUB_WEB_BIND_ADDRESS:-${WEB_BIND_ADDRESS:-0.0.0.0}}"
+if [ "$web_bind_address" != "127.0.0.1" ]; then
+  warn "web bind address is not 127.0.0.1; confirm public web exposure is intended"
 fi
 
 oauth_id="${OAUTH2_GITHUB_CLIENT_ID:-}"

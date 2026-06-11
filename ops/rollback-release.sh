@@ -32,6 +32,11 @@ fi
 [ -n "$target_dir" ] && [ -d "$target_dir" ] || { echo 'target release not found' >&2; exit 1; }
 [ -f "$target_dir/release.env" ] || { echo "missing target release env: $target_dir/release.env" >&2; exit 1; }
 [ -f "$target_dir/release.json" ] || { echo "missing target release json: $target_dir/release.json" >&2; exit 1; }
+if [ "${SKILLHUB_ALLOW_UNVERIFIED_ROLLBACK:-false}" != "true" ] && ! is_successful_release_dir "$target_dir"; then
+  echo "target release is not verified: $target_dir" >&2
+  echo 'set SKILLHUB_ALLOW_UNVERIFIED_ROLLBACK=true to override intentionally' >&2
+  exit 1
+fi
 
 read_json() {
   python3 - <<'PY' "$1" "$2"
