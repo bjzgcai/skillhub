@@ -88,6 +88,10 @@ SkillHub 新增路由：
 - 不显示 SkillHub 顶栏、页脚、发布入口、管理后台入口。
 - 展示公开技能列表、搜索框、技能卡片和安装状态。
 
+当前悟空客户端在配置 `skill_hub_url` 后会进入 `ExclusiveSkillHub` 专属模式，并替换原生 `SkillsTab`。也就是说，原生“市场精选 / 我的技能”不会作为 tab 出现在企业专属技能中心旁边。
+
+实际联调验证过 `page.navigateSkillCenter({ target: explore/mine })`：在当前专属模式下，不能作为从 iframe 跳回原生“市场精选 / 我的技能”tab 的方案。若要同时保留原生 tab，需要悟空客户端支持“企业专属作为额外 tab”或提供新的配置模式。
+
 技能卡片当前支持四种状态：
 
 | 状态 | 页面表现 |
