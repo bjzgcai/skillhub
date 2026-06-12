@@ -132,7 +132,7 @@ services:
     image: ${SKILLHUB_WEB_IMAGE:?missing}:${SKILLHUB_WEB_TAG:?missing}
     restart: unless-stopped
     ports:
-      - "${WEB_PORT:-80}:80"
+      - "${WEB_BIND_ADDRESS:-0.0.0.0}:${WEB_PORT:-80}:80"
     environment:
       SKILLHUB_API_UPSTREAM: ${SKILLHUB_API_UPSTREAM:?missing}
       SKILLHUB_WEB_API_BASE_URL: ${SKILLHUB_WEB_API_BASE_URL:-}
