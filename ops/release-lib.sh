@@ -57,10 +57,19 @@ release_id_from_dir() {
   basename "$1"
 }
 
+is_successful_release_dir() {
+  local dir="$1"
+  [ -f "$dir/release.env" ] || return 1
+  [ -f "$dir/release.json" ] || return 1
+  [ -f "$dir/verify.log" ] || return 1
+  grep -Eq '(^|[[:space:]])(verify ok|web verify ok|server verify ok)$' "$dir/verify.log"
+}
+
 find_latest_previous_release_dir() {
   local exclude_dir="$1"
   find "$RELEASES" -mindepth 1 -maxdepth 1 -type d ! -name templates | sort -r | while read -r dir; do
     [ "$dir" = "$exclude_dir" ] && continue
+    is_successful_release_dir "$dir" || continue
     echo "$dir"
     return 0
   done
@@ -236,11 +245,13 @@ run_server_container() {
 
 run_web_container() {
   local image_ref="$1"
+  local web_bind_address="${SKILLHUB_WEB_BIND_ADDRESS:-${WEB_BIND_ADDRESS:-0.0.0.0}}"
+  local web_port="${SKILLHUB_WEB_PORT:-${WEB_PORT:-80}}"
   docker run -d \
     --name skillhub-web-1 \
     --network skillhub_default \
     --restart unless-stopped \
-    -p 80:80 \
+    -p "${web_bind_address}:${web_port}:80" \
     -e SKILLHUB_API_UPSTREAM="${SKILLHUB_API_UPSTREAM}" \
     -e SKILLHUB_PUBLIC_BASE_URL="${SKILLHUB_PUBLIC_BASE_URL}" \
     -e SKILLHUB_WEB_API_BASE_URL="${SKILLHUB_WEB_API_BASE_URL:-}" \
