@@ -70,6 +70,12 @@ skillhub:
       enabled: ${SKILLHUB_AUTH_DIRECT_ENABLED:false}
     session-bootstrap:
       enabled: ${SKILLHUB_AUTH_SESSION_BOOTSTRAP_ENABLED:false}
+    admin-exchange:
+      enabled: ${SKILLHUB_AUTH_ADMIN_EXCHANGE_ENABLED:false}
+      token-hash: ${SKILLHUB_AUTH_ADMIN_EXCHANGE_TOKEN_HASH:}
+      allowed-sources: ${SKILLHUB_AUTH_ADMIN_EXCHANGE_ALLOWED_SOURCES:agent-platform}
+      default-scopes: ${SKILLHUB_AUTH_ADMIN_EXCHANGE_DEFAULT_SCOPES:skill:read,skill:publish}
+      allowed-scopes: ${SKILLHUB_AUTH_ADMIN_EXCHANGE_ALLOWED_SCOPES:skill:read,skill:publish}
     dingtalk:
       enabled: ${SKILLHUB_AUTH_DINGTALK_ENABLED:false}
       display-name: ${SKILLHUB_AUTH_DINGTALK_DISPLAY_NAME:DingTalk}
