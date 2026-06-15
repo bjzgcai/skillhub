@@ -27,6 +27,7 @@ public class RouteSecurityPolicyRegistry {
             RouteAuthorizationPolicy.permitAll(null, "/api/v1/auth/direct/login"),
             RouteAuthorizationPolicy.permitAll(null, "/api/v1/auth/local/**"),
             RouteAuthorizationPolicy.permitAll(null, "/api/v1/auth/device/**"),
+            RouteAuthorizationPolicy.permitAll(HttpMethod.POST, "/api/v1/auth/admin/exchange"),
             RouteAuthorizationPolicy.permitAll(null, "/api/v1/auth/dingtalk/**"),
             RouteAuthorizationPolicy.permitAll(null, "/api/v1/check"),
             RouteAuthorizationPolicy.permitAll(null, "/actuator/health"),

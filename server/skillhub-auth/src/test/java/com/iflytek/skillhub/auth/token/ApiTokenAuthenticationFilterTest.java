@@ -11,6 +11,7 @@ import com.iflytek.skillhub.domain.user.UserAccountRepository;
 import com.iflytek.skillhub.domain.user.UserStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -44,6 +45,7 @@ class ApiTokenAuthenticationFilterTest {
     @AfterEach
     void clearSecurityContext() {
         SecurityContextHolder.clearContext();
+        MDC.clear();
     }
 
     @Test
@@ -74,6 +76,36 @@ class ApiTokenAuthenticationFilterTest {
         assertTrue(authentication.getAuthorities().stream()
             .anyMatch(authority -> authority.getAuthority().equals("SCOPE_token:manage")));
         verify(apiTokenService).touchLastUsed(token);
+        assertNull(MDC.get(ApiTokenAuthenticationFilter.AUTH_SUBJECT_TYPE));
+    }
+
+    @Test
+    void shouldExposeAgentTokenContextDuringRequestAndClearMdcAfterward() throws Exception {
+        ApiToken token = new ApiToken("user-1", "AGENT", "agent-1", "agent token", "sk_agent", "hash", "[\"skill:publish\"]");
+        org.springframework.test.util.ReflectionTestUtils.setField(token, "id", 7L);
+        UserAccount user = new UserAccount("user-1", "Alice", "alice@example.com", "");
+
+        when(apiTokenService.validateToken("raw-token")).thenReturn(Optional.of(token));
+        when(userAccountRepository.findById("user-1")).thenReturn(Optional.of(user));
+        when(roleBindingRepository.findByUserId("user-1")).thenReturn(List.of());
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRequestURI("/api/v1/publish");
+        request.addHeader("Authorization", "Bearer raw-token");
+        jakarta.servlet.FilterChain chain = (servletRequest, servletResponse) -> {
+            assertEquals("AGENT", MDC.get(ApiTokenAuthenticationFilter.AUTH_SUBJECT_TYPE));
+            assertEquals("agent-1", MDC.get(ApiTokenAuthenticationFilter.AUTH_SUBJECT_ID));
+            assertEquals("7", MDC.get(ApiTokenAuthenticationFilter.AUTH_TOKEN_ID));
+            assertEquals("sk_agent", MDC.get(ApiTokenAuthenticationFilter.AUTH_TOKEN_PREFIX));
+        };
+
+        filter.doFilter(request, new MockHttpServletResponse(), chain);
+
+        assertEquals("AGENT", request.getAttribute(ApiTokenAuthenticationFilter.AUTH_SUBJECT_TYPE));
+        assertEquals("agent-1", request.getAttribute(ApiTokenAuthenticationFilter.AUTH_SUBJECT_ID));
+        assertEquals("7", request.getAttribute(ApiTokenAuthenticationFilter.AUTH_TOKEN_ID));
+        assertEquals("sk_agent", request.getAttribute(ApiTokenAuthenticationFilter.AUTH_TOKEN_PREFIX));
+        assertNull(MDC.get(ApiTokenAuthenticationFilter.AUTH_SUBJECT_TYPE));
     }
 
     @Test

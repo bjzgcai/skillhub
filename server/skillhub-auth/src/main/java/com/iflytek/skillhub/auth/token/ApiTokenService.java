@@ -59,6 +59,15 @@ public class ApiTokenService {
      */
     @Transactional
     public TokenCreateResult createToken(String userId, String name, String scopeJson, String expiresAt) {
+        return createTokenForSubject(userId, "USER", userId, name, scopeJson, expiresAt);
+    }
+
+    /**
+     * Creates a token for a non-user actor that acts on behalf of a concrete user.
+     */
+    @Transactional
+    public TokenCreateResult createTokenForSubject(String userId, String subjectType, String subjectId,
+                                                   String name, String scopeJson, String expiresAt) {
         String normalizedName = normalizeName(name);
         validateTokenName(userId, normalizedName);
         Instant parsedExpiresAt = parseExpiresAt(expiresAt);
@@ -69,7 +78,7 @@ public class ApiTokenService {
         String tokenHash = sha256(rawToken);
         String prefix = rawToken.substring(0, Math.min(rawToken.length(), 8));
 
-        ApiToken token = new ApiToken(userId, normalizedName, prefix, tokenHash, scopeJson);
+        ApiToken token = new ApiToken(userId, subjectType, subjectId, normalizedName, prefix, tokenHash, scopeJson);
         token.setExpiresAt(parsedExpiresAt);
         try {
             token = tokenRepo.save(token);

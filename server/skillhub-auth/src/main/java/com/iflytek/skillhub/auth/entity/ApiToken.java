@@ -50,8 +50,12 @@ public class ApiToken {
     protected ApiToken() {}
 
     public ApiToken(String userId, String name, String tokenPrefix, String tokenHash, String scopeJson) {
-        this.subjectType = "USER";
-        this.subjectId = userId;
+        this(userId, "USER", userId, name, tokenPrefix, tokenHash, scopeJson);
+    }
+
+    public ApiToken(String userId, String subjectType, String subjectId, String name, String tokenPrefix, String tokenHash, String scopeJson) {
+        this.subjectType = subjectType;
+        this.subjectId = subjectId;
         this.userId = userId;
         this.name = name;
         this.tokenPrefix = tokenPrefix;
@@ -64,6 +68,7 @@ public class ApiToken {
 
     public Long getId() { return id; }
     public String getSubjectType() { return subjectType; }
+    public void setSubjectType(String subjectType) { this.subjectType = subjectType; }
     public String getSubjectId() { return subjectId; }
     public void setSubjectId(String subjectId) { this.subjectId = subjectId; }
     public String getUserId() { return userId; }
