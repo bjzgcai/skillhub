@@ -18,7 +18,7 @@ import { FilePreviewDialog } from '@/features/skill/file-preview-dialog'
 import type { FileTreeNode } from '@/features/skill/file-tree-builder'
 import { useReviewFile } from '@/features/review/use-review-file'
 import { buildApiUrl, WEB_API_PREFIX } from '@/api/client'
-import { useReviewDetail, useReviewSkillDetail, useApproveReview, useRejectReview } from '@/features/review/use-review-detail'
+import { useReviewDetail, useReviewSkillDetail, useApproveReview, useRejectReview, useReviewBadgeOptions } from '@/features/review/use-review-detail'
 
 /**
  * Review task detail page for moderators. The route owns the approve/reject
@@ -37,6 +37,7 @@ export function ReviewDetailPage() {
     isLoading: isLoadingReviewSkillDetail,
     error: reviewSkillDetailError,
   } = useReviewSkillDetail(taskId)
+  const { data: badgeOptions, isLoading: isLoadingBadgeOptions } = useReviewBadgeOptions(Boolean(review))
   const approveMutation = useApproveReview({
     onSuccess: () => {
       toast.success(t('review.approveSuccess'))
@@ -57,6 +58,7 @@ export function ReviewDetailPage() {
   })
 
   const [comment, setComment] = useState('')
+  const [selectedBadgeTypes, setSelectedBadgeTypes] = useState<string[]>([])
   const [showRejectForm, setShowRejectForm] = useState(false)
   const [approveDialog, setApproveDialog] = useState(false)
   const [rejectDialog, setRejectDialog] = useState(false)
@@ -93,7 +95,15 @@ export function ReviewDetailPage() {
   }
 
   const handleApprove = async () => {
-    approveMutation.mutate({ taskId, comment: comment || undefined })
+    approveMutation.mutate({ taskId, comment: comment || undefined, badgeTypes: selectedBadgeTypes })
+  }
+
+  const toggleBadgeType = (badgeType: string) => {
+    setSelectedBadgeTypes((current) => (
+      current.includes(badgeType)
+        ? current.filter((type) => type !== badgeType)
+        : [...current, badgeType]
+    ))
   }
 
   const handleReject = async () => {
@@ -214,6 +224,45 @@ export function ReviewDetailPage() {
               onChange={(e) => setComment(e.target.value)}
               rows={4}
             />
+          </div>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label className="text-sm font-semibold font-heading">{t('review.approvalBadgesLabel')}</Label>
+              <p className="text-xs text-muted-foreground">{t('review.approvalBadgesHint')}</p>
+            </div>
+            {isLoadingBadgeOptions ? (
+              <div className="h-10 animate-shimmer rounded-xl" />
+            ) : badgeOptions?.length ? (
+              <div className="flex flex-wrap gap-2">
+                {badgeOptions.map((badge) => {
+                  const checked = selectedBadgeTypes.includes(badge.badgeType)
+                  return (
+                    <label
+                      key={badge.badgeType}
+                      title={badge.description}
+                      className={cn(
+                        'inline-flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors',
+                        checked
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border bg-background text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={checked}
+                        onChange={() => toggleBadgeType(badge.badgeType)}
+                      />
+                      <span>{badge.displayName}</span>
+                      <span className="text-xs opacity-70">{badge.badgeType}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t('review.approvalBadgesEmpty')}</p>
+            )}
           </div>
 
           <div className="flex gap-3">

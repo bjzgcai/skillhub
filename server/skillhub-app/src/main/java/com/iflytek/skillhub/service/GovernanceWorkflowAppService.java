@@ -7,11 +7,13 @@ import com.iflytek.skillhub.dto.NamespaceLifecycleRequest;
 import com.iflytek.skillhub.dto.NamespaceResponse;
 import com.iflytek.skillhub.dto.PageResponse;
 import com.iflytek.skillhub.dto.PromotionResponseDto;
+import com.iflytek.skillhub.dto.ReviewBadgeOptionResponse;
 import com.iflytek.skillhub.dto.ReviewSkillDetailResponse;
 import com.iflytek.skillhub.dto.ReviewTaskResponse;
 import com.iflytek.skillhub.dto.SkillLifecycleMutationResponse;
 import com.iflytek.skillhub.dto.SkillVersionRereleaseRequest;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
 
@@ -53,10 +55,11 @@ public class GovernanceWorkflowAppService {
 
     public ReviewTaskResponse approveReview(Long reviewTaskId,
                                             String comment,
+                                            List<String> badgeTypes,
                                             String userId,
                                             Map<Long, NamespaceRole> userNsRoles,
                                             AuditRequestContext auditContext) {
-        return reviewPortalAppService.approveReview(reviewTaskId, comment, userId, userNsRoles, auditContext);
+        return reviewPortalAppService.approveReview(reviewTaskId, comment, badgeTypes, userId, userNsRoles, auditContext);
     }
 
     public ReviewTaskResponse rejectReview(Long reviewTaskId,
@@ -91,6 +94,10 @@ public class GovernanceWorkflowAppService {
 
     public PageResponse<ReviewTaskResponse> listMyReviewSubmissions(int page, int size, String userId) {
         return reviewPortalAppService.listMySubmissions(page, size, userId);
+    }
+
+    public List<ReviewBadgeOptionResponse> listReviewBadgeOptions() {
+        return reviewPortalAppService.listReviewBadgeOptions();
     }
 
     public ReviewTaskResponse getReviewDetail(Long reviewTaskId,

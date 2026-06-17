@@ -30,7 +30,7 @@ public interface ReviewTaskJpaRepository extends JpaRepository<ReviewTask, Long>
 
     void deleteBySkillVersionIdIn(Collection<Long> skillVersionIds);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         UPDATE ReviewTask t
         SET t.status = :status,

@@ -45,6 +45,8 @@ SKILLHUB_ADMIN_USERNAME=admin SKILLHUB_ADMIN_PASSWORD='***' \
 
 脚本会依次执行：下载 zip、登录、发布到 SkillHub、可选写入来源镜像记录（`remote_mirror_record`）、校验版本为 `PUBLISHED`、校验下载入口可访问、调用 `POST /api/v1/admin/recommendations/{namespace}/{slug}`。
 
+如需把安全扫描 `FAIL` 的外部包留给管理员审核，可传 `--allow-failed-review`。此时服务端会在同步安全审计可用的前提下创建 `PENDING_REVIEW` 版本和审核任务；脚本会写入来源镜像记录后停止，不校验下载、不创建推荐位。
+
 ## 同步方式
 
 在 repo 中修改脚本后，用：

@@ -56,6 +56,7 @@ public class SkillPublishController extends BaseApiController {
             @RequestParam("visibility") String visibility,
             @RequestParam(value = "displayName", required = false) String displayName,
             @RequestParam(value = "summary", required = false) String summary,
+            @RequestParam(value = "allowFailedReview", defaultValue = "false") boolean allowFailedReview,
             @AuthenticationPrincipal PlatformPrincipal principal) throws IOException {
 
         SkillVisibility skillVisibility = SkillVisibility.valueOf(visibility.toUpperCase());
@@ -74,7 +75,8 @@ public class SkillPublishController extends BaseApiController {
                 skillVisibility,
                 principal.platformRoles(),
                 displayName,
-                summary
+                summary,
+                allowFailedReview
         );
 
         PublishResponse response = new PublishResponse(

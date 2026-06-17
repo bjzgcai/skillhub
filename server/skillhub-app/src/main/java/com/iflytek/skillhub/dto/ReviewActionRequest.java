@@ -1,3 +1,5 @@
 package com.iflytek.skillhub.dto;
 
-public record ReviewActionRequest(String comment) {}
+import java.util.List;
+
+public record ReviewActionRequest(String comment, List<String> badgeTypes) {}

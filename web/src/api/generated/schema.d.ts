@@ -340,6 +340,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/recommendations/{namespace}/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update"];
+        post: operations["createBySkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/labels/{slug}": {
         parameters: {
             query?: never;
@@ -1051,7 +1067,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_2"];
+        get: operations["list_4"];
         put?: never;
         post: operations["create"];
         delete?: never;
@@ -1268,6 +1284,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/admin/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["exchange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/users/{userId}/enable": {
         parameters: {
             query?: never;
@@ -1406,6 +1438,54 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["rebuildAll"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_5"];
+        put?: never;
+        post: operations["create_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/recommendations/{namespace}/{slug}/online": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["online"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/recommendations/{namespace}/{slug}/offline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["offline"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2148,6 +2228,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reviews/badge-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listReviewBadgeOptions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/web/reviews/badge-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listReviewBadgeOptions_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/web/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/web/promotions/{id}": {
         parameters: {
             query?: never;
@@ -2283,7 +2427,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list"];
+        get: operations["list_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2299,7 +2443,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_1"];
+        get: operations["list_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2891,7 +3035,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_3"];
+        get: operations["list_6"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3228,6 +3372,95 @@ export interface components {
         AdminUserRoleUpdateRequest: {
             role: string;
         };
+        RecommendationUpdateRequest: {
+            title?: string;
+            summary?: string;
+            reason?: string;
+            badge?: string;
+            /** Format: int32 */
+            priority?: number;
+            /** Format: date-time */
+            startAt?: string;
+            /** Format: date-time */
+            endAt?: string;
+        };
+        ApiResponseRecommendationResponse: {
+            /** Format: int32 */
+            code?: number;
+            msg?: string;
+            data?: components["schemas"]["RecommendationResponse"];
+            /** Format: date-time */
+            timestamp?: string;
+            requestId?: string;
+        };
+        RecommendationResponse: {
+            sourceType?: string;
+            status?: string;
+            cacheStatus?: string;
+            /** Format: int64 */
+            skillId?: number;
+            namespace?: string;
+            slug?: string;
+            title?: string;
+            summary?: string;
+            reason?: string;
+            badge?: string;
+            /** Format: int32 */
+            priority?: number;
+            /** Format: date-time */
+            startAt?: string;
+            /** Format: date-time */
+            endAt?: string;
+            cacheError?: string;
+            skill?: components["schemas"]["SkillSummaryResponse"];
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        SkillBadgeDto: {
+            type?: string;
+            displayName?: string;
+            source?: string;
+            description?: string;
+        };
+        SkillLifecycleVersionResponse: {
+            /** Format: int64 */
+            id?: number;
+            version?: string;
+            status?: string;
+        };
+        SkillOwnerResponse: {
+            displayName?: string;
+            avatarUrl?: string;
+            dingtalkUserId?: string;
+        };
+        SkillSummaryResponse: {
+            /** Format: int64 */
+            id?: number;
+            slug?: string;
+            displayName?: string;
+            summary?: string;
+            status?: string;
+            /** Format: int64 */
+            downloadCount?: number;
+            /** Format: int32 */
+            starCount?: number;
+            ratingAvg?: number;
+            /** Format: int32 */
+            ratingCount?: number;
+            namespace?: string;
+            owner?: components["schemas"]["SkillOwnerResponse"];
+            labels?: components["schemas"]["SkillLabelDto"][];
+            badges?: components["schemas"]["SkillBadgeDto"][];
+            /** Format: date-time */
+            updatedAt?: string;
+            canSubmitPromotion?: boolean;
+            headlineVersion?: components["schemas"]["SkillLifecycleVersionResponse"];
+            publishedVersion?: components["schemas"]["SkillLifecycleVersionResponse"];
+            ownerPreviewVersion?: components["schemas"]["SkillLifecycleVersionResponse"];
+            resolutionMode?: string;
+        };
         AdminLabelUpdateRequest: {
             /** @enum {string} */
             type: "RECOMMENDED" | "PRIVILEGED";
@@ -3359,6 +3592,7 @@ export interface components {
         };
         ReviewActionRequest: {
             comment?: string;
+            badgeTypes?: string[];
         };
         ApiResponseReviewTaskResponse: {
             /** Format: int32 */
@@ -3591,6 +3825,54 @@ export interface components {
             /** Format: int32 */
             interval?: number;
         };
+        AdminExchangeOwnerRequest: {
+            provider: string;
+            corpId?: string;
+            unionId?: string;
+            userId?: string;
+            openId?: string;
+        };
+        AdminExchangeRequest: {
+            source: string;
+            agentId: string;
+            agentName?: string;
+            owner: components["schemas"]["AdminExchangeOwnerRequest"];
+            scopes?: string[];
+            expiresAt?: string;
+            requestId?: string;
+        };
+        AdminExchangeEffectiveUserResponse: {
+            id?: string;
+            displayName?: string;
+            provider?: string;
+            corpId?: string;
+            unionId?: string;
+        };
+        AdminExchangeResponse: {
+            tokenType?: string;
+            accessToken?: string;
+            /** Format: int64 */
+            tokenId?: number;
+            expiresAt?: string;
+            source?: string;
+            subject?: components["schemas"]["AdminExchangeSubjectResponse"];
+            effectiveUser?: components["schemas"]["AdminExchangeEffectiveUserResponse"];
+            scopes?: string[];
+        };
+        AdminExchangeSubjectResponse: {
+            type?: string;
+            agentId?: string;
+            agentName?: string;
+        };
+        ApiResponseAdminExchangeResponse: {
+            /** Format: int32 */
+            code?: number;
+            msg?: string;
+            data?: components["schemas"]["AdminExchangeResponse"];
+            /** Format: date-time */
+            timestamp?: string;
+            requestId?: string;
+        };
         AdminSkillMutationResponse: {
             /** Format: int64 */
             skillId?: number;
@@ -3611,6 +3893,20 @@ export interface components {
         AdminSkillReportActionRequest: {
             comment?: string;
             disposition?: string;
+        };
+        RecommendationCreateRequest: {
+            namespace?: string;
+            slug?: string;
+            title?: string;
+            summary?: string;
+            reason?: string;
+            badge?: string;
+            /** Format: int32 */
+            priority?: number;
+            /** Format: date-time */
+            startAt?: string;
+            /** Format: date-time */
+            endAt?: string;
         };
         ProfileReviewRejectRequest: {
             comment: string;
@@ -3706,42 +4002,6 @@ export interface components {
             page?: number;
             /** Format: int32 */
             size?: number;
-        };
-        SkillLifecycleVersionResponse: {
-            /** Format: int64 */
-            id?: number;
-            version?: string;
-            status?: string;
-        };
-        SkillOwnerResponse: {
-            displayName?: string;
-            avatarUrl?: string;
-            dingtalkUserId?: string;
-        };
-        SkillSummaryResponse: {
-            /** Format: int64 */
-            id?: number;
-            slug?: string;
-            displayName?: string;
-            summary?: string;
-            status?: string;
-            /** Format: int64 */
-            downloadCount?: number;
-            /** Format: int32 */
-            starCount?: number;
-            ratingAvg?: number;
-            /** Format: int32 */
-            ratingCount?: number;
-            namespace?: string;
-            owner?: components["schemas"]["SkillOwnerResponse"];
-            labels?: components["schemas"]["SkillLabelDto"][];
-            /** Format: date-time */
-            updatedAt?: string;
-            canSubmitPromotion?: boolean;
-            headlineVersion?: components["schemas"]["SkillLifecycleVersionResponse"];
-            publishedVersion?: components["schemas"]["SkillLifecycleVersionResponse"];
-            ownerPreviewVersion?: components["schemas"]["SkillLifecycleVersionResponse"];
-            resolutionMode?: string;
         };
         ApiResponseBoolean: {
             /** Format: int32 */
@@ -3947,6 +4207,38 @@ export interface components {
         };
         PageResponseReviewTaskResponse: {
             items?: components["schemas"]["ReviewTaskResponse"][];
+            /** Format: int64 */
+            total?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        ApiResponseListReviewBadgeOptionResponse: {
+            /** Format: int32 */
+            code?: number;
+            msg?: string;
+            data?: components["schemas"]["ReviewBadgeOptionResponse"][];
+            /** Format: date-time */
+            timestamp?: string;
+            requestId?: string;
+        };
+        ReviewBadgeOptionResponse: {
+            badgeType?: string;
+            displayName?: string;
+            description?: string;
+        };
+        ApiResponsePageResponseRecommendationResponse: {
+            /** Format: int32 */
+            code?: number;
+            msg?: string;
+            data?: components["schemas"]["PageResponseRecommendationResponse"];
+            /** Format: date-time */
+            timestamp?: string;
+            requestId?: string;
+        };
+        PageResponseRecommendationResponse: {
+            items?: components["schemas"]["RecommendationResponse"][];
             /** Format: int64 */
             total?: number;
             /** Format: int32 */
@@ -4324,6 +4616,14 @@ export interface components {
             verdict?: "SAFE" | "SUSPICIOUS" | "DANGEROUS" | "BLOCKED";
             isSafe?: boolean;
             maxSeverity?: string;
+            riskLevel?: string;
+            policyVersion?: string;
+            scannerVersions?: {
+                [key: string]: string;
+            };
+            summary?: {
+                [key: string]: number;
+            };
             /** Format: int32 */
             findingsCount?: number;
             findings?: components["schemas"]["SecurityFinding"][];
@@ -5471,6 +5771,60 @@ export interface operations {
             };
         };
     };
+    update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecommendationUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRecommendationResponse"];
+                };
+            };
+        };
+    };
+    createBySkill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RecommendationUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRecommendationResponse"];
+                };
+            };
+        };
+    };
     updateLabel: {
         parameters: {
             query?: never;
@@ -5865,6 +6219,7 @@ export interface operations {
                 visibility: string;
                 displayName?: string;
                 summary?: string;
+                allowFailedReview?: boolean;
             };
             header?: never;
             path: {
@@ -5898,6 +6253,7 @@ export interface operations {
                 visibility: string;
                 displayName?: string;
                 summary?: string;
+                allowFailedReview?: boolean;
             };
             header?: never;
             path: {
@@ -6801,7 +7157,7 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    list_4: {
         parameters: {
             query?: {
                 page?: number;
@@ -7202,6 +7558,32 @@ export interface operations {
             };
         };
     };
+    exchange: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminExchangeRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseAdminExchangeResponse"];
+                };
+            };
+        };
+    };
     enableUser: {
         parameters: {
             query?: never;
@@ -7410,6 +7792,101 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseVoid"];
+                };
+            };
+        };
+    };
+    list_5: {
+        parameters: {
+            query?: {
+                status?: string;
+                cacheStatus?: string;
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseRecommendationResponse"];
+                };
+            };
+        };
+    };
+    create_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecommendationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRecommendationResponse"];
+                };
+            };
+        };
+    };
+    online: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRecommendationResponse"];
+                };
+            };
+        };
+    };
+    offline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                namespace: string;
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseRecommendationResponse"];
                 };
             };
         };
@@ -8656,6 +9133,92 @@ export interface operations {
             };
         };
     };
+    listReviewBadgeOptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListReviewBadgeOptionResponse"];
+                };
+            };
+        };
+    };
+    listReviewBadgeOptions_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseListReviewBadgeOptionResponse"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseRecommendationResponse"];
+                };
+            };
+        };
+    };
+    list_1: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponsePageResponseRecommendationResponse"];
+                };
+            };
+        };
+    };
     getPromotionDetail: {
         parameters: {
             query?: never;
@@ -8826,7 +9389,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    list_2: {
         parameters: {
             query?: {
                 category?: string;
@@ -8850,7 +9413,7 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    list_3: {
         parameters: {
             query?: {
                 category?: string;
@@ -9708,7 +10271,7 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    list_6: {
         parameters: {
             query?: {
                 status?: string;
