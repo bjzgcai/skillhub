@@ -38,6 +38,7 @@ import type {
   AdminLabelInput,
   LabelDefinition,
   LabelItem,
+  ReviewBadgeOption,
 } from './types'
 import { ApiError } from '@/shared/lib/api-error'
 import i18n from '@/i18n/config'
@@ -791,14 +792,18 @@ export const reviewApi = {
     return fetchJson<ReviewSkillDetail>(`${WEB_API_PREFIX}/reviews/${id}/skill-detail`)
   },
 
-  async approve(id: number, comment?: string): Promise<void> {
+  async approve(id: number, comment?: string, badgeTypes: string[] = []): Promise<void> {
     await fetchJson<void>(`${WEB_API_PREFIX}/reviews/${id}/approve`, {
       method: 'POST',
       headers: getCsrfHeaders({
         'Content-Type': 'application/json',
       }),
-      body: JSON.stringify({ comment }),
+      body: JSON.stringify({ comment, badgeTypes }),
     })
+  },
+
+  async badgeOptions(): Promise<ReviewBadgeOption[]> {
+    return fetchJson<ReviewBadgeOption[]>(`${WEB_API_PREFIX}/reviews/badge-options`)
   },
 
   async reject(id: number, comment: string): Promise<void> {

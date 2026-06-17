@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { reviewApi } from '@/api/client'
-import type { ReviewSkillDetail, ReviewTask } from '@/api/types'
+import type { ReviewBadgeOption, ReviewSkillDetail, ReviewTask } from '@/api/types'
 
 /**
  * Fetches one review task for governance detail views.
@@ -16,8 +16,12 @@ async function getReviewSkillDetail(taskId: number): Promise<ReviewSkillDetail> 
 /**
  * Approves the current review task.
  */
-async function approveReview(taskId: number, comment?: string): Promise<void> {
-  await reviewApi.approve(taskId, comment)
+async function approveReview(taskId: number, comment?: string, badgeTypes: string[] = []): Promise<void> {
+  await reviewApi.approve(taskId, comment, badgeTypes)
+}
+
+async function getReviewBadgeOptions(): Promise<ReviewBadgeOption[]> {
+  return reviewApi.badgeOptions()
 }
 
 /**
@@ -47,6 +51,14 @@ export function useReviewSkillDetail(taskId: number) {
   })
 }
 
+export function useReviewBadgeOptions(enabled = true) {
+  return useQuery({
+    queryKey: ['reviews', 'badge-options'],
+    queryFn: getReviewBadgeOptions,
+    enabled,
+  })
+}
+
 /**
  * Approves a review and refreshes both the review queue and the governance
  * dashboard, which reads aggregate review state from separate endpoints.
@@ -55,8 +67,8 @@ export function useApproveReview(callbacks?: { onSuccess?: () => void; onError?:
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ taskId, comment }: { taskId: number; comment?: string }) =>
-      approveReview(taskId, comment),
+    mutationFn: ({ taskId, comment, badgeTypes }: { taskId: number; comment?: string; badgeTypes?: string[] }) =>
+      approveReview(taskId, comment, badgeTypes),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reviews'] })
       queryClient.invalidateQueries({ queryKey: ['governance'] })

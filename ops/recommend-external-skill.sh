@@ -34,6 +34,8 @@ Options:
                        Source canonical slug. Defaults to namespace--slug, or slug when namespace is empty/global
   --source-download-url <url>
                        Source bundle URL. Defaults to the input bundle URL when source registry is set
+  --allow-failed-review
+                       Allow security-scan FAIL packages to be stored as PENDING_REVIEW instead of hard failing
   --help                Show this help
 
 Environment:
@@ -252,6 +254,7 @@ source_slug=""
 source_version=""
 source_canonical_slug=""
 source_download_url=""
+allow_failed_review="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -330,6 +333,10 @@ while [[ $# -gt 0 ]]; do
     --source-download-url)
       source_download_url="${2:?Missing value for --source-download-url}"
       shift 2
+      ;;
+    --allow-failed-review)
+      allow_failed_review="true"
+      shift
       ;;
     --*)
       echo "Unknown option: $1" >&2
@@ -410,6 +417,9 @@ fi
 if [[ -n "$summary" ]]; then
   publish_args+=(-F "summary=${summary}")
 fi
+if [[ "$allow_failed_review" == "true" ]]; then
+  publish_args+=(-F "allowFailedReview=true")
+fi
 publish_response="$(curl "${publish_args[@]}" "$base_url/api/v1/skills/$namespace/publish")"
 publish_code="$(printf '%s' "$publish_response" | json_get code)"
 if [[ "$publish_code" != "0" ]]; then
@@ -421,8 +431,8 @@ published_slug="$(printf '%s' "$publish_response" | json_get data.slug)"
 published_version="$(printf '%s' "$publish_response" | json_get data.version)"
 published_skill_id="$(printf '%s' "$publish_response" | json_get data.skillId)"
 published_status="$(printf '%s' "$publish_response" | json_get data.status)"
-if [[ "$published_status" != "PUBLISHED" ]]; then
-  echo "Publish completed but version is not PUBLISHED: $published_status" >&2
+if [[ "$published_status" != "PUBLISHED" && "$published_status" != "PENDING_REVIEW" ]]; then
+  echo "Publish completed but version is not PUBLISHED or PENDING_REVIEW: $published_status" >&2
   echo "$publish_response" >&2
   exit 1
 fi
@@ -465,6 +475,29 @@ PY
     "$source_version" \
     "$bundle_sha256" \
     "$source_download_url"
+fi
+
+if [[ "$published_status" == "PENDING_REVIEW" ]]; then
+  python3 - <<'PY' "$publish_response" "$source_registry" "$source_canonical_slug"
+import json, sys
+publish = json.loads(sys.argv[1])['data']
+source_registry = sys.argv[2]
+source_canonical_slug = sys.argv[3]
+out = {
+    'namespace': publish['namespace'],
+    'slug': publish['slug'],
+    'version': publish['version'],
+    'publishStatus': publish['status'],
+    'recommendationStatus': None,
+    'cacheStatus': None,
+    'reviewRequired': True,
+}
+if source_registry:
+    out['sourceRegistry'] = source_registry
+    out['sourceCanonicalSlug'] = source_canonical_slug
+print(json.dumps(out, ensure_ascii=False, indent=2))
+PY
+  exit 0
 fi
 
 printf 'Verifying local download for %s/%s@%s...\n' "$published_namespace" "$published_slug" "$published_version" >&2

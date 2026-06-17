@@ -178,6 +178,12 @@ export type LabelDefinition = Omit<
   translations: LabelTranslation[]
 }
 
+export interface ReviewBadgeOption {
+  badgeType: string
+  displayName: string
+  description: string
+}
+
 export interface AdminLabelInput {
   slug: string
   type: 'RECOMMENDED' | 'PRIVILEGED'

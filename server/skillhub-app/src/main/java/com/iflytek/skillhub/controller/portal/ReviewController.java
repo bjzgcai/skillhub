@@ -7,12 +7,14 @@ import com.iflytek.skillhub.dto.ApiResponse;
 import com.iflytek.skillhub.dto.ApiResponseFactory;
 import com.iflytek.skillhub.dto.PageResponse;
 import com.iflytek.skillhub.dto.ReviewActionRequest;
+import com.iflytek.skillhub.dto.ReviewBadgeOptionResponse;
 import com.iflytek.skillhub.dto.ReviewSkillDetailResponse;
 import com.iflytek.skillhub.dto.ReviewTaskRequest;
 import com.iflytek.skillhub.dto.ReviewTaskResponse;
 import com.iflytek.skillhub.service.AuditRequestContext;
 import com.iflytek.skillhub.service.GovernanceWorkflowAppService;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.List;
 import java.util.Map;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
@@ -59,6 +61,11 @@ public class ReviewController extends BaseApiController {
         );
     }
 
+    @GetMapping("/badge-options")
+    public ApiResponse<List<ReviewBadgeOptionResponse>> listReviewBadgeOptions() {
+        return ok("response.success.fetched", governanceWorkflowAppService.listReviewBadgeOptions());
+    }
+
     @PostMapping("/{id}/approve")
     public ApiResponse<ReviewTaskResponse> approveReview(@PathVariable Long id,
                                                          @RequestBody(required = false) ReviewActionRequest request,
@@ -66,11 +73,13 @@ public class ReviewController extends BaseApiController {
                                                          @RequestAttribute(value = "userNsRoles", required = false) Map<Long, NamespaceRole> userNsRoles,
                                                          HttpServletRequest httpRequest) {
         String comment = request != null ? request.comment() : null;
+        List<String> badgeTypes = request != null ? request.badgeTypes() : List.of();
         return ok(
                 "response.success.updated",
                 governanceWorkflowAppService.approveReview(
                         id,
                         comment,
+                        badgeTypes,
                         userId,
                         userNsRoles,
                         AuditRequestContext.from(httpRequest))

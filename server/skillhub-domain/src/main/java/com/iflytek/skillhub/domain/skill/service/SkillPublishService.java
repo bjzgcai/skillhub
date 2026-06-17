@@ -193,6 +193,27 @@ public class SkillPublishService {
             java.util.Set<String> platformRoles,
             String displayNameOverride,
             String summaryOverride) {
+        return publishFromEntries(
+                namespaceSlug,
+                entries,
+                publisherId,
+                visibility,
+                platformRoles,
+                displayNameOverride,
+                summaryOverride,
+                false);
+    }
+
+    @Transactional
+    public PublishResult publishFromEntries(
+            String namespaceSlug,
+            List<PackageEntry> entries,
+            String publisherId,
+            SkillVisibility visibility,
+            java.util.Set<String> platformRoles,
+            String displayNameOverride,
+            String summaryOverride,
+            boolean allowFailedPrecheckReview) {
         return publishFromEntriesInternal(
                 namespaceSlug,
                 entries,
@@ -202,6 +223,7 @@ public class SkillPublishService {
                 false,
                 false,
                 null,
+                allowFailedPrecheckReview,
                 new DisplayMetadataOverride(displayNameOverride, summaryOverride));
     }
 
@@ -234,6 +256,7 @@ public class SkillPublishService {
                 true,
                 true,
                 explicitSkillSlug,
+                true,
                 DisplayMetadataOverride.empty()
         );
     }
@@ -273,6 +296,7 @@ public class SkillPublishService {
                 true,
                 true,
                 null,
+                false,
                 DisplayMetadataOverride.empty()
         );
     }
@@ -309,6 +333,7 @@ public class SkillPublishService {
             boolean forceAutoPublish,
             boolean bypassMembershipCheck,
             String explicitSkillSlug,
+            boolean allowFailedPrecheckReview,
             DisplayMetadataOverride displayMetadataOverride) {
 
         // 1. Find namespace by slug
@@ -347,12 +372,21 @@ public class SkillPublishService {
         PrePublishValidator.SkillPackageContext context = new PrePublishValidator.SkillPackageContext(
                 entries, metadata, publisherId, namespace.getId());
         ValidationResult prePublishValidation = prePublishValidator.validate(context);
+        boolean failedPrecheckRoutedToReview = false;
         if (!prePublishValidation.passed()) {
-            throw new DomainBadRequestException(
-                    "error.skill.publish.precheck.failed",
-                    String.join(", ", prePublishValidation.errors()));
+            if (allowFailedPrecheckReview && prePublishValidation.securityAudit().isPresent()) {
+                failedPrecheckRoutedToReview = true;
+                log.warn("Routing failed pre-publish validation to administrator review for skill '{}' in namespace '{}': {}",
+                        skillSlug,
+                        namespaceSlug,
+                        String.join(", ", prePublishValidation.errors()));
+            } else {
+                throw new DomainBadRequestException(
+                        "error.skill.publish.precheck.failed",
+                        String.join(", ", prePublishValidation.errors()));
+            }
         }
-        boolean manualReviewRequiredBySecurity = prePublishValidation.manualReviewRequired();
+        boolean manualReviewRequiredBySecurity = prePublishValidation.manualReviewRequired() || failedPrecheckRoutedToReview;
 
         // 6. Find or create Skill record (with owner isolation)
         List<Skill> existingSkills = skillRepository.findByNamespaceIdAndSlug(namespace.getId(), skillSlug);

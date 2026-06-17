@@ -1,5 +1,7 @@
 package com.iflytek.skillhub.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iflytek.skillhub.auth.rbac.RbacService;
 import com.iflytek.skillhub.domain.audit.AuditLogService;
 import com.iflytek.skillhub.domain.namespace.Namespace;
@@ -11,9 +13,13 @@ import com.iflytek.skillhub.domain.review.ReviewTaskRepository;
 import com.iflytek.skillhub.domain.review.ReviewTaskStatus;
 import com.iflytek.skillhub.domain.shared.exception.DomainForbiddenException;
 import com.iflytek.skillhub.domain.shared.exception.DomainNotFoundException;
+import com.iflytek.skillhub.domain.skill.SkillVersion;
+import com.iflytek.skillhub.domain.skill.SkillVersionRepository;
 import com.iflytek.skillhub.dto.PageResponse;
+import com.iflytek.skillhub.dto.ReviewBadgeOptionResponse;
 import com.iflytek.skillhub.dto.ReviewTaskResponse;
 import com.iflytek.skillhub.repository.GovernanceQueryRepository;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -24,6 +30,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ReviewPortalAppService {
@@ -34,19 +41,28 @@ public class ReviewPortalAppService {
     private final GovernanceQueryRepository governanceQueryRepository;
     private final RbacService rbacService;
     private final AuditLogService auditLogService;
+    private final SkillVersionRepository skillVersionRepository;
+    private final ReviewBadgeAppService reviewBadgeAppService;
+    private final ObjectMapper objectMapper;
 
     public ReviewPortalAppService(ReviewService reviewService,
                                   ReviewTaskRepository reviewTaskRepository,
                                   NamespaceRepository namespaceRepository,
                                   GovernanceQueryRepository governanceQueryRepository,
                                   RbacService rbacService,
-                                  AuditLogService auditLogService) {
+                                  AuditLogService auditLogService,
+                                  SkillVersionRepository skillVersionRepository,
+                                  ReviewBadgeAppService reviewBadgeAppService,
+                                  ObjectMapper objectMapper) {
         this.reviewService = reviewService;
         this.reviewTaskRepository = reviewTaskRepository;
         this.namespaceRepository = namespaceRepository;
         this.governanceQueryRepository = governanceQueryRepository;
         this.rbacService = rbacService;
         this.auditLogService = auditLogService;
+        this.skillVersionRepository = skillVersionRepository;
+        this.reviewBadgeAppService = reviewBadgeAppService;
+        this.objectMapper = objectMapper;
     }
 
     public ReviewTaskResponse submitReview(Long skillVersionId,
@@ -63,19 +79,33 @@ public class ReviewPortalAppService {
         return governanceQueryRepository.getReviewTaskResponse(task);
     }
 
+    @Transactional
     public ReviewTaskResponse approveReview(Long reviewTaskId,
                                             String comment,
+                                            List<String> badgeTypes,
                                             String userId,
                                             Map<Long, NamespaceRole> userNsRoles,
                                             AuditRequestContext auditContext) {
+        Map<Long, NamespaceRole> namespaceRoles = normalizeRoles(userNsRoles);
+        Set<String> platformRoles = platformRoles(userId);
+        List<String> normalizedBadgeTypes = reviewBadgeAppService.normalizeBadgeTypes(badgeTypes);
+        requireReviewBadgePermission(normalizedBadgeTypes, platformRoles);
         ReviewTask task = reviewService.approveReview(
                 reviewTaskId,
                 userId,
                 comment,
-                normalizeRoles(userNsRoles),
-                platformRoles(userId)
+                namespaceRoles,
+                platformRoles
         );
-        recordAudit("REVIEW_APPROVE", userId, task.getId(), auditContext, detailWithComment(comment));
+        SkillVersion publishedVersion = skillVersionRepository.findById(task.getSkillVersionId())
+                .orElseThrow(() -> new DomainNotFoundException("skill_version.not_found", task.getSkillVersionId()));
+        reviewBadgeAppService.attachReviewBadges(
+                publishedVersion.getSkillId(),
+                publishedVersion.getId(),
+                normalizedBadgeTypes,
+                userId
+        );
+        recordAudit("REVIEW_APPROVE", userId, task.getId(), auditContext, detailWithCommentAndBadges(comment, normalizedBadgeTypes));
         return governanceQueryRepository.getReviewTaskResponse(task);
     }
 
@@ -189,6 +219,10 @@ public class ReviewPortalAppService {
         );
     }
 
+    public List<ReviewBadgeOptionResponse> listReviewBadgeOptions() {
+        return reviewBadgeAppService.listReviewBadgeOptions();
+    }
+
     public PageResponse<ReviewTaskResponse> listMySubmissions(int page, int size, String userId) {
         Page<ReviewTask> tasks = reviewTaskRepository.findBySubmittedByAndStatus(
                 userId, ReviewTaskStatus.PENDING, PageRequest.of(page, size));
@@ -233,6 +267,15 @@ public class ReviewPortalAppService {
         return rbacService.getUserRoleCodes(userId);
     }
 
+    private void requireReviewBadgePermission(List<String> badgeTypes, Set<String> platformRoles) {
+        if (badgeTypes.isEmpty()) {
+            return;
+        }
+        if (!platformRoles.contains("SKILL_ADMIN") && !platformRoles.contains("SUPER_ADMIN")) {
+            throw new DomainForbiddenException("review.badge.no_permission");
+        }
+    }
+
     private Map<Long, NamespaceRole> normalizeRoles(Map<Long, NamespaceRole> userNsRoles) {
         return userNsRoles != null ? userNsRoles : Map.of();
     }
@@ -255,9 +298,26 @@ public class ReviewPortalAppService {
     }
 
     private String detailWithComment(String comment) {
-        if (comment == null || comment.isBlank()) {
+        return detailWithCommentAndBadges(comment, List.of());
+    }
+
+    private String detailWithCommentAndBadges(String comment, List<String> badgeTypes) {
+        boolean hasComment = comment != null && !comment.isBlank();
+        boolean hasBadges = badgeTypes != null && !badgeTypes.isEmpty();
+        if (!hasComment && !hasBadges) {
             return null;
         }
-        return "{\"comment\":\"" + comment.replace("\"", "\\\"") + "\"}";
+        Map<String, Object> detail = new LinkedHashMap<>();
+        if (hasComment) {
+            detail.put("comment", comment);
+        }
+        if (hasBadges) {
+            detail.put("badgeTypes", badgeTypes);
+        }
+        try {
+            return objectMapper.writeValueAsString(detail);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize review audit detail", e);
+        }
     }
 }
