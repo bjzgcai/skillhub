@@ -1,11 +1,13 @@
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { RecommendationCard } from '@/features/recommendation/recommendation-card'
+import { WeeklySkillCard } from '@/features/recommendation/weekly-skill-card'
+import { isSameRecommendationSkill } from '@/features/recommendation/recommendation-skill-key'
 import { EmptyState } from '@/shared/components/empty-state'
 import { Pagination } from '@/shared/components/pagination'
 import { SkeletonList } from '@/shared/components/skeleton-loader'
 import { useVisibleLabels } from '@/shared/hooks/use-label-queries'
-import { useRecommendations } from '@/shared/hooks/use-skill-queries'
+import { useCurrentWeeklySkill, useRecommendations } from '@/shared/hooks/use-skill-queries'
 import { Button } from '@/shared/ui/button'
 import { APP_SHELL_PAGE_CLASS_NAME } from '@/app/page-shell-style'
 
@@ -19,8 +21,9 @@ export function RecommendationsPage() {
   const page = search.page ?? 0
   const selectedLabel = search.label
   const { data, isLoading } = useRecommendations({ page: 0, size: FETCH_SIZE })
+  const { data: weeklySkill } = useCurrentWeeklySkill()
   const { data: labels } = useVisibleLabels()
-  const allRecommendations = data?.items.filter((item) => item.skill) ?? []
+  const allRecommendations = data?.items.filter((item) => item.skill && !isSameRecommendationSkill(item, weeklySkill?.skill)) ?? []
   const selectedLabelItem = labels?.find((label) => label.slug === selectedLabel)
   const filteredRecommendations = selectedLabelItem
     ? allRecommendations.filter((item) => item.reason?.trim() === selectedLabelItem.displayName)
@@ -48,6 +51,17 @@ export function RecommendationsPage() {
         <h1 className="text-4xl font-bold tracking-tight text-brand-gradient">{t('recommendations.title')}</h1>
         <p className="mx-auto max-w-2xl text-muted-foreground">{t('recommendations.description')}</p>
       </div>
+
+      {weeklySkill?.skill && (
+        <WeeklySkillCard
+          recommendation={weeklySkill}
+          compact
+          onOpenRecommendation={() => navigate({ to: '/recommendations/weekly' })}
+          onStartLearning={() => navigate({ to: '/recommendations/weekly' })}
+          onViewSkill={() => handleSkillClick(weeklySkill.skill!.namespace, weeklySkill.skill!.slug)}
+          onConfigureReminder={() => navigate({ to: '/settings/notifications' })}
+        />
+      )}
 
       {isLoading ? (
         <SkeletonList count={PAGE_SIZE} />

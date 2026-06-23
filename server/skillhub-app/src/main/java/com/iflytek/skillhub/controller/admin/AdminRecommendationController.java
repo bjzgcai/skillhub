@@ -58,6 +58,15 @@ public class AdminRecommendationController extends BaseApiController {
         return ok("response.success.created", recommendationAppService.createForSkill(namespace, slug, request, principal.userId()));
     }
 
+    @PutMapping("/weekly/{namespace}/{slug}")
+    public ApiResponse<RecommendationResponse> setWeeklySkill(
+            @PathVariable String namespace,
+            @PathVariable String slug,
+            @Valid @RequestBody(required = false) RecommendationUpdateRequest request,
+            @AuthenticationPrincipal PlatformPrincipal principal) {
+        return ok("response.success.updated", recommendationAppService.setWeeklySkill(namespace, slug, request, principal.userId()));
+    }
+
     @PutMapping("/{namespace}/{slug}")
     public ApiResponse<RecommendationResponse> update(
             @PathVariable String namespace,

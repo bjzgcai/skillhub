@@ -33,6 +33,7 @@ vi.mock('@/shared/components/skeleton-loader', () => ({
 }))
 
 const useRecommendations = vi.fn()
+const useCurrentWeeklySkill = vi.fn()
 
 vi.mock('@/shared/hooks/use-label-queries', () => ({
   useVisibleLabels: () => ({
@@ -41,6 +42,7 @@ vi.mock('@/shared/hooks/use-label-queries', () => ({
 }))
 
 vi.mock('@/shared/hooks/use-skill-queries', () => ({
+  useCurrentWeeklySkill: (...args: unknown[]) => useCurrentWeeklySkill(...args),
   useRecommendations: (...args: unknown[]) => useRecommendations(...args),
 }))
 
@@ -49,6 +51,7 @@ import { RecommendationsPage } from './recommendations'
 describe('RecommendationsPage', () => {
   it('renders empty state when no recommendations exist', () => {
     useRecommendations.mockReturnValue({ data: { items: [], total: 0, page: 0, size: 12 }, isLoading: false })
+    useCurrentWeeklySkill.mockReturnValue({ data: null, isLoading: false })
 
     const html = renderToStaticMarkup(<RecommendationsPage />)
 
@@ -72,10 +75,38 @@ describe('RecommendationsPage', () => {
       },
       isLoading: false,
     })
+    useCurrentWeeklySkill.mockReturnValue({ data: null, isLoading: false })
 
     const html = renderToStaticMarkup(<RecommendationsPage />)
 
     expect(html).toContain('recommendation-card')
     expect(html).toContain('pagination')
+  })
+
+  it('hides the weekly skill from regular recommendation cards', () => {
+    useRecommendations.mockReturnValue({
+      data: {
+        items: [
+          {
+            id: 1,
+            title: 'Weekly duplicate',
+            skill: { namespace: 'global', slug: 'skill-vetter' },
+          },
+        ],
+        total: 1,
+        page: 0,
+        size: 12,
+      },
+      isLoading: false,
+    })
+    useCurrentWeeklySkill.mockReturnValue({
+      data: { title: 'Weekly', skill: { namespace: 'global', slug: 'skill-vetter' } },
+      isLoading: false,
+    })
+
+    const html = renderToStaticMarkup(<RecommendationsPage />)
+
+    expect(html).toContain('每周一技')
+    expect(html).not.toContain('recommendation-card')
   })
 })

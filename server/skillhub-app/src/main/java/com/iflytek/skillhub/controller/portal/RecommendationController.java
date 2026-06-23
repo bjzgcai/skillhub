@@ -22,6 +22,11 @@ public class RecommendationController extends BaseApiController {
         this.recommendationAppService = recommendationAppService;
     }
 
+    @GetMapping("/weekly-current")
+    public ApiResponse<RecommendationResponse> currentWeekly() {
+        return ok("response.success.read", recommendationAppService.getCurrentWeekly());
+    }
+
     @GetMapping
     public ApiResponse<PageResponse<RecommendationResponse>> list(
             @RequestParam(defaultValue = "0") int page,

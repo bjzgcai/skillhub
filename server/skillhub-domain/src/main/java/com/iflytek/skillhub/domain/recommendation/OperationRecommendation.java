@@ -54,6 +54,9 @@ public class OperationRecommendation {
     @Column(length = 64)
     private String badge;
 
+    @Column(name = "background_image_url", length = 1000)
+    private String backgroundImageUrl;
+
     @Column(nullable = false)
     private Integer priority = 0;
 
@@ -110,6 +113,7 @@ public class OperationRecommendation {
     public String getSummary() { return summary; }
     public String getReason() { return reason; }
     public String getBadge() { return badge; }
+    public String getBackgroundImageUrl() { return backgroundImageUrl; }
     public Integer getPriority() { return priority; }
     public Instant getStartAt() { return startAt; }
     public Instant getEndAt() { return endAt; }
@@ -128,6 +132,7 @@ public class OperationRecommendation {
     public void setSummary(String summary) { this.summary = summary; }
     public void setReason(String reason) { this.reason = reason; }
     public void setBadge(String badge) { this.badge = badge; }
+    public void setBackgroundImageUrl(String backgroundImageUrl) { this.backgroundImageUrl = backgroundImageUrl; }
     public void setPriority(Integer priority) { this.priority = priority; }
     public void setStartAt(Instant startAt) { this.startAt = startAt; }
     public void setEndAt(Instant endAt) { this.endAt = endAt; }

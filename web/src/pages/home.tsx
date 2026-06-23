@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { SearchBar } from '@/features/search/search-bar'
 import { SkillCard } from '@/features/skill/skill-card'
 import { RecommendationCard } from '@/features/recommendation/recommendation-card'
+import { WeeklySkillCard } from '@/features/recommendation/weekly-skill-card'
+import { isSameRecommendationSkill } from '@/features/recommendation/recommendation-skill-key'
 import { SkeletonList } from '@/shared/components/skeleton-loader'
 import { QuickStartSection } from '@/shared/components/quick-start'
-import { useRecommendations, useSearchSkills } from '@/shared/hooks/use-skill-queries'
+import { useCurrentWeeklySkill, useRecommendations, useSearchSkills } from '@/shared/hooks/use-skill-queries'
 import { normalizeSearchQuery } from '@/shared/lib/search-query'
 import { buildHomeSearchParams, HOME_DISCOVERY_SOURCE } from '@/shared/lib/home-discovery'
 import { dedupeRecommendationsBySkillSlug, dedupeSkillsBySlug } from '@/shared/lib/skill-dedupe'
@@ -14,6 +16,8 @@ import { Button } from '@/shared/ui/button'
 export function HomePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+
+  const { data: weeklySkill } = useCurrentWeeklySkill()
 
   const { data: recommendations, isLoading: isLoadingRecommendations } = useRecommendations({
     size: 6,
@@ -35,7 +39,9 @@ export function HomePage() {
     navigate({ to: '/search', search: buildHomeSearchParams('relevance', normalizeSearchQuery(query)) })
   }
 
-  const recommendationItems = dedupeRecommendationsBySkillSlug(recommendations?.items ?? [])
+  const recommendationItems = dedupeRecommendationsBySkillSlug(recommendations?.items ?? []).filter(
+    (item) => !isSameRecommendationSkill(item, weeklySkill?.skill),
+  )
   const popularItems = dedupeSkillsBySlug(popularSkills?.items ?? [])
   const latestItems = dedupeSkillsBySlug(latestSkills?.items ?? [])
 
@@ -79,6 +85,18 @@ export function HomePage() {
           </button>
         </div>
       </div>
+
+      {weeklySkill?.skill && (
+        <section className="animate-fade-up">
+          <WeeklySkillCard
+            recommendation={weeklySkill}
+            onOpenRecommendation={() => navigate({ to: '/recommendations/weekly' })}
+            onStartLearning={() => navigate({ to: '/recommendations/weekly' })}
+            onViewSkill={() => handleSkillClick(weeklySkill.skill!.namespace, weeklySkill.skill!.slug)}
+            onConfigureReminder={() => navigate({ to: '/settings/notifications' })}
+          />
+        </section>
+      )}
 
       {/* Global Recommendations Section */}
       <section className="space-y-6 animate-fade-up">

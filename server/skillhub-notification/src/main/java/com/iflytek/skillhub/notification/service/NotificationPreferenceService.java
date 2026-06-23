@@ -25,23 +25,36 @@ public class NotificationPreferenceService {
     public boolean isEnabled(String userId, NotificationCategory category, NotificationChannel channel) {
         return preferenceRepository.findByUserIdAndCategoryAndChannel(userId, category, channel)
                 .map(NotificationPreference::isEnabled)
-                .orElse(true);
+                .orElse(defaultEnabled(category, channel));
     }
 
     @Transactional(readOnly = true)
     public List<PreferenceView> getPreferences(String userId) {
-        Map<NotificationCategory, Boolean> saved = preferenceRepository.findByUserId(userId).stream()
-                .filter(p -> p.getChannel() == NotificationChannel.IN_APP)
-                .collect(Collectors.toMap(NotificationPreference::getCategory, NotificationPreference::isEnabled));
-        return Arrays.stream(NotificationCategory.values())
-                .map(cat -> new PreferenceView(cat, NotificationChannel.IN_APP, saved.getOrDefault(cat, true)))
-                .toList();
+        Map<String, Boolean> saved = preferenceRepository.findByUserId(userId).stream()
+                .collect(Collectors.toMap(
+                        p -> preferenceKey(p.getCategory(), p.getChannel()),
+                        NotificationPreference::isEnabled));
+        List<PreferenceView> preferences = Arrays.stream(NotificationCategory.values())
+                .map(cat -> new PreferenceView(
+                        cat,
+                        NotificationChannel.IN_APP,
+                        saved.getOrDefault(preferenceKey(cat, NotificationChannel.IN_APP), defaultEnabled(cat, NotificationChannel.IN_APP))))
+                .collect(Collectors.toList());
+        preferences.add(new PreferenceView(
+                NotificationCategory.WEEKLY_SKILL,
+                NotificationChannel.FEISHU,
+                saved.getOrDefault(preferenceKey(NotificationCategory.WEEKLY_SKILL, NotificationChannel.FEISHU), false)));
+        preferences.add(new PreferenceView(
+                NotificationCategory.WEEKLY_SKILL,
+                NotificationChannel.DINGTALK,
+                saved.getOrDefault(preferenceKey(NotificationCategory.WEEKLY_SKILL, NotificationChannel.DINGTALK), false)));
+        return preferences;
     }
 
     @Transactional
     public void updatePreference(String userId, NotificationCategory category,
                                   NotificationChannel channel, boolean enabled) {
-        if (channel != NotificationChannel.IN_APP) {
+        if (!isSupportedPreference(category, channel)) {
             throw new DomainBadRequestException("error.notification.preference.channel.unsupported", channel.name());
         }
         NotificationPreference pref = preferenceRepository
@@ -70,5 +83,21 @@ public class NotificationPreferenceService {
         for (PreferenceCommand command : commands) {
             updatePreference(userId, command.category(), command.channel(), command.enabled());
         }
+    }
+
+    private boolean defaultEnabled(NotificationCategory category, NotificationChannel channel) {
+        return channel == NotificationChannel.IN_APP && category != NotificationCategory.WEEKLY_SKILL;
+    }
+
+    private boolean isSupportedPreference(NotificationCategory category, NotificationChannel channel) {
+        if (channel == NotificationChannel.IN_APP) {
+            return true;
+        }
+        return category == NotificationCategory.WEEKLY_SKILL
+                && (channel == NotificationChannel.FEISHU || channel == NotificationChannel.DINGTALK);
+    }
+
+    private String preferenceKey(NotificationCategory category, NotificationChannel channel) {
+        return category.name() + ":" + channel.name();
     }
 }

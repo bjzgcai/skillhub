@@ -281,6 +281,16 @@ export interface SearchParams {
   starredOnly?: boolean
 }
 
+export interface RecommendationUpdateInput {
+  title?: string
+  summary?: string
+  reason?: string
+  backgroundImageUrl?: string
+  priority?: number
+  startAt?: string
+  endAt?: string
+}
+
 export interface RecommendationItem {
   sourceType: 'LOCAL_SKILL' | string
   status: string
@@ -292,6 +302,7 @@ export interface RecommendationItem {
   summary?: string
   reason?: string
   badge?: string
+  backgroundImageUrl?: string
   priority: number
   startAt?: string
   endAt?: string
