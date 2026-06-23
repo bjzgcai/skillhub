@@ -172,7 +172,12 @@ export function UserMenu({ user, triggerClassName }: UserMenuProps) {
                 {t('user.menu.reports')}
               </Link>
             ) : null}
-            {isUserAdmin || isAuditor || isSuperAdmin ? <div className="-mx-1 my-1 h-px bg-muted" /> : null}
+            {isUserAdmin || isAuditor || isSuperAdmin || isSkillAdmin ? <div className="-mx-1 my-1 h-px bg-muted" /> : null}
+            {isSkillAdmin || isSuperAdmin ? (
+              <Link to="/admin/recommendations/weekly" className={menuItemClassName} onClick={closeMenu}>
+                {t('user.menu.weeklyRecommendation')}
+              </Link>
+            ) : null}
             {isUserAdmin ? (
               <Link to="/admin/users" className={menuItemClassName} onClick={closeMenu}>
                 {t('user.menu.users')}

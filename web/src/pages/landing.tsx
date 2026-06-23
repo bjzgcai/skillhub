@@ -5,8 +5,10 @@ import { Search as SearchIcon } from 'lucide-react'
 import { LandingQuickStartSection } from '@/shared/components/landing-quick-start'
 import { SkillCard } from '@/features/skill/skill-card'
 import { RecommendationCard } from '@/features/recommendation/recommendation-card'
+import { WeeklySkillCard } from '@/features/recommendation/weekly-skill-card'
+import { isSameRecommendationSkill } from '@/features/recommendation/recommendation-skill-key'
 import { SkeletonList } from '@/shared/components/skeleton-loader'
-import { useRecommendations, useSearchSkills } from '@/shared/hooks/use-skill-queries'
+import { useCurrentWeeklySkill, useRecommendations, useSearchSkills } from '@/shared/hooks/use-skill-queries'
 import { useInView } from '@/shared/hooks/use-in-view'
 import { buildHomeSearchParams, HOME_DISCOVERY_SOURCE } from '@/shared/lib/home-discovery'
 import { dedupeRecommendationsBySkillSlug, dedupeSkillsBySlug } from '@/shared/lib/skill-dedupe'
@@ -21,6 +23,8 @@ import { Button } from '@/shared/ui/button'
 export function LandingPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+
+  const { data: weeklySkill } = useCurrentWeeklySkill()
 
   const { data: recommendations, isLoading: isLoadingRecommendations } = useRecommendations({
     size: 6,
@@ -38,7 +42,9 @@ export function LandingPage() {
     size: 6,
   })
 
-  const recommendationItems = dedupeRecommendationsBySkillSlug(recommendations?.items ?? [])
+  const recommendationItems = dedupeRecommendationsBySkillSlug(recommendations?.items ?? []).filter(
+    (item) => !isSameRecommendationSkill(item, weeklySkill?.skill),
+  )
   const popularItems = dedupeSkillsBySlug(popularSkills?.items ?? [])
   const latestItems = dedupeSkillsBySlug(latestSkills?.items ?? [])
 
@@ -132,6 +138,16 @@ export function LandingPage() {
               {t('home.viewAll')}
             </Button>
           </div>
+          {weeklySkill?.skill ? (
+            <WeeklySkillCard
+              recommendation={weeklySkill}
+              onOpenRecommendation={() => navigate({ to: '/recommendations/weekly' })}
+              onStartLearning={() => navigate({ to: '/recommendations/weekly' })}
+              onViewSkill={() => handleSkillClick(weeklySkill.skill!.namespace, weeklySkill.skill!.slug)}
+              onConfigureReminder={() => navigate({ to: '/settings/notifications' })}
+            />
+          ) : null}
+
           {isLoadingRecommendations ? (
             <SkeletonList count={6} />
           ) : recommendationItems.length ? (

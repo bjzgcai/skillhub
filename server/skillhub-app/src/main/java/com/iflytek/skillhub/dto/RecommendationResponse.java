@@ -13,6 +13,7 @@ public record RecommendationResponse(
         String summary,
         String reason,
         String badge,
+        String backgroundImageUrl,
         Integer priority,
         Instant startAt,
         Instant endAt,

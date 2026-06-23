@@ -86,4 +86,26 @@ class NotificationPreferenceControllerTest {
             assertThat(item.enabled()).isFalse();
         });
     }
+
+    @Test
+    void updatePreferences_shouldAcceptWeeklySkillFeishuAndDingTalkPayloads() {
+        NotificationPreferenceUpdateRequest request = new NotificationPreferenceUpdateRequest(List.of(
+                new NotificationPreferenceUpdateRequest.PreferenceItem("WEEKLY_SKILL", "FEISHU", true),
+                new NotificationPreferenceUpdateRequest.PreferenceItem("WEEKLY_SKILL", "DINGTALK", true)
+        ));
+        when(preferenceService.getPreferences("user-1")).thenReturn(List.of(
+                new PreferenceView(NotificationCategory.WEEKLY_SKILL, NotificationChannel.FEISHU, true),
+                new PreferenceView(NotificationCategory.WEEKLY_SKILL, NotificationChannel.DINGTALK, true)
+        ));
+
+        List<NotificationPreferenceResponse> response = controller.updatePreferences("user-1", request).data();
+
+        verify(preferenceService).updatePreferences(eq("user-1"), anyList());
+        assertThat(response).extracting(NotificationPreferenceResponse::channel)
+                .containsExactly("FEISHU", "DINGTALK");
+        assertThat(response).allSatisfy(item -> {
+            assertThat(item.category()).isEqualTo("WEEKLY_SKILL");
+            assertThat(item.enabled()).isTrue();
+        });
+    }
 }

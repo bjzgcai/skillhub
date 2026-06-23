@@ -27,11 +27,19 @@ class NotificationPreferenceServiceTest {
     }
 
     @Test
-    void isEnabled_shouldReturnTrueByDefault() {
+    void isEnabled_shouldReturnTrueByDefaultForInAppOperationalNotifications() {
         when(preferenceRepository.findByUserIdAndCategoryAndChannel(
                 "user-1", NotificationCategory.REVIEW, NotificationChannel.IN_APP))
                 .thenReturn(Optional.empty());
         assertTrue(service.isEnabled("user-1", NotificationCategory.REVIEW, NotificationChannel.IN_APP));
+    }
+
+    @Test
+    void isEnabled_shouldReturnFalseByDefaultForWeeklyExternalPushes() {
+        when(preferenceRepository.findByUserIdAndCategoryAndChannel(
+                "user-1", NotificationCategory.WEEKLY_SKILL, NotificationChannel.FEISHU))
+                .thenReturn(Optional.empty());
+        assertFalse(service.isEnabled("user-1", NotificationCategory.WEEKLY_SKILL, NotificationChannel.FEISHU));
     }
 
     @Test
@@ -48,8 +56,23 @@ class NotificationPreferenceServiceTest {
     void getPreferences_shouldReturnAllCategoriesWithDefaults() {
         when(preferenceRepository.findByUserId("user-1")).thenReturn(List.of());
         List<NotificationPreferenceService.PreferenceView> prefs = service.getPreferences("user-1");
-        assertEquals(NotificationCategory.values().length, prefs.size());
-        assertTrue(prefs.stream().allMatch(NotificationPreferenceService.PreferenceView::enabled));
+        assertEquals(NotificationCategory.values().length + 2, prefs.size());
+        assertTrue(prefs.stream()
+                .filter(pref -> pref.channel() == NotificationChannel.IN_APP && pref.category() != NotificationCategory.WEEKLY_SKILL)
+                .allMatch(NotificationPreferenceService.PreferenceView::enabled));
+        assertTrue(prefs.stream()
+                .filter(pref -> pref.category() == NotificationCategory.WEEKLY_SKILL && pref.channel() != NotificationChannel.IN_APP)
+                .noneMatch(NotificationPreferenceService.PreferenceView::enabled));
+    }
+
+    @Test
+    void updatePreference_shouldAllowWeeklyExternalPushOptIn() {
+        when(preferenceRepository.findByUserIdAndCategoryAndChannel(
+                "user-1", NotificationCategory.WEEKLY_SKILL, NotificationChannel.DINGTALK))
+                .thenReturn(Optional.empty());
+        when(preferenceRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        service.updatePreference("user-1", NotificationCategory.WEEKLY_SKILL, NotificationChannel.DINGTALK, true);
+        verify(preferenceRepository).save(any(NotificationPreference.class));
     }
 
     @Test

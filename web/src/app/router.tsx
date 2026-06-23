@@ -68,6 +68,7 @@ const RegisterPage = createLazyRouteComponent(() => import('@/pages/register'), 
 const PrivacyPolicyPage = createLazyRouteComponent(() => import('@/pages/privacy'), 'PrivacyPolicyPage')
 const SearchPage = createLazyRouteComponent(() => import('@/pages/search'), 'SearchPage')
 const RecommendationsPage = createLazyRouteComponent(() => import('@/pages/recommendations'), 'RecommendationsPage')
+const RecommendationDetailPage = createLazyRouteComponent(() => import('@/pages/recommendation-detail'), 'RecommendationDetailPage')
 const TermsOfServicePage = createLazyRouteComponent(() => import('@/pages/terms'), 'TermsOfServicePage')
 const NamespacePage = createLazyRouteComponent(() => import('@/pages/namespace'), 'NamespacePage')
 const SkillDetailPage = createLazyRouteComponent(() => import('@/pages/skill-detail'), 'SkillDetailPage')
@@ -137,6 +138,11 @@ const AdminLabelsPage = createRoleProtectedRouteComponent(
   () => import('@/pages/admin/labels'),
   'AdminLabelsPage',
   ['SUPER_ADMIN'],
+)
+const AdminWeeklyRecommendationPage = createRoleProtectedRouteComponent(
+  () => import('@/pages/admin/weekly-recommendation'),
+  'AdminWeeklyRecommendationPage',
+  ['SKILL_ADMIN', 'SUPER_ADMIN'],
 )
 
 function DefaultNotFound() {
@@ -217,6 +223,12 @@ const recommendationsRoute = createRoute({
     page: Number(search.page) || 0,
     label: typeof search.label === 'string' && search.label ? search.label : undefined,
   }),
+})
+
+const recommendationDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'recommendations/weekly',
+  component: RecommendationDetailPage,
 })
 
 const termsRoute = createRoute({
@@ -406,6 +418,13 @@ const adminLabelsRoute = createRoute({
   component: AdminLabelsPage,
 })
 
+const adminWeeklyRecommendationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: 'admin/recommendations/weekly',
+  beforeLoad: requireAuth,
+  component: AdminWeeklyRecommendationPage,
+})
+
 const routeTree = rootRoute.addChildren([
   landingRoute,
   skillsRoute,
@@ -414,6 +433,7 @@ const routeTree = rootRoute.addChildren([
   privacyRoute,
   searchRoute,
   recommendationsRoute,
+  recommendationDetailRoute,
   termsRoute,
   namespaceRoute,
   skillDetailRoute,
@@ -439,6 +459,7 @@ const routeTree = rootRoute.addChildren([
   adminUsersRoute,
   adminAuditLogRoute,
   adminLabelsRoute,
+  adminWeeklyRecommendationRoute,
 ])
 
 export const router = createRouter({

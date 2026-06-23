@@ -8,6 +8,7 @@ public record RecommendationUpdateRequest(
         @Size(max = 2000) String summary,
         @Size(max = 200) String reason,
         @Size(max = 64) String badge,
+        @Size(max = 1000) String backgroundImageUrl,
         Integer priority,
         Instant startAt,
         Instant endAt

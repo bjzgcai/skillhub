@@ -39,6 +39,8 @@ import type {
   LabelDefinition,
   LabelItem,
   ReviewBadgeOption,
+  RecommendationItem,
+  RecommendationUpdateInput,
 } from './types'
 import { ApiError } from '@/shared/lib/api-error'
 import i18n from '@/i18n/config'
@@ -1090,6 +1092,17 @@ export const adminApi = {
       method: 'POST',
       headers: getCsrfHeaders(),
     })
+  },
+
+  async setWeeklyRecommendation(namespace: string, slug: string, request: RecommendationUpdateInput): Promise<RecommendationItem> {
+    return fetchJson<RecommendationItem>(
+      `/api/v1/admin/recommendations/weekly/${encodeURIComponent(namespace)}/${encodeURIComponent(slug)}`,
+      {
+        method: 'PUT',
+        headers: getCsrfHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify(request),
+      },
+    )
   },
 
   async getAuditLogs(params: {

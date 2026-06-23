@@ -34,6 +34,10 @@ vi.mock('@/shared/components/quick-start', () => ({
 }))
 
 vi.mock('@/shared/hooks/use-skill-queries', () => ({
+  useCurrentWeeklySkill: () => ({
+    data: null,
+    isLoading: false,
+  }),
   useRecommendations: () => ({
     data: { items: [] },
     isLoading: false,

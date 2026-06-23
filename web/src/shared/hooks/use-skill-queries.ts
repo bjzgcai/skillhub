@@ -19,6 +19,10 @@ async function getRecommendations(params: RecommendationParams): Promise<PagedRe
   return fetchJson<PagedResponse<RecommendationItem>>(`${WEB_API_PREFIX}/recommendations?${searchParams.toString()}`)
 }
 
+async function getCurrentWeeklySkill(): Promise<RecommendationItem | null> {
+  return fetchJson<RecommendationItem | null>(`${WEB_API_PREFIX}/recommendations/weekly-current`)
+}
+
 async function getSkillDetail(namespace: string, slug: string): Promise<SkillDetail> {
   const cleanNamespace = namespace.startsWith('@') ? namespace.slice(1) : namespace
   return fetchJson<SkillDetail>(`${WEB_API_PREFIX}/skills/${cleanNamespace}/${slug}`)
@@ -90,6 +94,13 @@ export function useRecommendations(params: RecommendationParams) {
   return useQuery({
     queryKey: ['recommendations', params],
     queryFn: () => getRecommendations(params),
+  })
+}
+
+export function useCurrentWeeklySkill() {
+  return useQuery({
+    queryKey: ['recommendations', 'weekly-current'],
+    queryFn: getCurrentWeeklySkill,
   })
 }
 

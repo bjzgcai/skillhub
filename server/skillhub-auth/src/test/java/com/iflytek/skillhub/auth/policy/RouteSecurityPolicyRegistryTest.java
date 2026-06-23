@@ -68,15 +68,22 @@ class RouteSecurityPolicyRegistryTest {
                 .anyMatch(policy -> policy.method() == HttpMethod.GET
                         && "/api/web/recommendations".equals(policy.pattern())
                         && policy.accessLevel() == RouteSecurityPolicyRegistry.AccessLevel.PERMIT_ALL);
+        boolean matchedWeeklyWeb = registry.authorizationPolicies().stream()
+                .anyMatch(policy -> policy.method() == HttpMethod.GET
+                        && "/api/web/recommendations/weekly-current".equals(policy.pattern())
+                        && policy.accessLevel() == RouteSecurityPolicyRegistry.AccessLevel.PERMIT_ALL);
 
         assertTrue(matchedV1);
         assertTrue(matchedWeb);
+        assertTrue(matchedWeeklyWeb);
     }
 
     @Test
     void authorizeApiToken_shouldAllowPublicRecommendationEndpoints() {
         assertTrue(registry.authorizeApiToken("GET", "/api/v1/recommendations", Set.of()).allowed());
+        assertTrue(registry.authorizeApiToken("GET", "/api/v1/recommendations/weekly-current", Set.of()).allowed());
         assertTrue(registry.authorizeApiToken("GET", "/api/web/recommendations", Set.of()).allowed());
+        assertTrue(registry.authorizeApiToken("GET", "/api/web/recommendations/weekly-current", Set.of()).allowed());
     }
 
     @Test

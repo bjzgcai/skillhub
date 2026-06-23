@@ -29,7 +29,11 @@ import com.iflytek.skillhub.dto.SkillLabelDto;
 import com.iflytek.skillhub.dto.SkillLifecycleVersionResponse;
 import com.iflytek.skillhub.dto.SkillSummaryResponse;
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,7 +52,11 @@ public class RecommendationAppService {
     private record LabelSummary(LabelDefinition definition, List<LabelTranslation> translations) {
     }
 
+    public static final String WEEKLY_SKILL_BADGE = "WEEKLY_SKILL";
+    public static final String WEEKLY_SKILL_BADGE_DISPLAY = "本周技能";
+
     private static final String DEFAULT_NAMESPACE = "global";
+    private static final List<String> WEEKLY_SKILL_BADGES = List.of(WEEKLY_SKILL_BADGE, WEEKLY_SKILL_BADGE_DISPLAY);
 
     private final OperationRecommendationRepository recommendationRepository;
     private final SkillRepository skillRepository;
@@ -89,6 +97,16 @@ public class RecommendationAppService {
         return toPageResponse(recommendations);
     }
 
+    public RecommendationResponse getCurrentWeekly() {
+        List<OperationRecommendation> recommendations = recommendationRepository.findCurrentWeekly(
+                Instant.now(clock), WEEKLY_SKILL_BADGES, PageRequest.of(0, 1));
+        if (recommendations.isEmpty()) {
+            return null;
+        }
+        OperationRecommendation recommendation = recommendations.get(0);
+        return toResponse(recommendation, loadSkillMap(List.of(recommendation)));
+    }
+
     public PageResponse<RecommendationResponse> listAdmin(String status, String cacheStatus, int page, int size) {
         RecommendationStatus parsedStatus = parseEnum(status, RecommendationStatus.class, "error.recommendation.status.invalid");
         RecommendationCacheStatus parsedCacheStatus = parseEnum(cacheStatus, RecommendationCacheStatus.class, "error.recommendation.cacheStatus.invalid");
@@ -117,6 +135,7 @@ public class RecommendationAppService {
                 request == null ? null : request.summary(),
                 request == null ? null : request.reason(),
                 request == null ? null : request.badge(),
+                request == null ? null : request.backgroundImageUrl(),
                 request == null ? null : request.priority(),
                 request == null ? null : request.startAt(),
                 request == null ? null : request.endAt());
@@ -124,9 +143,29 @@ public class RecommendationAppService {
     }
 
     @Transactional
+    public RecommendationResponse setWeeklySkill(String namespaceSlug, String skillSlug, RecommendationUpdateRequest request, String actorUserId) {
+        Instant startAt = request != null && request.startAt() != null ? request.startAt() : currentWeekStart();
+        Instant endAt = request != null && request.endAt() != null ? request.endAt() : startAt.plusSeconds(7 * 24 * 60 * 60);
+        validateRecommendationWindow(startAt, endAt);
+        Integer priority = request != null && request.priority() != null ? Math.max(request.priority(), 20_000) : 20_000;
+        RecommendationUpdateRequest weeklyRequest = new RecommendationUpdateRequest(
+                request == null ? null : request.title(),
+                request == null ? null : request.summary(),
+                request == null ? null : request.reason(),
+                WEEKLY_SKILL_BADGE,
+                request == null ? null : request.backgroundImageUrl(),
+                priority,
+                startAt,
+                endAt);
+        RecommendationResponse weekly = createForSkill(namespaceSlug, skillSlug, weeklyRequest, actorUserId);
+        deactivateOtherWeeklyRecommendations(weekly.skillId(), actorUserId);
+        return weekly;
+    }
+
+    @Transactional
     public RecommendationResponse update(String namespaceSlug, String skillSlug, RecommendationUpdateRequest request, String actorUserId) {
         OperationRecommendation recommendation = getRecommendation(namespaceSlug, skillSlug);
-        applyEditableFields(recommendation, request.title(), request.summary(), request.reason(), request.badge(), request.priority(), request.startAt(), request.endAt());
+        applyEditableFields(recommendation, request.title(), request.summary(), request.reason(), request.badge(), request.backgroundImageUrl(), request.priority(), request.startAt(), request.endAt());
         recommendation.setUpdatedBy(actorUserId);
         return toResponse(recommendationRepository.save(recommendation), loadSkillMap(List.of(recommendation)));
     }
@@ -171,6 +210,7 @@ public class RecommendationAppService {
         recommendation.setSummary(firstText(request.summary(), skill.getSummary(), ""));
         recommendation.setReason(trimToNull(request.reason()));
         recommendation.setBadge(trimToNull(request.badge()));
+        recommendation.setBackgroundImageUrl(trimToNull(request.backgroundImageUrl()));
         recommendation.setPriority(request.priority() == null ? 0 : request.priority());
         recommendation.setStartAt(request.startAt());
         recommendation.setEndAt(request.endAt());
@@ -326,6 +366,7 @@ public class RecommendationAppService {
                 recommendation.getSummary(),
                 recommendation.getReason(),
                 recommendation.getBadge(),
+                recommendation.getBackgroundImageUrl(),
                 recommendation.getPriority(),
                 recommendation.getStartAt(),
                 recommendation.getEndAt(),
@@ -342,14 +383,42 @@ public class RecommendationAppService {
     }
 
     private void applyEditableFields(OperationRecommendation recommendation, String title, String summary, String reason,
-                                     String badge, Integer priority, Instant startAt, Instant endAt) {
+                                     String badge, String backgroundImageUrl, Integer priority, Instant startAt, Instant endAt) {
         if (title != null) recommendation.setTitle(requireText(title, "error.recommendation.title.required"));
         if (summary != null) recommendation.setSummary(trimToNull(summary));
         if (reason != null) recommendation.setReason(trimToNull(reason));
         if (badge != null) recommendation.setBadge(trimToNull(badge));
+        if (backgroundImageUrl != null) recommendation.setBackgroundImageUrl(trimToNull(backgroundImageUrl));
         if (priority != null) recommendation.setPriority(priority);
+        if (startAt != null && endAt != null) validateRecommendationWindow(startAt, endAt);
         recommendation.setStartAt(startAt);
         recommendation.setEndAt(endAt);
+    }
+
+    private void deactivateOtherWeeklyRecommendations(Long currentSkillId, String actorUserId) {
+        for (OperationRecommendation recommendation : recommendationRepository.findActiveWeekly(WEEKLY_SKILL_BADGES)) {
+            if (recommendation.getSkillId().equals(currentSkillId)) {
+                continue;
+            }
+            recommendation.setStatus(RecommendationStatus.OFFLINE);
+            recommendation.setUpdatedBy(actorUserId);
+            recommendationRepository.save(recommendation);
+        }
+    }
+
+    private void validateRecommendationWindow(Instant startAt, Instant endAt) {
+        if (!endAt.isAfter(startAt)) {
+            throw new DomainBadRequestException("error.recommendation.window.invalid");
+        }
+    }
+
+    private Instant currentWeekStart() {
+        return ZonedDateTime.now(clock)
+                .withZoneSameInstant(ZoneOffset.UTC)
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .toLocalDate()
+                .atStartOfDay()
+                .toInstant(ZoneOffset.UTC);
     }
 
     private <E extends Enum<E>> E parseEnum(String value, Class<E> type, String errorCode) {

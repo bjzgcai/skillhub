@@ -12,6 +12,7 @@ import com.iflytek.skillhub.domain.recommendation.OperationRecommendation;
 import com.iflytek.skillhub.domain.recommendation.OperationRecommendationRepository;
 import com.iflytek.skillhub.domain.recommendation.RecommendationCacheStatus;
 import com.iflytek.skillhub.domain.recommendation.RecommendationStatus;
+import com.iflytek.skillhub.domain.shared.exception.DomainBadRequestException;
 import com.iflytek.skillhub.domain.skill.Skill;
 import com.iflytek.skillhub.domain.skill.SkillRepository;
 import com.iflytek.skillhub.domain.skill.SkillVersion;
@@ -22,6 +23,7 @@ import com.iflytek.skillhub.domain.skill.service.SkillLifecycleProjectionService
 import com.iflytek.skillhub.dto.RecommendationCreateRequest;
 import com.iflytek.skillhub.dto.RecommendationResponse;
 import com.iflytek.skillhub.dto.RecommendationUpdateRequest;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,8 +35,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -82,7 +88,8 @@ class RecommendationAppServiceTest {
                 labelLocalizationService,
                 skillBadgeAppService
         );
-        when(recommendationRepository.save(any(OperationRecommendation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(recommendationRepository.save(any(OperationRecommendation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(recommendationRepository.findActiveWeekly(anyCollection())).thenReturn(List.of());
     }
 
     @Test
@@ -93,7 +100,7 @@ class RecommendationAppServiceTest {
         stubResponseProjection(skill);
 
         RecommendationResponse response = service.create(
-                new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", 100, null, null),
+                new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", null, 100, null, null),
                 "admin-1"
         );
 
@@ -120,7 +127,7 @@ class RecommendationAppServiceTest {
                 .thenReturn(Map.of(42L, List.of(new com.iflytek.skillhub.dto.SkillBadgeDto("SCANNED_SAFE", "扫描安全", "SCANNER_PASS", null))));
 
         RecommendationResponse response = service.create(
-                new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", 100, null, null),
+                new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", null, 100, null, null),
                 "admin-1"
         );
 
@@ -128,6 +135,85 @@ class RecommendationAppServiceTest {
         assertEquals(1, response.skill().badges().size());
         assertEquals("SCANNED_SAFE", response.skill().badges().get(0).type());
         assertEquals("扫描安全", response.skill().badges().get(0).displayName());
+    }
+
+    @Test
+    void getCurrentWeekly_shouldReturnHighestPriorityWeeklyRecommendation() {
+        Skill skill = recommendableSkill();
+        OperationRecommendation weekly = new OperationRecommendation(
+                com.iflytek.skillhub.domain.recommendation.RecommendationSourceType.LOCAL_SKILL,
+                42L,
+                "global",
+                "demo-skill");
+        weekly.setStatus(RecommendationStatus.ACTIVE);
+        weekly.setCacheStatus(RecommendationCacheStatus.READY);
+        weekly.setTitle("本周一技：Demo Skill");
+        weekly.setBadge(RecommendationAppService.WEEKLY_SKILL_BADGE);
+        weekly.setPriority(20_000);
+        when(recommendationRepository.findCurrentWeekly(any(), anyCollection(), any())).thenReturn(List.of(weekly));
+        stubResponseProjection(skill);
+
+        RecommendationResponse response = service.getCurrentWeekly();
+
+        assertNotNull(response);
+        assertEquals("本周一技：Demo Skill", response.title());
+        assertEquals(RecommendationAppService.WEEKLY_SKILL_BADGE, response.badge());
+        assertEquals(20_000, response.priority());
+        assertNotNull(response.skill());
+    }
+
+    @Test
+    void setWeeklySkill_shouldForceBadgePriorityAndWeekWindow() {
+        Skill skill = recommendableSkill();
+        stubSkillLookup(skill);
+        when(recommendationRepository.findNonDeletedBySkillId(42L)).thenReturn(Optional.empty());
+        stubResponseProjection(skill);
+
+        RecommendationResponse response = service.setWeeklySkill(
+                "global",
+                "demo-skill",
+                new RecommendationUpdateRequest("Weekly Demo", "Learn it this week", "入门", "typo", "https://example.com/weekly.jpg", 10, null, null),
+                "admin-1");
+
+        assertEquals("Weekly Demo", response.title());
+        assertEquals("WEEKLY_SKILL", response.badge());
+        assertEquals("https://example.com/weekly.jpg", response.backgroundImageUrl());
+        assertEquals(20_000, response.priority());
+        assertNotNull(response.startAt());
+        assertNotNull(response.endAt());
+    }
+
+    @Test
+    void setWeeklySkill_shouldDeactivateOtherActiveWeeklyRecommendations() {
+        Skill skill = recommendableSkill();
+        stubSkillLookup(skill);
+        when(recommendationRepository.findNonDeletedBySkillId(42L)).thenReturn(Optional.empty());
+        OperationRecommendation previousWeekly = new OperationRecommendation(
+                com.iflytek.skillhub.domain.recommendation.RecommendationSourceType.LOCAL_SKILL,
+                99L,
+                "global",
+                "old-weekly");
+        previousWeekly.setStatus(RecommendationStatus.ACTIVE);
+        previousWeekly.setBadge(RecommendationAppService.WEEKLY_SKILL_BADGE);
+        when(recommendationRepository.findActiveWeekly(anyCollection())).thenReturn(List.of(previousWeekly));
+        stubResponseProjection(skill);
+
+        service.setWeeklySkill("global", "demo-skill", null, "admin-1");
+
+        assertEquals(RecommendationStatus.OFFLINE, previousWeekly.getStatus());
+        verify(recommendationRepository).save(previousWeekly);
+    }
+
+    @Test
+    void setWeeklySkill_shouldRejectInvalidWindow() {
+        Instant startAt = Instant.parse("2026-06-22T00:00:00Z");
+        Instant endAt = Instant.parse("2026-06-21T00:00:00Z");
+
+        assertThrows(DomainBadRequestException.class, () -> service.setWeeklySkill(
+                "global",
+                "demo-skill",
+                new RecommendationUpdateRequest(null, null, null, null, null, null, startAt, endAt),
+                "admin-1"));
     }
 
     @Test
@@ -148,7 +234,7 @@ class RecommendationAppServiceTest {
         RecommendationResponse response = service.createForSkill(
                 "global",
                 "demo-skill",
-                new RecommendationUpdateRequest("New title", null, null, null, 10, null, null),
+                new RecommendationUpdateRequest("New title", null, null, null, null, 10, null, null),
                 "admin-1");
 
         assertEquals("ACTIVE", response.status());
