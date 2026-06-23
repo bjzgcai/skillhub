@@ -15,7 +15,8 @@
 
 ## 主要脚本
 
-- `deploy-release.sh`：标准发布入口，支持 `--component web|server|all` 与 `--apply`
+- `release-to-prod.sh`：repo 侧一键发布编排，串联本地构建、镜像传输、生产 plan/apply 与验收
+- `deploy-release.sh`：生产机标准发布入口，支持 `--component web|server|all` 与 `--apply`
 - `release-lib.sh`：公共函数库，供 deploy / rollback / status 等复用
 - `verify-server-release.sh`：server 独立验收，支持 health / env / DingTalk authorize / env drift check
 - `verify-web-release.sh`：web 独立验收，支持首页探活与关键 env 校验
@@ -62,13 +63,42 @@ cd /home/ubuntu/bjzgcai/skillhub
 - 设置执行权限
 - 对关键脚本执行 `bash -n`
 
+## 一键发布到生产
+
+从 dliang-dev 的 repo 源码目录执行：
+
+```bash
+cd /home/ubuntu/bjzgcai/skillhub
+./ops/release-to-prod.sh --component all
+```
+
+默认是 dry-run：构建镜像、传到生产机、执行生产 release plan，但不会替换线上容器。确认 plan 后显式加 `--apply`：
+
+```bash
+./ops/release-to-prod.sh --component all --apply
+```
+
+常用参数：
+
+```bash
+./ops/release-to-prod.sh --component web --apply
+./ops/release-to-prod.sh --component server --tag prod-local-20260623T020000Z-weekly --apply
+./ops/release-to-prod.sh --component all --skip-build --skip-transfer --tag prod-local-20260623T020000Z-weekly --apply
+```
+
+脚本边界：
+- repo 侧负责构建 `skillhub-server:<tag>` / `skillhub-web:<tag>` 并 `docker save | ssh docker load` 到生产机。
+- 生产机仍由 `/opt/skillhub/ops/deploy-release.sh` 执行 release 切换和失败回滚。
+- `--apply` 时要求 Git 工作区干净，避免把未提交代码发到生产。
+
 ## 推荐工作流
 
-1. 在 repo 中修改 `ops/` 脚本
+1. 在 repo 中修改代码或 `ops/` 脚本
 2. 本地执行语法检查 / smoke test
-3. 运行 `./ops/sync-to-runtime.sh`
-4. 再用 `/opt/skillhub/ops/...` 在运行目录执行真实发布/验证
-5. 将脚本改动和相关文档一起纳入 Git
+3. 如修改运行态 ops 脚本，运行 `./ops/sync-to-runtime.sh`
+4. 用 `./ops/release-to-prod.sh --component <all|server|web>` 生成生产发布 plan
+5. 确认 plan 后执行 `./ops/release-to-prod.sh --component <all|server|web> --apply`
+6. 将脚本改动和相关文档一起纳入 Git
 
 ## 不要做的事
 

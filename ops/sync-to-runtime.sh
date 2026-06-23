@@ -14,6 +14,7 @@ cp "$OPS_SRC"/*.sh "$RUNTIME_OPS/"
 cp "$TEMPLATES_SRC"/* "$RUNTIME_TEMPLATES/"
 chmod +x "$RUNTIME_OPS"/*.sh
 
+bash -n "$RUNTIME_OPS/release-to-prod.sh"
 bash -n "$RUNTIME_OPS/deploy-release.sh"
 bash -n "$RUNTIME_OPS/release-lib.sh"
 bash -n "$RUNTIME_OPS/verify-server-release.sh"
