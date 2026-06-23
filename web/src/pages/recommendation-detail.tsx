@@ -3,7 +3,6 @@ import { ArrowLeft, Bell, ExternalLink, ListChecks, PlayCircle, Presentation, Sh
 import { useCurrentWeeklySkill } from '@/shared/hooks/use-skill-queries'
 import { Card } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
-import { EmptyState } from '@/shared/components/empty-state'
 import { WeeklySkillCard } from '@/features/recommendation/weekly-skill-card'
 import { InstallCommand } from '@/features/skill/install-command'
 
@@ -162,11 +161,8 @@ export function RecommendationDetailPage() {
   }
 
   if (!recommendation || !skill) {
-    return (
-      <div className="container mx-auto px-4 py-10">
-        <EmptyState title="暂无本周推荐" description="运营设置本周技能后，这里会展示推荐详情。" />
-      </div>
-    )
+    navigate({ to: '/recommendations', search: { page: 0 }, replace: true })
+    return null
   }
 
   return (
