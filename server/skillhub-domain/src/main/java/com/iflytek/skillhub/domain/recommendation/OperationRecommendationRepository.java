@@ -13,5 +13,7 @@ public interface OperationRecommendationRepository {
     List<OperationRecommendation> findCurrentWeekly(Instant now, Collection<String> badges, Pageable pageable);
     List<OperationRecommendation> findActiveWeekly(Collection<String> badges);
     Page<OperationRecommendation> findDisplayable(Instant now, Pageable pageable);
+
+    Page<OperationRecommendation> findHistoryWeekly(Instant now, Collection<String> badges, Pageable pageable);
     Page<OperationRecommendation> findForAdmin(RecommendationStatus status, RecommendationCacheStatus cacheStatus, Pageable pageable);
 }

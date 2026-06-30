@@ -33,4 +33,11 @@ public class RecommendationController extends BaseApiController {
             @RequestParam(defaultValue = "20") int size) {
         return ok("response.success.read", recommendationAppService.listPublic(page, size));
     }
+
+    @GetMapping("/weekly-history")
+    public ApiResponse<PageResponse<RecommendationResponse>> historyWeekly(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ok("response.success.read", recommendationAppService.listHistoryWeekly(page, size));
+    }
 }

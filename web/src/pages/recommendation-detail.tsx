@@ -1,6 +1,6 @@
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { ArrowLeft, Bell, ExternalLink, ListChecks, PlayCircle, Presentation, ShieldCheck, Terminal } from 'lucide-react'
-import { useCurrentWeeklySkill } from '@/shared/hooks/use-skill-queries'
+import { useCurrentWeeklySkill, useHistoryWeeklySkills } from '@/shared/hooks/use-skill-queries'
 import { Card } from '@/shared/ui/card'
 import { Button } from '@/shared/ui/button'
 import { WeeklySkillCard } from '@/features/recommendation/weekly-skill-card'
@@ -93,8 +93,52 @@ const SKILL_VETTER_GUIDE: WeeklyGuideContent = {
   ],
 }
 
+const SKILLHUB_GUIDE: WeeklyGuideContent = {
+  intro: '技能助手是内部 SkillHub 的入口技能。它让你不再靠口口相传找工具，而是用一条命令精准定位需要的能力：搜索、查看、安装、发布，全从它开始。',
+  sections: [
+    {
+      title: '3 分钟上手：搜索 → 查看 → 安装',
+      body: '想找一个能力时，先用搜索定位候选，再用 inspect 读懂它，最后 install 装到 workspace。',
+      bullets: [
+        '搜索：clawhub search "关键词" --registry https://skills.zgci.org',
+        '查看：clawhub inspect <slug> --registry https://skills.zgci.org --file SKILL.md',
+        '安装：clawhub install <slug> --registry https://skills.zgci.org',
+        '逛一逛：clawhub explore --registry https://skills.zgci.org',
+      ],
+      example: {
+        user: '帮我找一个能解析 PDF 的技能',
+        agent: '我先在内部 SkillHub 搜索了 PDF 相关技能，找到 pdf-parsing 和 office-parsing 两个候选。pdf-parsing 支持 OCR 和扫描件，更适合你的需求。安装命令：clawhub install pdf-parsing --registry https://skills.zgci.org',
+      },
+    },
+    {
+      title: '发布技能前要搞清楚的事',
+      body: '发布操作需要登录，且 Web 端和 CLI 端的登录方式不同。搞清楚区别能少踩坑。',
+      bullets: [
+        'Web 端：钉钉 SSO 登录，未登录自动跳转登录页',
+        'CLI 端：用 Personal API Token，从 Web Dashboard → Tokens 创建',
+        '搜索和查看不需要登录，发布和删除必须登录',
+        'CLI 禁止走浏览器登录流，用 --no-browser --token 方式登录',
+        'Token 需要 skill:publish scope 才能发布',
+      ],
+      example: {
+        user: '我想发布一个技能到内部 SkillHub',
+        agent: '发布前需要确认你已登录。CLI 方式：先在 https://skills.zgci.org/login 钉钉登录，再到 Dashboard → Tokens 创建 Personal API Token，然后 clawhub login --registry https://skills.zgci.org --no-browser --token "<token>"。登录后用 clawhub whoami 验证，再执行发布。',
+      },
+    },
+  ],
+  media: [
+    {
+      type: 'video',
+      title: '3 分钟上手视频',
+      description: '演示"搜索技能 → 查看详情 → 一键安装"的完整路径，以及 CLI 和 Web 两种登录方式的区别。',
+    },
+  ],
+}
+
 export function getGuideContent(slug?: string): WeeklyGuideContent | null {
-  return slug === 'skill-vetter' ? SKILL_VETTER_GUIDE : null
+  if (slug === 'skill-vetter') return SKILL_VETTER_GUIDE
+  if (slug === 'skillhub') return SKILLHUB_GUIDE
+  return null
 }
 
 function MediaCard({ media }: { media: GuideMedia }) {
@@ -146,8 +190,17 @@ export function pickPrimaryMedia(media: GuideMedia[]): GuideMedia | null {
 
 export function RecommendationDetailPage() {
   const navigate = useNavigate()
+  const { slug: querySlug } = useSearch({ from: '/recommendations/weekly' })
   const { data: recommendation, isLoading } = useCurrentWeeklySkill()
-  const skill = recommendation?.skill
+  const { data: historyData } = useHistoryWeeklySkills(0, 10)
+  const historyItems = historyData?.items ?? []
+
+  const activeItem = querySlug
+    ? historyItems.find((h) => h.slug === querySlug)
+    : null
+  const activeSkill = activeItem?.skill ?? recommendation?.skill
+  const activeRecommendation = activeItem ?? recommendation
+  const skill = activeSkill
   const guide = getGuideContent(skill?.slug)
   const primaryMedia = guide ? pickPrimaryMedia(guide.media) : null
 
@@ -156,13 +209,20 @@ export function RecommendationDetailPage() {
     navigate({ to: '/space/$namespace/$slug', params: { namespace: skill.namespace, slug: skill.slug } })
   }
 
+  // P1: if user visits ?slug=xxx directly, wait for history data before rendering
+  if (querySlug && !historyData) {
+    return <div className="container mx-auto px-4 py-10 text-sm text-muted-foreground">Loading...</div>
+  }
+
   if (isLoading) {
     return <div className="container mx-auto px-4 py-10 text-sm text-muted-foreground">Loading...</div>
   }
 
   if (!recommendation || !skill) {
-    navigate({ to: '/recommendations', search: { page: 0 }, replace: true })
-    return null
+    if (!activeItem && !recommendation) {
+      navigate({ to: '/recommendations', search: { page: 0 }, replace: true })
+      return null
+    }
   }
 
   return (
@@ -172,7 +232,7 @@ export function RecommendationDetailPage() {
         返回推荐
       </Button>
 
-      <WeeklySkillCard recommendation={recommendation} showActions={false} />
+      <WeeklySkillCard recommendation={activeRecommendation ?? recommendation!} showActions={false} />
 
       {primaryMedia ? (
         <div className="mt-6 max-w-3xl">
@@ -251,6 +311,7 @@ export function RecommendationDetailPage() {
           )}
         </div>
 
+        {skill && (
         <aside className="space-y-5">
           <Card className="space-y-4 p-6">
             <div>
@@ -278,7 +339,29 @@ export function RecommendationDetailPage() {
             </p>
             <InstallCommand namespace={skill.namespace} slug={skill.slug} />
           </Card>
+
+          {historyItems.length > 0 && (
+            <Card className="space-y-3 p-6">
+              <p className="text-sm font-semibold text-slate-950">往期推荐</p>
+              <ul className="space-y-2">
+                {historyItems.map((item) => (
+                  <li
+                    key={`${item.namespace}-${item.slug}`}
+                    className={`flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-slate-50 ${querySlug === item.slug ? 'bg-slate-100 font-semibold' : ''}`}
+                    onClick={() => navigate({ to: '/recommendations/weekly', search: { slug: querySlug === item.slug ? undefined : item.slug } })}
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-xs font-medium">
+                      {item.skill?.displayName?.charAt(0) ?? item.slug.charAt(0)}
+                    </span>
+                    <span className="truncate font-medium">{item.skill?.displayName ?? item.slug}</span>
+                    <span className="truncate text-muted-foreground">{item.slug}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
         </aside>
+        )}
       </div>
     </div>
   )

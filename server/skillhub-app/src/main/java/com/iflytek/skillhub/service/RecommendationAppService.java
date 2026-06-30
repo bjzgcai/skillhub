@@ -107,6 +107,12 @@ public class RecommendationAppService {
         return toResponse(recommendation, loadSkillMap(List.of(recommendation)));
     }
 
+    public PageResponse<RecommendationResponse> listHistoryWeekly(int page, int size) {
+        Page<OperationRecommendation> recommendations = recommendationRepository.findHistoryWeekly(
+                Instant.now(clock), WEEKLY_SKILL_BADGES, PageRequest.of(Math.max(0, page), clampSize(size)));
+        return toPageResponse(recommendations);
+    }
+
     public PageResponse<RecommendationResponse> listAdmin(String status, String cacheStatus, int page, int size) {
         RecommendationStatus parsedStatus = parseEnum(status, RecommendationStatus.class, "error.recommendation.status.invalid");
         RecommendationCacheStatus parsedCacheStatus = parseEnum(cacheStatus, RecommendationCacheStatus.class, "error.recommendation.cacheStatus.invalid");

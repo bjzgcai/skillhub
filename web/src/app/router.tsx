@@ -228,6 +228,9 @@ const recommendationsRoute = createRoute({
 const recommendationDetailRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: 'recommendations/weekly',
+  validateSearch: (search: Record<string, unknown>): { slug?: string } => ({
+    slug: typeof search.slug === 'string' && search.slug ? search.slug : undefined,
+  }),
   component: RecommendationDetailPage,
 })
 
