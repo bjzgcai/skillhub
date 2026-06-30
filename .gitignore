@@ -84,3 +84,4 @@ docs/prds/
 *.local.json
 # OpenClaw local integration-test runtime/artifacts
 .openclaw-test/
+ops/skillhub-maintenance-loops-*.md
