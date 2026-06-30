@@ -57,6 +57,28 @@ public interface OperationRecommendationJpaRepository
             JOIN Skill s ON r.skillId = s.id
             WHERE r.status = com.iflytek.skillhub.domain.recommendation.RecommendationStatus.ACTIVE
               AND r.cacheStatus = com.iflytek.skillhub.domain.recommendation.RecommendationCacheStatus.READY
+              AND r.badge IN :badges
+              AND r.endAt < :now
+              AND s.status = com.iflytek.skillhub.domain.skill.SkillStatus.ACTIVE
+              AND s.hidden = false
+              AND EXISTS (
+                  SELECT v.id FROM SkillVersion v
+                  WHERE v.skillId = s.id
+                    AND v.status = com.iflytek.skillhub.domain.skill.SkillVersionStatus.PUBLISHED
+                    AND v.downloadReady = true
+              )
+            ORDER BY r.endAt DESC, r.id DESC
+            """)
+    Page<OperationRecommendation> findHistoryWeekly(
+            @Param("now") Instant now,
+            @Param("badges") Collection<String> badges,
+            Pageable pageable);
+
+    @Query("""
+            SELECT r FROM OperationRecommendation r
+            JOIN Skill s ON r.skillId = s.id
+            WHERE r.status = com.iflytek.skillhub.domain.recommendation.RecommendationStatus.ACTIVE
+              AND r.cacheStatus = com.iflytek.skillhub.domain.recommendation.RecommendationCacheStatus.READY
               AND s.status = com.iflytek.skillhub.domain.skill.SkillStatus.ACTIVE
               AND s.hidden = false
               AND (r.startAt IS NULL OR r.startAt <= :now)

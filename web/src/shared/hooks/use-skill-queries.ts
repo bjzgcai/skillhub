@@ -23,6 +23,14 @@ async function getCurrentWeeklySkill(): Promise<RecommendationItem | null> {
   return fetchJson<RecommendationItem | null>(`${WEB_API_PREFIX}/recommendations/weekly-current`)
 }
 
+async function getHistoryWeeklySkills(page = 0, size = 10): Promise<PagedResponse<RecommendationItem>> {
+  const searchParams = new URLSearchParams({
+    page: String(page),
+    size: String(size),
+  })
+  return fetchJson<PagedResponse<RecommendationItem>>(`${WEB_API_PREFIX}/recommendations/weekly-history?${searchParams.toString()}`)
+}
+
 async function getSkillDetail(namespace: string, slug: string): Promise<SkillDetail> {
   const cleanNamespace = namespace.startsWith('@') ? namespace.slice(1) : namespace
   return fetchJson<SkillDetail>(`${WEB_API_PREFIX}/skills/${cleanNamespace}/${slug}`)
@@ -101,6 +109,13 @@ export function useCurrentWeeklySkill() {
   return useQuery({
     queryKey: ['recommendations', 'weekly-current'],
     queryFn: getCurrentWeeklySkill,
+  })
+}
+
+export function useHistoryWeeklySkills(page = 0, size = 10) {
+  return useQuery({
+    queryKey: ['recommendations', 'weekly-history', page, size],
+    queryFn: () => getHistoryWeeklySkills(page, size),
   })
 }
 
