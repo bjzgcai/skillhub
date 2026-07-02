@@ -27,7 +27,7 @@ export function LandingPage() {
   const { data: weeklySkill } = useCurrentWeeklySkill()
 
   const { data: recommendations, isLoading: isLoadingRecommendations } = useRecommendations({
-    size: 6,
+    size: 7,
   })
 
   const { data: popularSkills, isLoading: isLoadingPopular } = useSearchSkills({
@@ -42,9 +42,9 @@ export function LandingPage() {
     size: 6,
   })
 
-  const recommendationItems = dedupeRecommendationsBySkillSlug(recommendations?.items ?? []).filter(
-    (item) => !isSameRecommendationSkill(item, weeklySkill?.skill),
-  )
+  const recommendationItems = dedupeRecommendationsBySkillSlug(recommendations?.items ?? [])
+    .filter((item) => !isSameRecommendationSkill(item, weeklySkill?.skill))
+    .slice(0, 6)
   const popularItems = dedupeSkillsBySlug(popularSkills?.items ?? [])
   const latestItems = dedupeSkillsBySlug(latestSkills?.items ?? [])
 
