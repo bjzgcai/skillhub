@@ -202,8 +202,16 @@ restore_missing_web_assets() {
   local old_assets_dir="$1"
   [ -d "$old_assets_dir" ] || return 0
   [ -n "$(find "$old_assets_dir" -type f -print -quit)" ] || return 0
+  [ -n "$(docker ps -qf name='^skillhub-web-1$' || true)" ] || return 0
   find "$old_assets_dir" -type f | while IFS= read -r asset; do
     local rel_path="${asset#"$old_assets_dir"/}"
+    case "$rel_path" in
+      *.js|*.css|*.js.map|*.css.map)
+        # Do not resurrect hashed Vite/Rollup chunks from the previous image.
+        # They can keep stale route logic alive after a new deploy.
+        continue
+        ;;
+    esac
     if ! docker exec skillhub-web-1 test -f "/usr/share/nginx/html/assets/$rel_path"; then
       local parent_dir
       parent_dir="$(dirname "$rel_path")"
