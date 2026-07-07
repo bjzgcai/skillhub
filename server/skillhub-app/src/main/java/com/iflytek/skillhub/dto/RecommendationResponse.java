@@ -18,6 +18,7 @@ public record RecommendationResponse(
         Instant startAt,
         Instant endAt,
         String cacheError,
+        String guideContent,
         SkillSummaryResponse skill,
         Instant createdAt,
         Instant updatedAt

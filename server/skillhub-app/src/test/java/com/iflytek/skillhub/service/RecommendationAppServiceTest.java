@@ -35,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
@@ -100,7 +101,7 @@ class RecommendationAppServiceTest {
         stubResponseProjection(skill);
 
         RecommendationResponse response = service.create(
-                new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", null, 100, null, null),
+                new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", null, 100, null, null, null),
                 "admin-1"
         );
 
@@ -118,6 +119,62 @@ class RecommendationAppServiceTest {
     }
 
     @Test
+    void create_shouldPersistGuideContent() {
+        Skill skill = recommendableSkill();
+        stubSkillLookup(skill);
+        when(recommendationRepository.findNonDeletedBySkillId(42L)).thenReturn(Optional.empty());
+        stubResponseProjection(skill);
+
+        String guideJson = "{\"intro\":\"Test guide\",\"sections\":[]}";
+        RecommendationResponse response = service.create(
+                new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", null, 100, null, null, guideJson),
+                "admin-1"
+        );
+
+        assertEquals(guideJson, response.guideContent());
+    }
+
+    @Test
+    void update_shouldUpdateGuideContent() {
+        Skill skill = recommendableSkill();
+        lenient().when(skillRepository.findByNamespaceSlugAndSlug("global", "demo-skill")).thenReturn(List.of(skill));
+        OperationRecommendation existing = new OperationRecommendation(
+                com.iflytek.skillhub.domain.recommendation.RecommendationSourceType.LOCAL_SKILL,
+                42L,
+                "global",
+                "demo-skill");
+        existing.setStatus(RecommendationStatus.ACTIVE);
+        existing.setCacheStatus(RecommendationCacheStatus.READY);
+        existing.setTitle("Old title");
+        when(recommendationRepository.findNonDeletedBySkillId(42L)).thenReturn(Optional.of(existing));
+        stubResponseProjection(skill);
+
+        String guideJson = "{\"intro\":\"Updated\",\"sections\":[]}";
+        RecommendationResponse response = service.update(
+                "global",
+                "demo-skill",
+                new RecommendationUpdateRequest(null, null, null, null, null, null, null, null, guideJson),
+                "admin-1");
+
+        assertEquals(guideJson, response.guideContent());
+    }
+
+    @Test
+    void create_shouldSetGuideContentToNullWhenBlank() {
+        Skill skill = recommendableSkill();
+        stubSkillLookup(skill);
+        when(recommendationRepository.findNonDeletedBySkillId(42L)).thenReturn(Optional.empty());
+        stubResponseProjection(skill);
+
+        RecommendationResponse response = service.create(
+                new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", null, 100, null, null, "   "),
+                "admin-1"
+        );
+
+        assertNull(response.guideContent());
+    }
+
+    @Test
     void create_shouldIncludeSkillBadgesInRecommendationSkillSummary() {
         Skill skill = recommendableSkill();
         stubSkillLookup(skill);
@@ -127,7 +184,7 @@ class RecommendationAppServiceTest {
                 .thenReturn(Map.of(42L, List.of(new com.iflytek.skillhub.dto.SkillBadgeDto("SCANNED_SAFE", "扫描安全", "SCANNER_PASS", null))));
 
         RecommendationResponse response = service.create(
-                new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", null, 100, null, null),
+                new RecommendationCreateRequest(null, "demo-skill", null, null, "精选", "推荐", null, 100, null, null, null),
                 "admin-1"
         );
 
@@ -172,7 +229,7 @@ class RecommendationAppServiceTest {
         RecommendationResponse response = service.setWeeklySkill(
                 "global",
                 "demo-skill",
-                new RecommendationUpdateRequest("Weekly Demo", "Learn it this week", "入门", "typo", "https://example.com/weekly.jpg", 10, null, null),
+                new RecommendationUpdateRequest("Weekly Demo", "Learn it this week", "入门", "typo", "https://example.com/weekly.jpg", 10, null, null, null),
                 "admin-1");
 
         assertEquals("Weekly Demo", response.title());
@@ -212,7 +269,7 @@ class RecommendationAppServiceTest {
         assertThrows(DomainBadRequestException.class, () -> service.setWeeklySkill(
                 "global",
                 "demo-skill",
-                new RecommendationUpdateRequest(null, null, null, null, null, null, startAt, endAt),
+                new RecommendationUpdateRequest(null, null, null, null, null, null, startAt, endAt, null),
                 "admin-1"));
     }
 
@@ -234,7 +291,7 @@ class RecommendationAppServiceTest {
         RecommendationResponse response = service.createForSkill(
                 "global",
                 "demo-skill",
-                new RecommendationUpdateRequest("New title", null, null, null, null, 10, null, null),
+                new RecommendationUpdateRequest("New title", null, null, null, null, 10, null, null, null),
                 "admin-1");
 
         assertEquals("ACTIVE", response.status());

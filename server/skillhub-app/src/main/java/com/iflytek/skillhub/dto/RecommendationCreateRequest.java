@@ -13,5 +13,6 @@ public record RecommendationCreateRequest(
         @Size(max = 1000) String backgroundImageUrl,
         Integer priority,
         Instant startAt,
-        Instant endAt
+        Instant endAt,
+        @Size(max = 50000) String guideContent
 ) {}
