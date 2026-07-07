@@ -82,6 +82,7 @@ class RecommendationControllerTest {
                 now.plusSeconds(604800),
                 null,
                 null,
+                null,
                 now,
                 now
         );

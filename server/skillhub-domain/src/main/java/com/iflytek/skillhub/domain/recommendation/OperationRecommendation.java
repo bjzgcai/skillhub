@@ -10,6 +10,8 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.Clock;
 import java.time.Instant;
 
@@ -69,6 +71,10 @@ public class OperationRecommendation {
     @Column(name = "cache_error", columnDefinition = "TEXT")
     private String cacheError;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "guide_content", columnDefinition = "jsonb")
+    private String guideContent;
+
     @Column(name = "created_by", length = 128)
     private String createdBy;
 
@@ -118,6 +124,7 @@ public class OperationRecommendation {
     public Instant getStartAt() { return startAt; }
     public Instant getEndAt() { return endAt; }
     public String getCacheError() { return cacheError; }
+    public String getGuideContent() { return guideContent; }
     public String getCreatedBy() { return createdBy; }
     public String getUpdatedBy() { return updatedBy; }
     public Instant getCreatedAt() { return createdAt; }
@@ -137,6 +144,7 @@ public class OperationRecommendation {
     public void setStartAt(Instant startAt) { this.startAt = startAt; }
     public void setEndAt(Instant endAt) { this.endAt = endAt; }
     public void setCacheError(String cacheError) { this.cacheError = cacheError; }
+    public void setGuideContent(String guideContent) { this.guideContent = guideContent; }
     public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
     public void setUpdatedBy(String updatedBy) { this.updatedBy = updatedBy; }
 }

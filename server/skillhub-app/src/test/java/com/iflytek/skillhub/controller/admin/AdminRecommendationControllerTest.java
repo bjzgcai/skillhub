@@ -56,7 +56,8 @@ class AdminRecommendationControllerTest {
                 "/recommendation-banners/weekly/demo.jpg",
                 12,
                 startAt,
-                endAt
+                endAt,
+                null
         );
         RecommendationResponse serviceResponse = response(startAt, endAt);
         when(recommendationAppService.setWeeklySkill(eq("global"), eq("skill-vetter"), eq(request), eq("admin-1")))
@@ -88,6 +89,7 @@ class AdminRecommendationControllerTest {
                 20_000,
                 startAt,
                 endAt,
+                null,
                 null,
                 null,
                 now,

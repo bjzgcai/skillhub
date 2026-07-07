@@ -144,7 +144,8 @@ public class RecommendationAppService {
                 request == null ? null : request.backgroundImageUrl(),
                 request == null ? null : request.priority(),
                 request == null ? null : request.startAt(),
-                request == null ? null : request.endAt());
+                request == null ? null : request.endAt(),
+                request == null ? null : request.guideContent());
         return createForSkill(namespaceSlug, skillSlug, createRequest, actorUserId);
     }
 
@@ -162,7 +163,8 @@ public class RecommendationAppService {
                 request == null ? null : request.backgroundImageUrl(),
                 priority,
                 startAt,
-                endAt);
+                endAt,
+                request == null ? null : request.guideContent());
         RecommendationResponse weekly = createForSkill(namespaceSlug, skillSlug, weeklyRequest, actorUserId);
         deactivateOtherWeeklyRecommendations(weekly.skillId(), actorUserId);
         return weekly;
@@ -171,7 +173,7 @@ public class RecommendationAppService {
     @Transactional
     public RecommendationResponse update(String namespaceSlug, String skillSlug, RecommendationUpdateRequest request, String actorUserId) {
         OperationRecommendation recommendation = getRecommendation(namespaceSlug, skillSlug);
-        applyEditableFields(recommendation, request.title(), request.summary(), request.reason(), request.badge(), request.backgroundImageUrl(), request.priority(), request.startAt(), request.endAt());
+        applyEditableFields(recommendation, request.title(), request.summary(), request.reason(), request.badge(), request.backgroundImageUrl(), request.priority(), request.startAt(), request.endAt(), request.guideContent());
         recommendation.setUpdatedBy(actorUserId);
         return toResponse(recommendationRepository.save(recommendation), loadSkillMap(List.of(recommendation)));
     }
@@ -220,6 +222,7 @@ public class RecommendationAppService {
         recommendation.setPriority(request.priority() == null ? 0 : request.priority());
         recommendation.setStartAt(request.startAt());
         recommendation.setEndAt(request.endAt());
+        recommendation.setGuideContent(trimToNull(request.guideContent()));
         if (recommendation.getCreatedBy() == null) {
             recommendation.setCreatedBy(actorUserId);
         }
@@ -377,6 +380,7 @@ public class RecommendationAppService {
                 recommendation.getStartAt(),
                 recommendation.getEndAt(),
                 recommendation.getCacheError(),
+                recommendation.getGuideContent(),
                 recommendation.getSkillId() == null ? null : skillsById.get(recommendation.getSkillId()),
                 recommendation.getCreatedAt(),
                 recommendation.getUpdatedAt());
@@ -389,12 +393,17 @@ public class RecommendationAppService {
     }
 
     private void applyEditableFields(OperationRecommendation recommendation, String title, String summary, String reason,
-                                     String badge, String backgroundImageUrl, Integer priority, Instant startAt, Instant endAt) {
+                                     String badge, String backgroundImageUrl, Integer priority, Instant startAt, Instant endAt,
+                                     String guideContent) {
         if (title != null) recommendation.setTitle(requireText(title, "error.recommendation.title.required"));
         if (summary != null) recommendation.setSummary(trimToNull(summary));
         if (reason != null) recommendation.setReason(trimToNull(reason));
         if (badge != null) recommendation.setBadge(trimToNull(badge));
         if (backgroundImageUrl != null) recommendation.setBackgroundImageUrl(trimToNull(backgroundImageUrl));
+        if (guideContent != null) {
+            String trimmed = guideContent.trim();
+            recommendation.setGuideContent(trimmed.isEmpty() ? null : trimmed);
+        }
         if (priority != null) recommendation.setPriority(priority);
         if (startAt != null && endAt != null) validateRecommendationWindow(startAt, endAt);
         recommendation.setStartAt(startAt);

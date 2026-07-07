@@ -55,10 +55,13 @@ public interface OperationRecommendationJpaRepository
     @Query("""
             SELECT r FROM OperationRecommendation r
             JOIN Skill s ON r.skillId = s.id
-            WHERE r.status = com.iflytek.skillhub.domain.recommendation.RecommendationStatus.ACTIVE
+            WHERE r.status IN (
+                com.iflytek.skillhub.domain.recommendation.RecommendationStatus.ACTIVE,
+                com.iflytek.skillhub.domain.recommendation.RecommendationStatus.OFFLINE
+              )
               AND r.cacheStatus = com.iflytek.skillhub.domain.recommendation.RecommendationCacheStatus.READY
               AND r.badge IN :badges
-              AND r.endAt < :now
+              AND r.endAt IS NOT NULL AND r.endAt < :now
               AND s.status = com.iflytek.skillhub.domain.skill.SkillStatus.ACTIVE
               AND s.hidden = false
               AND EXISTS (
