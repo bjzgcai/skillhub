@@ -16,6 +16,7 @@ interface WeeklyRecommendationFormState {
   summary: string
   reason: string
   backgroundImageUrl: string
+  guideContent: string
   priority: string
   startAt: string
   endAt: string
@@ -28,6 +29,7 @@ const INITIAL_FORM: WeeklyRecommendationFormState = {
   summary: '',
   reason: '',
   backgroundImageUrl: '',
+  guideContent: '',
   priority: '20000',
   startAt: '',
   endAt: '',
@@ -49,6 +51,7 @@ export function normalizeForm(form: WeeklyRecommendationFormState) {
     summary: form.summary.trim() || undefined,
     reason: form.reason.trim() || undefined,
     backgroundImageUrl: form.backgroundImageUrl.trim() || undefined,
+    guideContent: form.guideContent.trim() || undefined,
     priority: form.priority.trim() ? Number(form.priority) : undefined,
     startAt: toInstant(form.startAt),
     endAt: toInstant(form.endAt),
@@ -161,6 +164,18 @@ export function AdminWeeklyRecommendationPage() {
               placeholder="https://example.com/weekly-banner.jpg"
             />
             <p className="text-xs text-muted-foreground">{t('adminWeekly.backgroundImageHint')}</p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="weekly-guide-content">{t('adminWeekly.guideContent')}</Label>
+            <Textarea
+              id="weekly-guide-content"
+              value={form.guideContent}
+              onChange={(event) => updateField('guideContent', event.target.value)}
+              placeholder='{"intro":"...","sections":[],"media":[]}'
+              rows={6}
+            />
+            <p className="text-xs text-muted-foreground">{t('adminWeekly.guideContentHint')}</p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">

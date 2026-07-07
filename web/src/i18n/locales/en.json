@@ -1398,7 +1398,9 @@
     "saveSuccessTitle": "Weekly skill updated",
     "saveSuccessDescription": "The recommendation was saved with the WEEKLY_SKILL badge.",
     "saveErrorTitle": "Save failed",
-    "saveErrorDescription": "Try again later or check the skill coordinates."
+    "saveErrorDescription": "Try again later or check the skill coordinates.",
+    "guideContent": "Guide Content (JSON)",
+    "guideContentHint": "JSON object with intro, sections, media fields. Leave empty to skip guide update."
   },
   "notification": {
     "title": "Notifications",

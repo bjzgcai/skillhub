@@ -1398,7 +1398,9 @@
     "saveSuccessTitle": "本周技能已更新",
     "saveSuccessDescription": "推荐已使用 WEEKLY_SKILL badge 保存。",
     "saveErrorTitle": "保存失败",
-    "saveErrorDescription": "请稍后重试或检查技能坐标。"
+    "saveErrorDescription": "请稍后重试或检查技能坐标。",
+    "guideContent": "教程内容 (JSON)",
+    "guideContentHint": "JSON 对象，包含 intro、sections、media 字段。留空则不更新教程内容。"
   },
   "notification": {
     "title": "通知",
