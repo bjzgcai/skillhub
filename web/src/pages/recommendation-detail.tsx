@@ -32,113 +32,13 @@ interface WeeklyGuideContent {
   media: GuideMedia[]
 }
 
-const SKILL_VETTER_GUIDE: WeeklyGuideContent = {
-  intro: 'Skill Vetter 适合作为“安装技能前的检查单”。它不是让用户多看一段安全说明，而是把每一次安装、更新、推荐外部技能的动作拆成可执行的审查步骤：先确认来源和版本，再检查包内容与权限风险，最后给出能否安装的结论。',
-  sections: [
-    {
-      title: '安装前具体怎么用',
-      body: '拿到一个待安装 skill 后，不要直接 install。先把来源、版本和包内容交给 Skill Vetter 过一遍，输出结构化审查结论。',
-      bullets: [
-        '记录来源：SkillHub / ClawHub / GitHub / 手工上传，以及具体版本号',
-        '展开包内容：优先阅读 SKILL.md、README、配置文件和脚本入口',
-        '逐项检查红旗：外部网络、凭据读取、cookie、记忆文件、sudo、eval/exec',
-        '形成结论：SAFE TO INSTALL / INSTALL WITH CAUTION / DO NOT INSTALL',
-      ],
-      example: {
-        user: '我想安装 clawhub 上的 skill-vetter，先帮我做一轮安全审查，不要直接安装。',
-        agent: '我会先确认来源、版本和包内容，阅读 SKILL.md / README / 配置文件，再按红旗清单检查网络、凭据、cookie、记忆文件、sudo、eval/exec 等风险，最后给出 SAFE / CAUTION / DO NOT INSTALL 的结论。',
-      },
-    },
-    {
-      title: 'Skill Vetter 重点检查什么',
-      body: '它关注的是“这个 skill 会让 Agent 获得什么能力，以及这些能力是否和用途匹配”。越接近凭据、系统权限、外部传输和个人数据，越需要谨慎。',
-      bullets: [
-        '文件权限：是否读取 ~/.ssh、云厂商配置、浏览器数据、个人记忆文件',
-        '网络行为：是否向未知域名或 IP 发送数据，是否下载二次脚本',
-        '命令执行：是否包含 sudo、shell 拼接、eval、base64 解码后执行',
-        '数据外流：是否把输入、文件内容、cookie、token 发送到外部服务',
-        '安装行为：是否自动安装依赖、修改系统配置或写 workspace 外目录',
-      ],
-      example: {
-        user: '这个 skill 需要访问外部 API 和写本地文件，可以装吗？',
-        agent: '我会把它标为需要谨慎确认：先核对外部 API 域名是否可信、写入目录是否限制在 workspace、是否会上传用户内容；如果用途清晰且权限最小化，可以建议谨慎安装，否则转管理员确认。',
-      },
-    },
-    {
-      title: '通过、谨慎、阻断怎么判断',
-      body: '审查结果要落到可执行动作上，而不是停在“有风险/无风险”的描述。建议团队统一以下口径。',
-      bullets: [
-        '通过：只读文档/格式化/查询类能力，权限范围和用途一致',
-        '谨慎：需要网络、文件写入、浏览器或第三方 API，但用途清晰可解释',
-        '阻断：读取凭据、访问 cookie、隐藏二次下载、混淆代码、请求 sudo/root',
-        '人工确认：任何影响生产配置、账号权限、交易、部署或外部发送数据的 skill',
-      ],
-      example: {
-        user: '审查报告里出现“访问 cookie / 读取凭据 / sudo”这类红旗，下一步怎么处理？',
-        agent: '我不会继续安装。会把命中的红旗、相关文件路径和建议动作整理出来，请管理员或 owner 决定是否阻断、要求作者修改，或在隔离环境里继续复核。',
-      },
-    },
-  ],
-  media: [
-    {
-      type: 'video',
-      title: '3 分钟上手视频',
-      description: '演示“选择一个外部 skill → 展开包内容 → 用 Skill Vetter 输出审查报告 → 决定是否安装”的完整路径。',
-    },
-    {
-      type: 'ppt',
-      title: '团队导入流程 PPT',
-      description: '团队安装门禁流程图、风险分级标准、管理员确认边界和审查记录示例。',
-    },
-  ],
-}
-
-const SKILLHUB_GUIDE: WeeklyGuideContent = {
-  intro: '技能助手是内部 SkillHub 的入口技能。它让你不再靠口口相传找工具，而是用一条命令精准定位需要的能力：搜索、查看、安装、发布，全从它开始。',
-  sections: [
-    {
-      title: '3 分钟上手：搜索 → 查看 → 安装',
-      body: '想找一个能力时，先用搜索定位候选，再用 inspect 读懂它，最后 install 装到 workspace。',
-      bullets: [
-        '搜索：clawhub search "关键词" --registry https://skills.zgci.org',
-        '查看：clawhub inspect <slug> --registry https://skills.zgci.org --file SKILL.md',
-        '安装：clawhub install <slug> --registry https://skills.zgci.org',
-        '逛一逛：clawhub explore --registry https://skills.zgci.org',
-      ],
-      example: {
-        user: '帮我找一个能解析 PDF 的技能',
-        agent: '我先在内部 SkillHub 搜索了 PDF 相关技能，找到 pdf-parsing 和 office-parsing 两个候选。pdf-parsing 支持 OCR 和扫描件，更适合你的需求。安装命令：clawhub install pdf-parsing --registry https://skills.zgci.org',
-      },
-    },
-    {
-      title: '发布技能前要搞清楚的事',
-      body: '发布操作需要登录，且 Web 端和 CLI 端的登录方式不同。搞清楚区别能少踩坑。',
-      bullets: [
-        'Web 端：钉钉 SSO 登录，未登录自动跳转登录页',
-        'CLI 端：用 Personal API Token，从 Web Dashboard → Tokens 创建',
-        '搜索和查看不需要登录，发布和删除必须登录',
-        'CLI 禁止走浏览器登录流，用 --no-browser --token 方式登录',
-        'Token 需要 skill:publish scope 才能发布',
-      ],
-      example: {
-        user: '我想发布一个技能到内部 SkillHub',
-        agent: '发布前需要确认你已登录。CLI 方式：先在 https://skills.zgci.org/login 钉钉登录，再到 Dashboard → Tokens 创建 Personal API Token，然后 clawhub login --registry https://skills.zgci.org --no-browser --token "<token>"。登录后用 clawhub whoami 验证，再执行发布。',
-      },
-    },
-  ],
-  media: [
-    {
-      type: 'video',
-      title: '3 分钟上手视频',
-      description: '演示"搜索技能 → 查看详情 → 一键安装"的完整路径，以及 CLI 和 Web 两种登录方式的区别。',
-    },
-  ],
-}
-
-export function getGuideContent(slug?: string): WeeklyGuideContent | null {
-  if (slug === 'skill-vetter') return SKILL_VETTER_GUIDE
-  if (slug === 'skillhub') return SKILLHUB_GUIDE
-  return null
+export function getGuideContent(guideContentJson?: string): WeeklyGuideContent | null {
+  if (!guideContentJson) return null
+  try {
+    return JSON.parse(guideContentJson)
+  } catch {
+    return null
+  }
 }
 
 function MediaCard({ media }: { media: GuideMedia }) {
@@ -201,7 +101,7 @@ export function RecommendationDetailPage() {
   const activeSkill = activeItem?.skill ?? recommendation?.skill
   const activeRecommendation = activeItem ?? recommendation
   const skill = activeSkill
-  const guide = getGuideContent(skill?.slug)
+  const guide = getGuideContent(activeRecommendation?.guideContent ?? recommendation?.guideContent)
   const primaryMedia = guide ? pickPrimaryMedia(guide.media) : null
 
   const openSkill = () => {

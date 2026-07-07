@@ -289,6 +289,7 @@ export interface RecommendationUpdateInput {
   priority?: number
   startAt?: string
   endAt?: string
+  guideContent?: string
 }
 
 export interface RecommendationItem {
@@ -307,6 +308,7 @@ export interface RecommendationItem {
   startAt?: string
   endAt?: string
   cacheError?: string
+  guideContent?: string
   skill?: SkillSummary
   createdAt: string
   updatedAt: string

@@ -2,14 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { getGuideContent, pickPrimaryMedia } from './recommendation-detail'
 
 describe('recommendation detail guide content', () => {
-  it('returns the curated guide only for skill-vetter', () => {
-    expect(getGuideContent('skill-vetter')?.sections.map((section) => section.title)).toEqual([
-      '安装前具体怎么用',
-      'Skill Vetter 重点检查什么',
-      '通过、谨慎、阻断怎么判断',
-    ])
-    expect(getGuideContent('demo-skill')).toBeNull()
+  it('parses guide content from JSON string', () => {
+    const json = JSON.stringify({
+      intro: 'Test intro',
+      sections: [{ title: 'Section 1', body: 'Body 1' }],
+      media: [],
+    })
+    expect(getGuideContent(json)?.intro).toBe('Test intro')
+    expect(getGuideContent(json)?.sections).toHaveLength(1)
+  })
+
+  it('returns null for empty or invalid JSON', () => {
     expect(getGuideContent(undefined)).toBeNull()
+    expect(getGuideContent('')).toBeNull()
+    expect(getGuideContent('not json')).toBeNull()
   })
 
   it('selects only linked media and prefers video over ppt', () => {
