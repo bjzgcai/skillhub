@@ -95,6 +95,7 @@ public class SkillPublishService {
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
     private final boolean reviewRequired;
+    private final Set<String> prePublishExemptSlugs;
 
     public SkillPublishService(
             NamespaceRepository namespaceRepository,
@@ -128,7 +129,8 @@ public class SkillPublishService {
                 compensationService,
                 eventPublisher,
                 clock,
-                true
+                true,
+                new String[0]
         );
     }
 
@@ -149,7 +151,8 @@ public class SkillPublishService {
             SkillStorageDeletionCompensationService compensationService,
             ApplicationEventPublisher eventPublisher,
             Clock clock,
-            @Value("${skillhub.publish.review-required:true}") boolean reviewRequired) {
+            @Value("${skillhub.publish.review-required:true}") boolean reviewRequired,
+            @Value("${skillhub.publish.pre-publish-exempt-slugs:}") String[] exemptSlugs) {
         this.namespaceRepository = namespaceRepository;
         this.namespaceMemberRepository = namespaceMemberRepository;
         this.skillRepository = skillRepository;
@@ -166,6 +169,12 @@ public class SkillPublishService {
         this.eventPublisher = eventPublisher;
         this.clock = clock;
         this.reviewRequired = reviewRequired;
+        this.prePublishExemptSlugs = exemptSlugs == null
+                ? Set.of()
+                : java.util.Arrays.stream(exemptSlugs)
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     /**
@@ -369,12 +378,16 @@ public class SkillPublishService {
                 : SlugValidator.slugify(metadata.name());
 
         // 5. Run PrePublishValidator
+        // If the skill slug is in the pre-publish exempt list, force allow-failed-review
+        // so that scan failures route to manual review instead of hard rejection.
+        boolean effectiveAllowFailedReview = allowFailedPrecheckReview
+                || prePublishExemptSlugs.contains(skillSlug);
         PrePublishValidator.SkillPackageContext context = new PrePublishValidator.SkillPackageContext(
                 entries, metadata, publisherId, namespace.getId());
         ValidationResult prePublishValidation = prePublishValidator.validate(context);
         boolean failedPrecheckRoutedToReview = false;
         if (!prePublishValidation.passed()) {
-            if (allowFailedPrecheckReview && prePublishValidation.securityAudit().isPresent()) {
+            if (effectiveAllowFailedReview && prePublishValidation.securityAudit().isPresent()) {
                 failedPrecheckRoutedToReview = true;
                 log.warn("Routing failed pre-publish validation to administrator review for skill '{}' in namespace '{}': {}",
                         skillSlug,
