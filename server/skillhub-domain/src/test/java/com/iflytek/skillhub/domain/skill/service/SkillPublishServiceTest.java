@@ -1185,7 +1185,8 @@ class SkillPublishServiceTest {
                 compensationService,
                 eventPublisher,
                 CLOCK,
-                false
+                false,
+                new String[0]
         );
         String namespaceSlug = "test-ns";
         String publisherId = "user-100";
@@ -1250,7 +1251,8 @@ class SkillPublishServiceTest {
                 compensationService,
                 eventPublisher,
                 CLOCK,
-                false
+                false,
+                new String[0]
         );
         String namespaceSlug = "test-ns";
         String publisherId = "user-100";
@@ -1317,7 +1319,8 @@ class SkillPublishServiceTest {
                 compensationService,
                 eventPublisher,
                 CLOCK,
-                false
+                false,
+                new String[0]
         );
         String namespaceSlug = "test-ns";
         String publisherId = "user-100";
@@ -1451,6 +1454,137 @@ class SkillPublishServiceTest {
         verify(skillVersionRepository, never()).save(any(SkillVersion.class));
         verify(reviewTaskRepository, never()).save(any(ReviewTask.class));
         verify(securityScanService, never()).recordSynchronousAudit(anyLong(), any(), any());
+    }
+
+    @Test
+    void testPublishFromEntries_ExemptSlugRoutesFailedPrecheckToReview() throws Exception {
+        // Skill slug in the exempt list should route scan failures to manual review
+        // even when allowFailedPrecheckReview is false.
+        String namespaceSlug = "test-ns";
+        String publisherId = "user-100";
+        String skillMdContent = "---\nname: exempt-skill\ndescription: Test\nversion: 1.0.0\n---\nBody";
+        PackageEntry skillMd = new PackageEntry("SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown");
+        List<PackageEntry> entries = List.of(skillMd);
+        Namespace namespace = new Namespace(namespaceSlug, "Test NS", "user-1");
+        setId(namespace, 1L);
+        NamespaceMember member = mock(NamespaceMember.class);
+        SkillMetadata metadata = new SkillMetadata("exempt-skill", "Test", "1.0.0", "Body", Map.of());
+        Skill skill = new Skill(1L, "exempt-skill", publisherId, SkillVisibility.PUBLIC);
+        setId(skill, 1L);
+        ValidationResult.SecurityAuditSnapshot audit = new ValidationResult.SecurityAuditSnapshot(
+                ScannerType.CUSTOM,
+                new SecurityScanResponse("scan-fail", SecurityVerdict.BLOCKED, 1, "HIGH", List.of(), 0.4)
+        );
+
+        when(namespaceRepository.findBySlug(namespaceSlug)).thenReturn(Optional.of(namespace));
+        when(namespaceMemberRepository.findByNamespaceIdAndUserId(any(), eq(publisherId))).thenReturn(Optional.of(member));
+        when(skillPackageValidator.validate(entries)).thenReturn(ValidationResult.pass());
+        when(skillMetadataParser.parse(skillMdContent)).thenReturn(metadata);
+        when(prePublishValidator.validate(any())).thenReturn(ValidationResult.fail(
+                List.of("Unified security scan verdict FAIL with risk level HIGH."),
+                audit));
+        when(skillRepository.findByNamespaceIdAndSlug(any(), eq("exempt-skill"))).thenReturn(List.of(skill));
+        when(skillRepository.findByNamespaceIdAndSlugAndOwnerId(any(), eq("exempt-skill"), eq(publisherId))).thenReturn(Optional.of(skill));
+        when(skillVersionRepository.findBySkillIdAndVersion(any(), eq("1.0.0"))).thenReturn(Optional.empty());
+        when(skillVersionRepository.save(any(SkillVersion.class))).thenAnswer(invocation -> {
+            SkillVersion saved = invocation.getArgument(0);
+            if (saved.getId() == null) {
+                setId(saved, 10L);
+            }
+            return saved;
+        });
+        when(skillRepository.save(any())).thenReturn(skill);
+
+        // Construct service with exempt slugs containing "exempt-skill"
+        SkillPublishService exemptService = new SkillPublishService(
+                namespaceRepository,
+                namespaceMemberRepository,
+                skillRepository,
+                skillVersionRepository,
+                skillFileRepository,
+                objectStorageService,
+                skillPackageValidator,
+                skillMetadataParser,
+                prePublishValidator,
+                objectMapper,
+                reviewTaskRepository,
+                securityScanService,
+                compensationService,
+                eventPublisher,
+                CLOCK,
+                true,
+                new String[]{"exempt-skill"}
+        );
+
+        SkillPublishService.PublishResult result = exemptService.publishFromEntries(
+                namespaceSlug,
+                entries,
+                publisherId,
+                SkillVisibility.PUBLIC,
+                Set.of(),
+                null,
+                null,
+                false  // allowFailedPrecheckReview = false, but exempt slug overrides
+        );
+
+        assertEquals(SkillVersionStatus.PENDING_REVIEW, result.version().getStatus());
+        verify(reviewTaskRepository).save(any(ReviewTask.class));
+        verify(eventPublisher).publishEvent(any(ReviewSubmittedEvent.class));
+        verify(eventPublisher, never()).publishEvent(any(SkillPublishedEvent.class));
+    }
+
+    @Test
+    void testPublishFromEntries_NonExemptSlugStillBlocksOnPrecheckFail() throws Exception {
+        // Non-exempt slug with allowFailedPrecheckReview=false should still hard-fail.
+        String namespaceSlug = "test-ns";
+        String publisherId = "user-100";
+        String skillMdContent = "---\nname: non-exempt-skill\ndescription: Test\nversion: 1.0.0\n---\nBody";
+        PackageEntry skillMd = new PackageEntry("SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown");
+        List<PackageEntry> entries = List.of(skillMd);
+        Namespace namespace = new Namespace(namespaceSlug, "Test NS", "user-1");
+        setId(namespace, 1L);
+        NamespaceMember member = mock(NamespaceMember.class);
+        SkillMetadata metadata = new SkillMetadata("non-exempt-skill", "Test", "1.0.0", "Body", Map.of());
+
+        when(namespaceRepository.findBySlug(namespaceSlug)).thenReturn(Optional.of(namespace));
+        when(namespaceMemberRepository.findByNamespaceIdAndUserId(any(), eq(publisherId))).thenReturn(Optional.of(member));
+        when(skillPackageValidator.validate(entries)).thenReturn(ValidationResult.pass());
+        when(skillMetadataParser.parse(skillMdContent)).thenReturn(metadata);
+        when(prePublishValidator.validate(any())).thenReturn(ValidationResult.fail("Unified security scan verdict FAIL with risk level HIGH."));
+
+        // Construct service with exempt slugs NOT containing "non-exempt-skill"
+        SkillPublishService exemptService = new SkillPublishService(
+                namespaceRepository,
+                namespaceMemberRepository,
+                skillRepository,
+                skillVersionRepository,
+                skillFileRepository,
+                objectStorageService,
+                skillPackageValidator,
+                skillMetadataParser,
+                prePublishValidator,
+                objectMapper,
+                reviewTaskRepository,
+                securityScanService,
+                compensationService,
+                eventPublisher,
+                CLOCK,
+                true,
+                new String[]{"exempt-skill"}
+        );
+
+        assertThrows(DomainBadRequestException.class, () -> exemptService.publishFromEntries(
+                namespaceSlug,
+                entries,
+                publisherId,
+                SkillVisibility.PUBLIC,
+                Set.of(),
+                null,
+                null,
+                false
+        ));
+        verify(skillVersionRepository, never()).save(any(SkillVersion.class));
+        verify(reviewTaskRepository, never()).save(any(ReviewTask.class));
     }
 
     private void setId(Object entity, Long id) throws Exception {
