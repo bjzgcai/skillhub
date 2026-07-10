@@ -20,6 +20,8 @@ import { useMyNamespaces } from '@/shared/hooks/use-namespace-queries'
 import { DashboardPageHeader } from '@/shared/components/dashboard-page-header'
 import { toast } from '@/shared/lib/toast'
 import { ApiError } from '@/api/client'
+import type { PublishSecurityAudit } from '@/api/types'
+import { ChevronDown, ChevronUp, AlertTriangle, CheckCircle } from 'lucide-react'
 
 /**
  * Skill publish page used inside the dashboard.
@@ -57,7 +59,121 @@ function isFrontmatterFailureMessage(message?: string): boolean {
     || message.includes('技能包校验失败：Invalid SKILL.md frontmatter')
 }
 
+function extractFindingsFromError(error: ApiError): PublishSecurityAudit | null {
+  const data = error.responseData as PublishSecurityAudit | { securityAudit?: PublishSecurityAudit } | undefined
+  if (!data || typeof data !== 'object') return null
+  // The backend returns SecurityScanResponse directly as errorData
+  if ('scanId' in data && 'verdict' in data) {
+    return data as PublishSecurityAudit
+  }
+  // Or wrapped in a PublishResponse
+  if ('securityAudit' in data) {
+    return data.securityAudit ?? null
+  }
+  return null
+}
+
 const EMPTY_NAMESPACE_VALUE = '__select_namespace__'
+
+const SEVERITY_ORDER: Record<string, number> = {
+  CRITICAL: 0,
+  HIGH: 1,
+  MEDIUM: 2,
+  LOW: 3,
+  INFO: 4,
+}
+
+const SEVERITY_COLORS: Record<string, string> = {
+  CRITICAL: 'text-red-500 bg-red-500/10',
+  HIGH: 'text-orange-500 bg-orange-500/10',
+  MEDIUM: 'text-amber-500 bg-amber-500/10',
+  LOW: 'text-blue-500 bg-blue-500/10',
+  INFO: 'text-muted-foreground bg-secondary',
+}
+
+function PublishFindingsCard({ audit }: { audit: PublishSecurityAudit }) {
+  const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(true)
+  const sortedFindings = [...audit.findings].sort(
+    (a, b) => (SEVERITY_ORDER[a.severity] ?? 99) - (SEVERITY_ORDER[b.severity] ?? 99)
+  )
+  const isSafe = audit.verdict === 'SAFE'
+  const hasFindings = sortedFindings.length > 0
+
+  return (
+    <Card className={`p-4 space-y-3 ${isSafe ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-amber-500/5 border-amber-500/20'}`}>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          {isSafe ? (
+            <CheckCircle className="w-5 h-5 text-emerald-500" />
+          ) : (
+            <AlertTriangle className="w-5 h-5 text-amber-500" />
+          )}
+          <span className="text-sm font-semibold">
+            {isSafe
+              ? t('publish.securityAudit.safe')
+              : t('publish.securityAudit.hasFindings', { count: audit.findingsCount })}
+          </span>
+          <span className="text-xs font-mono px-2 py-0.5 rounded bg-secondary text-muted-foreground">
+            {audit.verdict}
+          </span>
+        </div>
+        {audit.maxSeverity && !isSafe && (
+          <span className="text-xs text-muted-foreground">
+            {t('publish.securityAudit.maxSeverity', { severity: audit.maxSeverity })}
+          </span>
+        )}
+      </div>
+
+      {hasFindings && (
+        <>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-between text-muted-foreground"
+            onClick={() => setExpanded(!expanded)}
+          >
+            <span>{t('publish.securityAudit.showFindings')}</span>
+            {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </Button>
+
+          {expanded && (
+            <div className="space-y-3">
+              {sortedFindings.map((finding, idx) => {
+                const location = [finding.filePath, finding.lineNumber].filter(Boolean).join(':')
+                const severityColor = SEVERITY_COLORS[finding.severity] ?? SEVERITY_COLORS.INFO
+                return (
+                  <div key={`${finding.ruleId}-${idx}`} className="space-y-2 rounded-xl border border-border/60 bg-card/70 p-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded ${severityColor}`}>
+                        {finding.severity}
+                      </span>
+                      <code className="text-xs font-mono text-muted-foreground">{finding.ruleId}</code>
+                      {location && <span className="text-xs text-muted-foreground">{location}</span>}
+                    </div>
+                    <p className="text-sm text-foreground">{finding.title}</p>
+                    {finding.message && <p className="text-sm text-muted-foreground">{finding.message}</p>}
+                    {finding.codeSnippet && (
+                      <pre className="overflow-x-auto rounded-lg bg-secondary/50 p-3 text-xs font-mono text-muted-foreground">
+                        {finding.codeSnippet}
+                      </pre>
+                    )}
+                    {finding.remediation && (
+                      <div className="bg-secondary/50 rounded-xl p-3 text-sm text-muted-foreground">
+                        <span className="font-medium text-foreground">{t('publish.securityAudit.remediation')}: </span>
+                        {finding.remediation}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </Card>
+  )
+}
 
 export function PublishPage() {
   const { t } = useTranslation()
@@ -70,6 +186,7 @@ export function PublishPage() {
   const [previewSlug, setPreviewSlug] = useState<string>('')
   const [isExistingSkill, setIsExistingSkill] = useState<boolean | null>(null)
   const [isPreviewingDisplayMetadata, setIsPreviewingDisplayMetadata] = useState(false)
+  const [securityAudit, setSecurityAudit] = useState<PublishSecurityAudit | null>(null)
 
   const { data: namespaces, isLoading: isLoadingNamespaces } = useMyNamespaces()
   const previewMutation = usePublishDisplayMetadataPreview()
@@ -167,6 +284,7 @@ export function PublishPage() {
         summary,
       })
       const skillLabel = `${result.namespace}/${result.slug}@${result.version}`
+      setSecurityAudit(result.securityAudit)
       if (result.status === 'PUBLISHED') {
         toast.success(
           t('publish.publishedTitle'),
@@ -178,7 +296,10 @@ export function PublishPage() {
           t('publish.pendingReviewDescription', { skill: skillLabel })
         )
       }
-      navigate({ to: '/dashboard/skills' })
+      // If no security findings, navigate to skills list as before
+      if (!result.securityAudit) {
+        navigate({ to: '/dashboard/skills' })
+      }
     } catch (error) {
       if (error instanceof ApiError && error.status === 408) {
         toast.error(t('publish.timeoutTitle'), t('publish.timeoutDescription'))
@@ -194,10 +315,19 @@ export function PublishPage() {
       }
 
       if (error instanceof ApiError && isPrecheckFailureMessage(error.serverMessage || error.message)) {
-        toast.error(
-          t('publish.precheckFailedTitle'),
-          error.serverMessage || t('publish.precheckFailedDescription'),
-        )
+        const findings = extractFindingsFromError(error)
+        if (findings) {
+          setSecurityAudit(findings)
+          toast.error(
+            t('publish.precheckFailedTitle'),
+            t('publish.precheckFailedDescription'),
+          )
+        } else {
+          toast.error(
+            t('publish.precheckFailedTitle'),
+            error.serverMessage || t('publish.precheckFailedDescription'),
+          )
+        }
         return
       }
 
@@ -364,6 +494,21 @@ export function PublishPage() {
         >
           {publishMutation.isPending ? t('publish.publishing') : t('publish.confirm')}
         </Button>
+
+        {securityAudit && (
+          <PublishFindingsCard audit={securityAudit} />
+        )}
+
+        {securityAudit && (
+          <div className="flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => navigate({ to: '/dashboard/skills' })}
+            >
+              {t('publish.continueToSkills')}
+            </Button>
+          </div>
+        )}
       </Card>
     </div>
   )

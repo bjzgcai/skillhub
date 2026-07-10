@@ -12,16 +12,20 @@ function resolveLocalizedMessage(message?: string): string | undefined {
 }
 
 export class ApiError extends Error {
+  public readonly responseData?: unknown
+
   constructor(
     message: string,
     public status: number,
     public serverMessage?: string,
     public serverMessageKey?: string,
+    responseData?: unknown,
   ) {
     super(resolveLocalizedMessage(message) || message)
     this.name = 'ApiError'
     this.serverMessage = resolveLocalizedMessage(serverMessage) || serverMessage
     this.serverMessageKey = serverMessageKey
+    this.responseData = responseData
   }
 }
 

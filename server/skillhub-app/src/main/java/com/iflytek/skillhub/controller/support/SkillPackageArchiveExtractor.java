@@ -66,13 +66,21 @@ public class SkillPackageArchiveExtractor {
                 continue;
             }
 
+            String entryName = zipEntry.getName();
+            // Skip macOS metadata: __MACOSX/ directory and ._ prefixed files
+            if (entryName.startsWith("__MACOSX/") || entryName.contains("/__MACOSX/")
+                    || entryName.startsWith("._") || entryName.contains("/._")) {
+                zis.closeEntry();
+                continue;
+            }
+
             if (entries.size() >= maxFileCount) {
                 throw new IllegalArgumentException(
                         "Too many files: more than " + maxFileCount
                 );
             }
 
-            String normalizedPath = SkillPackagePolicy.normalizeEntryPath(zipEntry.getName());
+            String normalizedPath = SkillPackagePolicy.normalizeEntryPath(entryName);
             byte[] content = readEntry(zis, normalizedPath);
             totalSize += content.length;
             if (totalSize > maxTotalPackageSize) {

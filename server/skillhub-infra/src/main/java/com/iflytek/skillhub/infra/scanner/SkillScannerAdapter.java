@@ -70,6 +70,8 @@ public class SkillScannerAdapter implements SecurityScanner {
 
         log.info("Mapped response: scanId={}, verdict={}, findingsCount={}, maxSeverity={}",
                 response.scanId(), response.verdict(), response.findingsCount(), response.maxSeverity());
+        // Findings are logged at WARN level by UnifiedSecurityPrePublishValidator.
+        // Here we only log a summary at debug to avoid duplicate WARN entries.
         if (!response.findings().isEmpty()) {
             for (SecurityFinding f : response.findings()) {
                 log.debug("Mapped finding: ruleId={}, severity={}, category={}, filePath={}, lineNumber={}",

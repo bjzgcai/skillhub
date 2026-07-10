@@ -86,7 +86,16 @@ public class SkillPublishController extends BaseApiController {
                 publishResult.version().getVersion(),
                 publishResult.version().getStatus().name(),
                 publishResult.version().getFileCount(),
-                publishResult.version().getTotalSize()
+                publishResult.version().getTotalSize(),
+                publishResult.securityScanResponse()
+                        .map(scan -> new PublishResponse.PublishSecurityAudit(
+                                scan.scanId(),
+                                scan.verdict(),
+                                scan.findingsCount(),
+                                scan.maxSeverity(),
+                                scan.findings()
+                        ))
+                        .orElse(null)
         );
         skillHubMetrics.incrementSkillPublish(namespace, publishResult.version().getStatus().name());
 

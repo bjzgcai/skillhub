@@ -106,6 +106,15 @@ public class UnifiedSecurityPrePublishValidator implements PrePublishValidator {
         if ("PASS".equalsIgnoreCase(verdict)) {
             return ValidationResult.pass(audit);
         }
+        // Log full scan findings at WARN level for non-PASS verdicts so they are searchable in Loki
+        log.warn("Unified security scan returned non-PASS verdict: scanId={}, verdict={}, riskLevel={}, findingsCount={}, policyVersion={}",
+                response.scanId(), verdict, response.riskLevel(),
+                response.safeFindings().size(), response.policyVersion());
+        for (UnifiedSecurityScanResponse.Finding finding : response.safeFindings()) {
+            log.warn("Scan finding: scanner={}, ruleId={}, severity={}, category={}, file={}, line={}, message={}",
+                    finding.scanner(), finding.ruleId(), finding.severity(), finding.category(),
+                    finding.file(), finding.line(), finding.message());
+        }
         if ("WARN".equalsIgnoreCase(verdict) && !properties.isBlockWarn()) {
             log.warn("Unified security scan returned WARN; publishing will be routed to administrator review");
             return ValidationResult.manualReview(audit);
@@ -161,7 +170,7 @@ public class UnifiedSecurityPrePublishValidator implements PrePublishValidator {
                 nullToDefault(finding.category(), "security"),
                 nullToDefault(finding.ruleId(), "Unified security finding"),
                 finding.message(),
-                finding.file(),
+                sanitizeFilePath(finding.file()),
                 finding.line(),
                 null,
                 null,
@@ -175,6 +184,23 @@ public class UnifiedSecurityPrePublishValidator implements PrePublishValidator {
             return "INFO";
         }
         return severity.trim().toUpperCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * Strips scanner temporary extraction paths from file paths so findings show
+     * clean relative paths (e.g. "references/service-ops.md" instead of
+     * "/tmp/skill-security-scans/scan_xxx/extracted/references/service-ops.md").
+     */
+    private String sanitizeFilePath(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            return filePath;
+        }
+        // Strip common extraction temp path prefixes
+        int extractedIdx = filePath.indexOf("/extracted/");
+        if (extractedIdx >= 0) {
+            return filePath.substring(extractedIdx + "/extracted/".length());
+        }
+        return filePath;
     }
 
     private String nullToDefault(String value, String fallback) {

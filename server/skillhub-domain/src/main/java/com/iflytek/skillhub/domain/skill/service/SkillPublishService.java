@@ -12,6 +12,7 @@ import com.iflytek.skillhub.domain.namespace.SlugValidator;
 import com.iflytek.skillhub.domain.review.ReviewTaskStatus;
 import com.iflytek.skillhub.domain.review.ReviewTask;
 import com.iflytek.skillhub.domain.review.ReviewTaskRepository;
+import com.iflytek.skillhub.domain.security.SecurityScanResponse;
 import com.iflytek.skillhub.domain.security.SecurityScanService;
 import com.iflytek.skillhub.domain.shared.exception.DomainBadRequestException;
 import com.iflytek.skillhub.domain.shared.exception.DomainForbiddenException;
@@ -69,8 +70,13 @@ public class SkillPublishService {
     public record PublishResult(
             Long skillId,
             String slug,
-            SkillVersion version
-    ) {}
+            SkillVersion version,
+            java.util.Optional<SecurityScanResponse> securityScanResponse
+    ) {
+        public PublishResult(Long skillId, String slug, SkillVersion version) {
+            this(skillId, slug, version, java.util.Optional.empty());
+        }
+    }
 
     public record DisplayMetadataPreview(
             String slug,
@@ -394,8 +400,9 @@ public class SkillPublishService {
                         namespaceSlug,
                         String.join(", ", prePublishValidation.errors()));
             } else {
-                throw new DomainBadRequestException(
+                throw new PrePublishFailedException(
                         "error.skill.publish.precheck.failed",
+                        prePublishValidation.securityAudit().map(a -> a.response()).orElse(null),
                         String.join(", ", prePublishValidation.errors()));
             }
         }
@@ -565,7 +572,8 @@ public class SkillPublishService {
         }
 
         // 13. Return identifiers for the created version
-        return new PublishResult(skill.getId(), skill.getSlug(), version);
+        return new PublishResult(skill.getId(), skill.getSlug(), version,
+                prePublishValidation.securityAudit().map(ValidationResult.SecurityAuditSnapshot::response));
     }
 
     private void deleteReplaceableVersionArtifacts(Skill skill, SkillVersion version, String namespaceSlug) {

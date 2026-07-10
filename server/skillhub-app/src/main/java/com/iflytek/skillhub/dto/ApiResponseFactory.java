@@ -29,6 +29,11 @@ public class ApiResponseFactory {
         return new ApiResponse<>(code, msg, null, Instant.now(clock), MDC.get("requestId"));
     }
 
+    public <T> ApiResponse<T> errorWithData(int code, String messageCode, Object[] args, T data) {
+        String msg = messageSource.getMessage(messageCode, args, messageCode, LocaleContextHolder.getLocale());
+        return new ApiResponse<>(code, msg, data, Instant.now(clock), MDC.get("requestId"));
+    }
+
     public ApiResponse<Void> errorMessage(int code, String msg) {
         return new ApiResponse<>(code, msg, null, Instant.now(clock), MDC.get("requestId"));
     }

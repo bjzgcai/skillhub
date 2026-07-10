@@ -1209,7 +1209,15 @@
       "existing": "Recognized existing skill {{slug}}. Historical Chinese display name and summary have been filled in; you can adjust them for this publish.",
       "new": "Recognized a new skill. Add a Chinese display name and summary so cards and search results read clearly.",
       "selectNamespaceFirst": "Select a namespace before confirming publish."
-    }
+    },
+    "securityAudit": {
+      "safe": "Security scan passed",
+      "hasFindings": "Security scan found {{count}} finding(s)",
+      "maxSeverity": "Max severity: {{severity}}",
+      "showFindings": "Show scan findings",
+      "remediation": "Remediation"
+    },
+    "continueToSkills": "Continue to skill list"
   },
   "toast": {
     "success": "Success",
