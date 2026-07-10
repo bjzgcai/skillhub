@@ -100,6 +100,13 @@ apply_server() {
   ensure_gitleaks_scanner_container
   ensure_unified_scanner_container
   remove_container_if_exists skillhub-server-1
+  # Pre-deploy storage check
+  if [ -x "$BASE/ops/verify-storage.sh" ]; then
+    "$BASE/ops/verify-storage.sh" --pre --env-file "$SHARED/env.release" >> "$out_dir/verify.log" 2>&1 || {
+      append_release_log "$out_dir" deploy.log "pre-deploy storage verify failed"
+      exit 6
+    }
+  fi
   run_server_container "$image_ref" "$SHARED/env.release" >/tmp/skillhub.deploy.server.cid
   if ! "$BASE/ops/verify-server-release.sh" \
     --expect-public-base-url "$SKILLHUB_PUBLIC_BASE_URL" \
@@ -118,6 +125,20 @@ apply_server() {
     fi
     "$BASE/ops/verify-server-release.sh" >> "$out_dir/verify.log" 2>&1
     exit 5
+  fi
+  # Post-deploy storage verification
+  if [ -x "$BASE/ops/verify-storage.sh" ]; then
+    "$BASE/ops/verify-storage.sh" --post >> "$out_dir/verify.log" 2>&1 || {
+      append_release_log "$out_dir" deploy.log "post-deploy storage verify failed, attempting rollback to $prev_image"
+      remove_container_if_exists skillhub-server-1
+      if [ -n "$prev_release_dir" ] && [ -f "$prev_release_dir/release.env" ]; then
+        run_server_container "$prev_image" "$prev_release_dir/release.env" >/tmp/skillhub.rollback.server.cid
+      else
+        run_server_container "$prev_image" "$SHARED/env.release" >/tmp/skillhub.rollback.server.cid
+      fi
+      "$BASE/ops/verify-server-release.sh" >> "$out_dir/verify.log" 2>&1
+      exit 5
+    }
   fi
   append_release_log "$out_dir" deploy.log "server deploy applied successfully target=$image_ref"
 }
