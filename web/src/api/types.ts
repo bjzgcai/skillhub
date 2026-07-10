@@ -327,6 +327,28 @@ export interface PagedResponse<T> {
 }
 
 // Publish
+export interface PublishSecurityFinding {
+  ruleId: string
+  severity: string
+  category: string
+  title: string
+  message: string | null
+  filePath: string | null
+  lineNumber: number | null
+  codeSnippet: string | null
+  remediation: string | null
+  analyzer: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface PublishSecurityAudit {
+  scanId: string
+  verdict: string
+  findingsCount: number
+  maxSeverity: string | null
+  findings: PublishSecurityFinding[]
+}
+
 export interface PublishResult {
   skillId: number
   namespace: string
@@ -335,6 +357,7 @@ export interface PublishResult {
   status: string
   fileCount: number
   totalSize: number
+  securityAudit: PublishSecurityAudit | null
 }
 
 export interface PublishDisplayMetadataPreview {

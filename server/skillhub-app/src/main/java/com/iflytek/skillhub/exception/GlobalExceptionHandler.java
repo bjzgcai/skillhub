@@ -53,8 +53,11 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(LocalizedDomainException.class)
-    public ResponseEntity<ApiResponse<Void>> handleLocalizedDomainException(LocalizedDomainException ex, HttpServletRequest request) {
-        return renderLocalizedError(ex, HttpStatus.valueOf(ex.statusCode()), request);
+    public ResponseEntity<ApiResponse<Object>> handleLocalizedDomainException(LocalizedDomainException ex, HttpServletRequest request) {
+        logHandledException(HttpStatus.valueOf(ex.statusCode()), ex.messageCode(), ex.messageArgs(), request);
+        Object data = ex.errorData();
+        return ResponseEntity.status(ex.statusCode()).body(
+                apiResponseFactory.errorWithData(ex.statusCode(), ex.messageCode(), ex.messageArgs(), data));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -126,14 +129,20 @@ public class GlobalExceptionHandler {
     }
 
     private void logHandledException(HttpStatus status, String messageCode, HttpServletRequest request) {
+        logHandledException(status, messageCode, null, request);
+    }
+
+    private void logHandledException(HttpStatus status, String messageCode, Object[] messageArgs, HttpServletRequest request) {
         logger.info(
-                "API request failed [requestId={}, status={}, method={}, path={}, userId={}, code={}]",
+                "API request failed [requestId={}, status={}, method={}, path={}, userId={}, code={}{}{}]",
                 MDC.get("requestId"),
                 status.value(),
                 request.getMethod(),
                 sensitiveLogSanitizer.sanitizeRequestTarget(request),
                 resolveUserId(request),
-                messageCode
+                messageCode,
+                messageArgs != null ? ", args=" : "",
+                messageArgs != null ? java.util.Arrays.toString(messageArgs) : ""
         );
     }
 

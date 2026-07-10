@@ -87,9 +87,52 @@ class SkillScannerLoggingTest {
 
         List<String> messages = loggedMessages();
         assertThat(messages).anyMatch(message -> message.contains("Scanner API raw response"));
-        assertThat(messages).noneMatch(message -> message.contains("Very sensitive description"));
-        assertThat(messages).noneMatch(message -> message.contains("eval(secret)"));
         assertThat(messages).noneMatch(message -> message.contains("Mapped finding:"));
+    }
+
+    @Test
+    void scan_doesNotLogFindingDetailsAtWarnOrAbove() {
+        // After refactoring, SkillScannerAdapter logs findings at debug (not WARN).
+        // UnifiedSecurityPrePublishValidator handles WARN-level finding logging.
+        StubSkillScannerService service = new StubSkillScannerService();
+        service.directoryResponse = new SkillScannerApiResponse(
+                "scan-warn",
+                "skill",
+                false,
+                "HIGH",
+                1,
+                List.of(new SkillScannerApiResponse.Finding(
+                        "ID-1",
+                        "RULE-1",
+                        "HIGH",
+                        "code-execution",
+                        "Danger title",
+                        "Sensitive description",
+                        "src/main.py",
+                        7,
+                        "eval(secret)",
+                        "Use safe api",
+                        "static",
+                        Map.of()
+                )),
+                1.0,
+                "2026-03-23T00:00:00"
+        );
+        SkillScannerAdapter adapter = new SkillScannerAdapter(service, "local", ScanOptions.disabled());
+        adapterLogger.setLevel(Level.WARN);
+        appender = new ListAppender<>();
+        appender.start();
+        adapterLogger.addAppender(appender);
+
+        adapter.scan(new SecurityScanRequest("task-warn", 1L, "/tmp/skill", Map.of()));
+
+        List<String> warnMessages = appender.list.stream()
+                .filter(event -> event.getLevel() == Level.WARN)
+                .map(ILoggingEvent::getFormattedMessage)
+                .toList();
+        // SkillScannerAdapter should NOT log finding details at WARN level
+        assertThat(warnMessages).noneMatch(message -> message.contains("Scan finding: scanId=scan-warn"));
+        assertThat(warnMessages).noneMatch(message -> message.contains("eval(secret)"));
     }
 
     private void attachAppender(Logger logger) {

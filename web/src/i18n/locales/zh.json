@@ -1209,7 +1209,15 @@
       "existing": "已识别为现有技能 {{slug}}，已默认填入历史中文展示名和中文描述，可按本次发布调整。",
       "new": "已识别为新技能，建议补充中文展示名和中文描述，便于首页和搜索结果展示。",
       "selectNamespaceFirst": "请先选择命名空间，然后再确认发布。"
-    }
+    },
+    "securityAudit": {
+      "safe": "安全扫描通过",
+      "hasFindings": "安全扫描发现 {{count}} 个问题",
+      "maxSeverity": "最高严重级别：{{severity}}",
+      "showFindings": "查看扫描详情",
+      "remediation": "修复建议"
+    },
+    "continueToSkills": "继续前往技能列表"
   },
   "toast": {
     "success": "成功",

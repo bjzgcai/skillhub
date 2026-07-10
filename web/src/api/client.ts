@@ -256,7 +256,7 @@ export async function fetchJson<T>(input: RequestInfo | URL, init?: RequestWithT
   }
 
   if (!response.ok || json.code !== 0) {
-    throw new ApiError(json.msg || `HTTP ${response.status}`, response.status, json.msg, json.msg)
+    throw new ApiError(json.msg || `HTTP ${response.status}`, response.status, json.msg, json.msg, json.data)
   }
 
   return json.data
