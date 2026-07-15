@@ -330,7 +330,7 @@ public class SkillController extends BaseApiController {
     }
 
     @GetMapping("/{namespace}/{slug}/download")
-    @RateLimit(category = "download", authenticated = 120, anonymous = 30)
+    @RateLimit(category = "download", authenticated = 300, anonymous = 200)
     public ResponseEntity<InputStreamResource> downloadLatest(
             @PathVariable String namespace,
             @PathVariable String slug,
@@ -345,7 +345,7 @@ public class SkillController extends BaseApiController {
     }
 
     @GetMapping("/{namespace}/{slug}/versions/{version}/download")
-    @RateLimit(category = "download", authenticated = 120, anonymous = 30)
+    @RateLimit(category = "download", authenticated = 300, anonymous = 200)
     public ResponseEntity<InputStreamResource> downloadVersion(
             @PathVariable String namespace,
             @PathVariable String slug,
@@ -361,7 +361,7 @@ public class SkillController extends BaseApiController {
     }
 
     @GetMapping("/{namespace}/{slug}/tags/{tagName}/download")
-    @RateLimit(category = "download", authenticated = 120, anonymous = 30)
+    @RateLimit(category = "download", authenticated = 300, anonymous = 200)
     public ResponseEntity<InputStreamResource> downloadByTag(
             @PathVariable String namespace,
             @PathVariable String slug,
