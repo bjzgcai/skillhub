@@ -47,7 +47,7 @@ public class ClawHubCompatController {
         this.clawHubCompatAppService = clawHubCompatAppService;
     }
 
-    @RateLimit(category = "search", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "search", authenticated = 300, anonymous = 200)
     @GetMapping("/search")
     public ClawHubSearchResponse search(@RequestParam String q,
                                         @RequestParam(defaultValue = "0") int page,
@@ -57,7 +57,7 @@ public class ClawHubCompatController {
         return clawHubCompatAppService.search(q, page, limit, userId, userNsRoles);
     }
 
-    @RateLimit(category = "resolve", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "resolve", authenticated = 300, anonymous = 200)
     @GetMapping("/resolve")
     public ClawHubResolveResponse resolveByQuery(@RequestParam String slug,
                                                  @RequestParam(required = false) String version,
@@ -67,7 +67,7 @@ public class ClawHubCompatController {
         return clawHubCompatAppService.resolveByQuery(slug, version, hash, userId, userNsRoles);
     }
 
-    @RateLimit(category = "resolve", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "resolve", authenticated = 300, anonymous = 200)
     @GetMapping("/resolve/{canonicalSlug}")
     public ClawHubResolveResponse resolve(@PathVariable String canonicalSlug,
                                           @RequestParam(defaultValue = "latest") String version,
@@ -76,21 +76,21 @@ public class ClawHubCompatController {
         return clawHubCompatAppService.resolve(canonicalSlug, version, userId, userNsRoles);
     }
 
-    @RateLimit(category = "download", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "download", authenticated = 300, anonymous = 200)
     @GetMapping("/download/{canonicalSlug}")
     public ResponseEntity<Void> downloadByPath(@PathVariable String canonicalSlug,
                                                @RequestParam(defaultValue = "latest") String version) {
         return redirect(clawHubCompatAppService.downloadLocationByPath(canonicalSlug, version));
     }
 
-    @RateLimit(category = "download", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "download", authenticated = 300, anonymous = 200)
     @GetMapping("/download")
     public ResponseEntity<Void> downloadByQuery(@RequestParam String slug,
                                                 @RequestParam(defaultValue = "latest") String version) {
         return redirect(clawHubCompatAppService.downloadLocationByQuery(slug, version));
     }
 
-    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "skills", authenticated = 300, anonymous = 200)
     @GetMapping("/skills")
     public ClawHubSkillListResponse listSkills(@RequestParam(defaultValue = "0") int page,
                                                @RequestParam(defaultValue = "25") int limit,
@@ -100,14 +100,14 @@ public class ClawHubCompatController {
         return clawHubCompatAppService.listSkills(page, limit, sort, userId, userNsRoles);
     }
 
-    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "skills", authenticated = 300, anonymous = 200)
     @GetMapping("/skills/{canonicalSlug}")
     public ClawHubSkillResponse getSkill(@PathVariable String canonicalSlug,
                                          @RequestAttribute(value = "userId", required = false) String userId) {
         return clawHubCompatAppService.getSkill(canonicalSlug, userId);
     }
 
-    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "skills", authenticated = 300, anonymous = 200)
     @GetMapping("/skills/{canonicalSlug}/versions")
     public ClawHubSkillVersionListResponse listVersions(@PathVariable String canonicalSlug,
                                                         @RequestParam(defaultValue = "25") int limit,
@@ -116,7 +116,7 @@ public class ClawHubCompatController {
         return clawHubCompatAppService.listVersions(canonicalSlug, limit, userId, userNsRoles);
     }
 
-    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "skills", authenticated = 300, anonymous = 200)
     @GetMapping("/skills/{canonicalSlug}/versions/{version}")
     public ClawHubSkillVersionResponse getVersion(@PathVariable String canonicalSlug,
                                                   @PathVariable String version,
@@ -125,7 +125,7 @@ public class ClawHubCompatController {
         return clawHubCompatAppService.getVersion(canonicalSlug, version, userId, userNsRoles);
     }
 
-    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "skills", authenticated = 300, anonymous = 200)
     @GetMapping("/skills/{canonicalSlug}/file")
     public ResponseEntity<String> getFile(@PathVariable String canonicalSlug,
                                           @RequestParam("path") String path,
@@ -138,7 +138,7 @@ public class ClawHubCompatController {
                 .body(clawHubCompatAppService.getFileContent(canonicalSlug, path, version, tag, userId, userNsRoles));
     }
 
-    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "skills", authenticated = 300, anonymous = 200)
     @DeleteMapping("/skills/{canonicalSlug}")
     public ClawHubDeleteResponse deleteSkill(@PathVariable String canonicalSlug,
                                              @AuthenticationPrincipal PlatformPrincipal principal,
@@ -154,7 +154,7 @@ public class ClawHubCompatController {
         );
     }
 
-    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "skills", authenticated = 300, anonymous = 200)
     @PostMapping("/skills/{canonicalSlug}/undelete")
     public ClawHubDeleteResponse undeleteSkill(@PathVariable String canonicalSlug,
                                                @AuthenticationPrincipal PlatformPrincipal principal,
@@ -176,21 +176,21 @@ public class ClawHubCompatController {
         }
     }
 
-    @RateLimit(category = "stars", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "stars", authenticated = 300, anonymous = 200)
     @PostMapping("/stars/{canonicalSlug}")
     public ClawHubStarResponse starSkill(@PathVariable String canonicalSlug,
                                          @AuthenticationPrincipal PlatformPrincipal principal) {
         return clawHubCompatAppService.starSkill(canonicalSlug, principal);
     }
 
-    @RateLimit(category = "stars", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "stars", authenticated = 300, anonymous = 200)
     @DeleteMapping("/stars/{canonicalSlug}")
     public ClawHubUnstarResponse unstarSkill(@PathVariable String canonicalSlug,
                                              @AuthenticationPrincipal PlatformPrincipal principal) {
         return clawHubCompatAppService.unstarSkill(canonicalSlug, principal);
     }
 
-    @RateLimit(category = "skills", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "skills", authenticated = 300, anonymous = 200)
     @PostMapping("/skills")
     public ClawHubPublishResponse publishSkill(@RequestParam("payload") String payloadJson,
                                                @RequestParam("files") MultipartFile[] files,
@@ -220,7 +220,7 @@ public class ClawHubCompatController {
         );
     }
 
-    @RateLimit(category = "whoami", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "whoami", authenticated = 300, anonymous = 200)
     @GetMapping("/whoami")
     public ClawHubWhoamiResponse whoami(@AuthenticationPrincipal PlatformPrincipal principal) {
         return clawHubCompatAppService.whoami(principal);

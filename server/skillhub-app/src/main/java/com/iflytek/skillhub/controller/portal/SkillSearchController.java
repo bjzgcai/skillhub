@@ -28,7 +28,7 @@ public class SkillSearchController extends BaseApiController {
     }
 
     @GetMapping
-    @RateLimit(category = "search", authenticated = 60, anonymous = 20)
+    @RateLimit(category = "search", authenticated = 300, anonymous = 200)
     public ApiResponse<SkillSearchAppService.SearchResponse> search(
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String namespace,
