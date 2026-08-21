@@ -72,6 +72,70 @@ class SkillPackageArchiveExtractorTest {
     }
 
     @Test
+    void enforcesCompressedArchiveLimitSeparatelyFromUncompressedLimit() throws Exception {
+        byte[] zip = createZip("data.txt", "compressible content");
+        SkillPublishProperties props = new SkillPublishProperties();
+        props.setMaxArchiveSize(zip.length - 1L);
+        props.setMaxTotalUncompressedSize(1024);
+        SkillPackageArchiveExtractor smallExtractor = new SkillPackageArchiveExtractor(props);
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> smallExtractor.extract(zip));
+
+        assertTrue(error.getMessage().contains("Archive too large"));
+    }
+
+    @Test
+    void acceptsArchiveAndUncompressedContentAtExactLimits() throws Exception {
+        byte[] content = "0123456789".getBytes(StandardCharsets.UTF_8);
+        byte[] zip = createZip("data.txt", content);
+        SkillPublishProperties props = new SkillPublishProperties();
+        props.setMaxArchiveSize(zip.length);
+        props.setMaxTotalUncompressedSize(content.length);
+        SkillPackageArchiveExtractor boundaryExtractor = new SkillPackageArchiveExtractor(props);
+
+        List<PackageEntry> entries = boundaryExtractor.extract(zip);
+
+        assertEquals(1, entries.size());
+        assertEquals(content.length, entries.get(0).size());
+    }
+
+    @Test
+    void rejectsUncompressedContentOneByteOverLimit() throws Exception {
+        byte[] content = "0123456789".getBytes(StandardCharsets.UTF_8);
+        byte[] zip = createZip("data.txt", content);
+        SkillPublishProperties props = new SkillPublishProperties();
+        props.setMaxArchiveSize(zip.length);
+        props.setMaxTotalUncompressedSize(content.length - 1L);
+        SkillPackageArchiveExtractor boundaryExtractor = new SkillPackageArchiveExtractor(props);
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> boundaryExtractor.extract(zip));
+
+        assertTrue(error.getMessage().contains("Uncompressed package too large"));
+    }
+
+    @Test
+    void assignsMimeTypesForNewFormatsAndLicense() throws Exception {
+        byte[] zip = createZip(Map.of(
+                "LICENSE", "license text".getBytes(StandardCharsets.UTF_8),
+                "config.in", "key=value".getBytes(StandardCharsets.UTF_8),
+                "settings.example", "key=example".getBytes(StandardCharsets.UTF_8),
+                "slides.pptx", createPptx(),
+                "sound.wav", createWav()
+        ));
+
+        List<PackageEntry> entries = extractor.extract(zip);
+
+        assertEquals("text/plain", contentType(entries, "LICENSE"));
+        assertEquals("text/plain", contentType(entries, "config.in"));
+        assertEquals("text/plain", contentType(entries, "settings.example"));
+        assertEquals("application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                contentType(entries, "slides.pptx"));
+        assertEquals("audio/wav", contentType(entries, "sound.wav"));
+    }
+
+    @Test
     void stripsRootDirectoryWhenSingleFolder() throws Exception {
         byte[] zipBytes = createZip(Map.of(
                 "my-skill/SKILL.md", "---\nname: test\n---\n".getBytes(),
@@ -172,5 +236,26 @@ class SkillPackageArchiveExtractorTest {
             }
         }
         return baos.toByteArray();
+    }
+
+    private byte[] createPptx() throws Exception {
+        return createZip(Map.of(
+                "[Content_Types].xml", "<Types/>".getBytes(StandardCharsets.UTF_8),
+                "ppt/presentation.xml", ("<p:presentation xmlns:p=\""
+                        + "http://schemas.openxmlformats.org/presentationml/2006/main\"/>")
+                        .getBytes(StandardCharsets.UTF_8)
+        ));
+    }
+
+    private byte[] createWav() {
+        return new byte[]{'R', 'I', 'F', 'F', 4, 0, 0, 0, 'W', 'A', 'V', 'E'};
+    }
+
+    private String contentType(List<PackageEntry> entries, String path) {
+        return entries.stream()
+                .filter(entry -> path.equals(entry.path()))
+                .findFirst()
+                .orElseThrow()
+                .contentType();
     }
 }

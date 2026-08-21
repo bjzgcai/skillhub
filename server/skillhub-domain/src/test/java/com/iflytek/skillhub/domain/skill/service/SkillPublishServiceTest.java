@@ -35,15 +35,22 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -151,6 +158,25 @@ class SkillPublishServiceTest {
             return saved;
         });
         when(skillRepository.save(any())).thenReturn(skill);
+        Set<Path> tempBundlesBefore = tempBundleFiles();
+        AtomicBoolean bundleWasStreamed = new AtomicBoolean();
+        doAnswer(invocation -> {
+            String key = invocation.getArgument(0);
+            if (key.endsWith("/bundle.zip")) {
+                InputStream data = invocation.getArgument(1);
+                assertFalse(data instanceof ByteArrayInputStream);
+                Set<String> bundledPaths = new HashSet<>();
+                try (ZipInputStream zip = new ZipInputStream(data)) {
+                    for (var entry = zip.getNextEntry(); entry != null; entry = zip.getNextEntry()) {
+                        bundledPaths.add(entry.getName());
+                    }
+                }
+                assertEquals(Set.of("SKILL.md", "file1.txt"), bundledPaths);
+                assertTrue((long) invocation.getArgument(2) > 0L);
+                bundleWasStreamed.set(true);
+            }
+            return null;
+        }).when(objectStorageService).putObject(anyString(), any(InputStream.class), anyLong(), anyString());
 
         // Act
         SkillPublishService.PublishResult result = service.publishFromEntries(
@@ -167,6 +193,8 @@ class SkillPublishServiceTest {
         assertEquals("test-skill", result.slug());
         assertEquals("1.0.0", result.version().getVersion());
         assertEquals(SkillVersionStatus.PENDING_REVIEW, result.version().getStatus());
+        assertTrue(bundleWasStreamed.get());
+        assertEquals(tempBundlesBefore, tempBundleFiles());
         verify(skillFileRepository).saveAll(anyList());
         verify(objectStorageService, atLeastOnce()).putObject(anyString(), any(), anyLong(), anyString());
         verify(reviewTaskRepository).save(any(ReviewTask.class));
@@ -1591,5 +1619,14 @@ class SkillPublishServiceTest {
         Field idField = entity.getClass().getDeclaredField("id");
         idField.setAccessible(true);
         idField.set(entity, id);
+    }
+
+    private Set<Path> tempBundleFiles() throws Exception {
+        Path tempDirectory = Path.of(System.getProperty("java.io.tmpdir"));
+        try (var paths = Files.list(tempDirectory)) {
+            return paths
+                    .filter(path -> path.getFileName().toString().startsWith("skillhub-bundle-"))
+                    .collect(java.util.stream.Collectors.toSet());
+        }
     }
 }

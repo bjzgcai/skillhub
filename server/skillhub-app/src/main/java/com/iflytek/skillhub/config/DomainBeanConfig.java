@@ -32,7 +32,7 @@ public class DomainBeanConfig {
                 skillMetadataParser,
                 skillPublishProperties.getMaxFileCount(),
                 skillPublishProperties.getMaxSingleFileSize(),
-                skillPublishProperties.getMaxPackageSize(),
+                skillPublishProperties.getMaxTotalUncompressedSize(),
                 skillPublishProperties.getAllowedFileExtensions()
         );
     }

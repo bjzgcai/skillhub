@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iflytek.skillhub.config.SkillPublishProperties;
 import com.iflytek.skillhub.domain.shared.exception.DomainBadRequestException;
 import com.iflytek.skillhub.domain.skill.validation.PackageEntry;
+import com.iflytek.skillhub.domain.skill.validation.SkillPackagePolicy;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -68,11 +69,23 @@ public class MultipartPackageExtractor {
                             "Duplicate package path: " + normalizedPath);
                 }
 
+                long reportedSize = file.getSize();
+                if (reportedSize > properties.getMaxSingleFileSize()) {
+                    throw new DomainBadRequestException("error.skill.publish.package.invalid",
+                            "File too large: " + normalizedPath + " (max "
+                                    + properties.getMaxSingleFileSize() + " bytes)");
+                }
+                if (reportedSize >= 0
+                        && reportedSize > properties.getMaxTotalUncompressedSize() - totalSize) {
+                    throw new DomainBadRequestException("error.skill.publish.package.invalid",
+                            "Package too large: max " + properties.getMaxTotalUncompressedSize() + " bytes");
+                }
+
                 byte[] content = file.getBytes();
                 totalSize += content.length;
-                if (totalSize > properties.getMaxPackageSize()) {
+                if (totalSize > properties.getMaxTotalUncompressedSize()) {
                     throw new DomainBadRequestException("error.skill.publish.package.invalid",
-                            "Package too large: max " + properties.getMaxPackageSize() + " bytes");
+                            "Package too large: max " + properties.getMaxTotalUncompressedSize() + " bytes");
                 }
 
                 if (content.length > properties.getMaxSingleFileSize()) {
@@ -84,7 +97,7 @@ public class MultipartPackageExtractor {
                         normalizedPath,
                         content,
                         content.length,
-                        determineContentType(normalizedPath)
+                        SkillPackagePolicy.determineContentType(normalizedPath)
                 ));
             }
         }
@@ -112,12 +125,4 @@ public class MultipartPackageExtractor {
         return path;
     }
 
-    private String determineContentType(String filename) {
-        if (filename.endsWith(".py")) return "text/x-python";
-        if (filename.endsWith(".json")) return "application/json";
-        if (filename.endsWith(".yaml") || filename.endsWith(".yml")) return "application/x-yaml";
-        if (filename.endsWith(".txt")) return "text/plain";
-        if (filename.endsWith(".md")) return "text/markdown";
-        return "application/octet-stream";
-    }
 }

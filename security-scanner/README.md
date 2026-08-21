@@ -39,6 +39,14 @@ curl http://127.0.0.1:8020/health
 
 The current implementation validates the uploaded zip package, extracts it safely, runs built-in `skill-vetter` red-flag checks, and invokes external `gitleaks` / `semgrep` / `osv-scanner` binaries when present. Missing external binaries are reported as `skipped` so SkillHub can still consume a stable report shape during staged rollout.
 
+Package guard defaults can be overridden with these environment variables:
+
+- `SCANNER_MAX_PACKAGE_SIZE_BYTES` (default: 200 MiB)
+- `SCANNER_MAX_REPACKED_PACKAGE_SIZE_BYTES` (default: 320 MiB for SkillHub's internal scanner transport)
+- `SCANNER_MAX_FILE_COUNT` (default: 20000 files)
+- `SCANNER_MAX_SINGLE_FILE_SIZE_BYTES` (default: 20 MiB)
+- `SCANNER_MAX_UNCOMPRESSED_SIZE_BYTES` (default: 300 MiB)
+
 
 ## Adapter Behavior
 

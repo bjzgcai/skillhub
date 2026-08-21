@@ -3,6 +3,7 @@ package com.iflytek.skillhub.domain.skill.validation;
 import com.iflytek.skillhub.domain.shared.exception.LocalizedDomainException;
 import com.iflytek.skillhub.domain.skill.metadata.SkillMetadataParser;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -28,7 +29,7 @@ public class SkillPackageValidator {
                 metadataParser,
                 SkillPackagePolicy.MAX_FILE_COUNT,
                 SkillPackagePolicy.MAX_SINGLE_FILE_SIZE,
-                SkillPackagePolicy.MAX_TOTAL_PACKAGE_SIZE,
+                SkillPackagePolicy.MAX_TOTAL_UNCOMPRESSED_SIZE,
                 SkillPackagePolicy.ALLOWED_EXTENSIONS
         );
     }
@@ -65,7 +66,7 @@ public class SkillPackageValidator {
                 errors.add("Duplicate package entry path: " + normalizedPath);
             }
 
-            if (!hasAllowedExtension(normalizedPath)) {
+            if (!hasAllowedPath(normalizedPath)) {
                 errors.add("Disallowed file extension: " + normalizedPath);
             }
 
@@ -87,7 +88,7 @@ public class SkillPackageValidator {
 
         // 2. Validate frontmatter
         try {
-            String content = new String(skillMd.content());
+            String content = new String(skillMd.content(), StandardCharsets.UTF_8);
             metadataParser.parse(content);
         } catch (LocalizedDomainException e) {
             errors.add("Invalid SKILL.md frontmatter: " + formatMetadataError(e));
@@ -114,8 +115,11 @@ public class SkillPackageValidator {
         return errors.isEmpty() ? ValidationResult.pass() : ValidationResult.fail(errors);
     }
 
-    private boolean hasAllowedExtension(String normalizedPath) {
-        return allowedExtensions.stream().anyMatch(normalizedPath::endsWith);
+    private boolean hasAllowedPath(String normalizedPath) {
+        int separator = normalizedPath.lastIndexOf('/');
+        String basename = separator >= 0 ? normalizedPath.substring(separator + 1) : normalizedPath;
+        return SkillPackagePolicy.LICENSE_BASENAME.equals(basename)
+                || allowedExtensions.stream().anyMatch(normalizedPath::endsWith);
     }
 
     private String formatMetadataError(LocalizedDomainException exception) {

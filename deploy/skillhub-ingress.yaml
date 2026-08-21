@@ -3,6 +3,7 @@ kind: Ingress
 metadata:
   name: skillhub
   annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 201m
     nginx.ingress.kubernetes.io/limit-rps: "10"
     nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
     nginx.ingress.kubernetes.io/limit-connections: "20"

@@ -48,6 +48,12 @@ services:
     profiles: ["unified-scan"]
     image: ${SKILLHUB_SECURITY_SCANNER_IMAGE:-skill-security-scanner}:${SKILLHUB_SECURITY_SCANNER_TAG:-latest}
     restart: unless-stopped
+    environment:
+      SCANNER_MAX_PACKAGE_SIZE_BYTES: ${SCANNER_MAX_PACKAGE_SIZE_BYTES:-209715200}
+      SCANNER_MAX_REPACKED_PACKAGE_SIZE_BYTES: ${SCANNER_MAX_REPACKED_PACKAGE_SIZE_BYTES:-335544320}
+      SCANNER_MAX_FILE_COUNT: ${SCANNER_MAX_FILE_COUNT:-20000}
+      SCANNER_MAX_SINGLE_FILE_SIZE_BYTES: ${SCANNER_MAX_SINGLE_FILE_SIZE_BYTES:-20971520}
+      SCANNER_MAX_UNCOMPRESSED_SIZE_BYTES: ${SCANNER_MAX_UNCOMPRESSED_SIZE_BYTES:-314572800}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8020/health', timeout=2).read()"]
       interval: 10s

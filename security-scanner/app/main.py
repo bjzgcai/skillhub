@@ -45,6 +45,11 @@ async def sync_scan(
     policy_preset: Annotated[str, Form()] = "balanced",
     timeout_ms: Annotated[int, Form()] = 60000,
 ) -> SyncScanResponse:
+    upload_limit = (
+        settings.max_repacked_package_size_bytes
+        if source == "skillhub_repacked"
+        else settings.max_package_size_bytes
+    )
     del namespace, slug, version, skill_id, version_id, publisher_id, source, policy_preset
 
     started = time.monotonic()
@@ -58,13 +63,14 @@ async def sync_scan(
         with open(package_path, "wb") as output:
             while chunk := await file.read(1024 * 1024):
                 size += len(chunk)
-                if size > settings.max_package_size_bytes:
+                if size > upload_limit:
                     raise HTTPException(status_code=413, detail="Package size exceeds scanner limit")
                 output.write(chunk)
 
         validate_zip_package(
             package_path,
             max_file_count=settings.max_file_count,
+            max_single_file_size_bytes=settings.max_single_file_size_bytes,
             max_uncompressed_size_bytes=settings.max_uncompressed_size_bytes,
         )
         extract_dir = os.path.join(workspace, "extracted")

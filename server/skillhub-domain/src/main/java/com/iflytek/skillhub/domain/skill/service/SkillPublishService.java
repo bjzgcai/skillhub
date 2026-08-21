@@ -37,8 +37,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.io.IOException;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Instant;
@@ -522,14 +523,24 @@ public class SkillPublishService {
         skillFileRepository.saveAll(skillFiles);
 
         // 10.5 Build and upload bundle zip for download endpoints
-        byte[] bundleZip = buildBundle(entries);
         String bundleKey = String.format("packages/%d/%d/bundle.zip", skill.getId(), version.getId());
-        objectStorageService.putObject(
-                bundleKey,
-                new ByteArrayInputStream(bundleZip),
-                bundleZip.length,
-                "application/zip"
-        );
+        Path bundleZip = null;
+        try {
+            bundleZip = buildBundle(entries);
+            long bundleSize = Files.size(bundleZip);
+            try (InputStream bundleInput = Files.newInputStream(bundleZip)) {
+                objectStorageService.putObject(
+                        bundleKey,
+                        bundleInput,
+                        bundleSize,
+                        "application/zip"
+                );
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to upload bundle zip", e);
+        } finally {
+            deleteTempBundle(bundleZip);
+        }
 
         // 11. Update version stats
         version.setFileCount(skillFiles.size());
@@ -777,19 +788,33 @@ public class SkillPublishService {
                 .toList();
     }
 
-    private byte[] buildBundle(List<PackageEntry> entries) {
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-             ZipOutputStream zipOutputStream = new ZipOutputStream(outputStream)) {
-            for (PackageEntry entry : entries) {
-                ZipEntry zipEntry = new ZipEntry(entry.path());
-                zipOutputStream.putNextEntry(zipEntry);
-                zipOutputStream.write(entry.content());
-                zipOutputStream.closeEntry();
+    private Path buildBundle(List<PackageEntry> entries) {
+        Path bundlePath = null;
+        try {
+            bundlePath = Files.createTempFile("skillhub-bundle-", ".zip");
+            try (ZipOutputStream zipOutputStream = new ZipOutputStream(Files.newOutputStream(bundlePath))) {
+                for (PackageEntry entry : entries) {
+                    ZipEntry zipEntry = new ZipEntry(entry.path());
+                    zipOutputStream.putNextEntry(zipEntry);
+                    zipOutputStream.write(entry.content());
+                    zipOutputStream.closeEntry();
+                }
             }
-            zipOutputStream.finish();
-            return outputStream.toByteArray();
+            return bundlePath;
         } catch (Exception e) {
+            deleteTempBundle(bundlePath);
             throw new IllegalStateException("Failed to build bundle zip", e);
+        }
+    }
+
+    private void deleteTempBundle(Path bundlePath) {
+        if (bundlePath == null) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(bundlePath);
+        } catch (IOException e) {
+            log.warn("Failed to delete temporary bundle file {}", bundlePath, e);
         }
     }
 }

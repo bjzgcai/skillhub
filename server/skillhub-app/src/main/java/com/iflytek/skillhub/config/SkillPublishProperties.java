@@ -10,15 +10,17 @@ import java.util.Set;
 @ConfigurationProperties(prefix = "skillhub.publish")
 public class SkillPublishProperties {
 
-    private int maxFileCount = 100;
-    private long maxSingleFileSize = 10 * 1024 * 1024;  // 10MB
-    private long maxPackageSize = 100 * 1024 * 1024;
+    private int maxFileCount = 20_000;
+    private long maxSingleFileSize = 20L * 1024 * 1024;
+    private long maxArchiveSize = 200L * 1024 * 1024;
+    private long maxTotalUncompressedSize = 300L * 1024 * 1024;
     private Set<String> allowedFileExtensions = new LinkedHashSet<>(Set.of(
             ".md", ".txt", ".json", ".yaml", ".yml", ".html", ".css", ".csv", ".pdf",
-            ".toml", ".xml", ".ini", ".cfg", ".env",
+            ".toml", ".xml", ".ini", ".cfg", ".env", ".in", ".example",
             ".js", ".ts", ".py", ".sh", ".rb", ".go", ".rs", ".java", ".kt",
             ".lua", ".sql", ".r", ".bat", ".ps1", ".zsh", ".bash",
-            ".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp", ".ico"
+            ".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp", ".ico",
+            ".pptx", ".wav"
     ));
 
     public int getMaxFileCount() {
@@ -37,12 +39,20 @@ public class SkillPublishProperties {
         this.maxSingleFileSize = maxSingleFileSize;
     }
 
-    public long getMaxPackageSize() {
-        return maxPackageSize;
+    public long getMaxArchiveSize() {
+        return maxArchiveSize;
     }
 
-    public void setMaxPackageSize(long maxPackageSize) {
-        this.maxPackageSize = maxPackageSize;
+    public void setMaxArchiveSize(long maxArchiveSize) {
+        this.maxArchiveSize = maxArchiveSize;
+    }
+
+    public long getMaxTotalUncompressedSize() {
+        return maxTotalUncompressedSize;
+    }
+
+    public void setMaxTotalUncompressedSize(long maxTotalUncompressedSize) {
+        this.maxTotalUncompressedSize = maxTotalUncompressedSize;
     }
 
     public Set<String> getAllowedFileExtensions() {

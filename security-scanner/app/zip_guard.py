@@ -13,22 +13,31 @@ def validate_zip_package(
     package_path: str,
     *,
     max_file_count: int,
+    max_single_file_size_bytes: int,
     max_uncompressed_size_bytes: int,
 ) -> None:
     try:
         with zipfile.ZipFile(package_path) as archive:
             entries = archive.infolist()
-            if len(entries) > max_file_count:
-                raise PackageValidationError(f"Package contains too many files: {len(entries)} > {max_file_count}")
-
+            file_count = 0
             total_size = 0
             for entry in entries:
                 name = entry.filename.replace("\\", "/")
                 if not name or name.endswith("/"):
                     continue
+                file_count += 1
+                if file_count > max_file_count:
+                    raise PackageValidationError(
+                        f"Package contains too many files: {file_count} > {max_file_count}"
+                    )
                 path = PurePosixPath(name)
                 if path.is_absolute() or ".." in path.parts:
                     raise PackageValidationError(f"Unsafe zip entry path: {entry.filename}")
+                if entry.file_size > max_single_file_size_bytes:
+                    raise PackageValidationError(
+                        "Package file size exceeds limit: "
+                        f"{entry.filename} ({entry.file_size} > {max_single_file_size_bytes})"
+                    )
                 total_size += entry.file_size
                 if total_size > max_uncompressed_size_bytes:
                     raise PackageValidationError(

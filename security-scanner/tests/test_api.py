@@ -34,6 +34,27 @@ def test_sync_scan_returns_contract_shape():
     assert next(item for item in data["scanners"] if item["name"] == "skill-vetter")["status"] == "completed"
 
 
+def test_sync_scan_uses_separate_headroom_for_skillhub_repacked_bundle(monkeypatch):
+    from app import main
+
+    bundle = bundle_bytes()
+    monkeypatch.setattr(main.settings, "max_package_size_bytes", len(bundle) - 1)
+    monkeypatch.setattr(main.settings, "max_repacked_package_size_bytes", len(bundle))
+
+    standard_response = TestClient(app).post(
+        "/v1/scans:sync",
+        files={"file": ("bundle.zip", bundle, "application/zip")},
+    )
+    repacked_response = TestClient(app).post(
+        "/v1/scans:sync",
+        files={"file": ("bundle.zip", bundle, "application/zip")},
+        data={"source": "skillhub_repacked"},
+    )
+
+    assert standard_response.status_code == 413
+    assert repacked_response.status_code == 200
+
+
 def test_sync_scan_blocks_skill_vetter_red_flag():
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:

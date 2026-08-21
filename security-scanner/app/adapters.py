@@ -30,6 +30,8 @@ _TEXT_EXTENSIONS = {
     ".json",
     ".toml",
     ".ini",
+    ".in",
+    ".example",
     ".cfg",
     ".conf",
 }

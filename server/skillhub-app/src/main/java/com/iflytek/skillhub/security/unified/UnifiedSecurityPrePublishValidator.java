@@ -16,7 +16,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -31,6 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -79,13 +79,13 @@ public class UnifiedSecurityPrePublishValidator implements PrePublishValidator {
     private UnifiedSecurityScanResponse scan(SkillPackageContext context, Path packageZip) {
         String path = properties.getSyncScanPath().startsWith("/") ? properties.getSyncScanPath() : "/" + properties.getSyncScanPath();
         try {
-            byte[] body = multipartBody(context, packageZip);
+            HttpRequest.BodyPublisher body = multipartBody(context, packageZip);
             HttpRequest request = HttpRequest.newBuilder(baseUri.resolve(path))
                     .version(HttpClient.Version.HTTP_1_1)
                     .timeout(Duration.ofMillis(Math.max(1, properties.getReadTimeoutMs())))
                     .header("Accept", "application/json")
                     .header("Content-Type", "multipart/form-data; boundary=" + boundary(context))
-                    .POST(HttpRequest.BodyPublishers.ofByteArray(body))
+                    .POST(body)
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -231,26 +231,29 @@ public class UnifiedSecurityPrePublishValidator implements PrePublishValidator {
         return file + " line " + line + " matched " + scanner + " rule " + rule + " [" + severity + "]: " + message;
     }
 
-    private byte[] multipartBody(SkillPackageContext context, Path packageZip) throws IOException {
+    private HttpRequest.BodyPublisher multipartBody(SkillPackageContext context, Path packageZip) throws IOException {
         String boundary = boundary(context);
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        writeFormField(out, boundary, "namespace", String.valueOf(context.namespaceId()));
-        writeFormField(out, boundary, "slug", context.metadata().name());
-        writeFormField(out, boundary, "version", context.metadata().version());
-        out.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
-        out.write("Content-Disposition: form-data; name=\"file\"; filename=\"bundle.zip\"\r\n".getBytes(StandardCharsets.UTF_8));
-        out.write("Content-Type: application/zip\r\n\r\n".getBytes(StandardCharsets.UTF_8));
-        Files.copy(packageZip, out);
-        out.write("\r\n".getBytes(StandardCharsets.UTF_8));
-        out.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
-        return out.toByteArray();
+        byte[] fileHeaders = ("--" + boundary + "\r\n"
+                + "Content-Disposition: form-data; name=\"file\"; filename=\"bundle.zip\"\r\n"
+                + "Content-Type: application/zip\r\n\r\n").getBytes(StandardCharsets.UTF_8);
+        byte[] closingBoundary = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
+        return HttpRequest.BodyPublishers.concat(
+                formField(boundary, "namespace", String.valueOf(context.namespaceId())),
+                formField(boundary, "slug", context.metadata().name()),
+                formField(boundary, "version", context.metadata().version()),
+                formField(boundary, "source", "skillhub_repacked"),
+                HttpRequest.BodyPublishers.ofByteArray(fileHeaders),
+                HttpRequest.BodyPublishers.ofFile(packageZip),
+                HttpRequest.BodyPublishers.ofByteArray(closingBoundary)
+        );
     }
 
-    private void writeFormField(ByteArrayOutputStream out, String boundary, String name, String value) throws IOException {
-        out.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
-        out.write(("Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n").getBytes(StandardCharsets.UTF_8));
-        out.write((value == null ? "" : value).getBytes(StandardCharsets.UTF_8));
-        out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+    private HttpRequest.BodyPublisher formField(String boundary, String name, String value) {
+        byte[] field = ("--" + boundary + "\r\n"
+                + "Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n"
+                + (value == null ? "" : value)
+                + "\r\n").getBytes(StandardCharsets.UTF_8);
+        return HttpRequest.BodyPublishers.ofByteArray(field);
     }
 
     private String boundary(SkillPackageContext context) {
@@ -259,6 +262,7 @@ public class UnifiedSecurityPrePublishValidator implements PrePublishValidator {
 
     private void writePackageZip(List<PackageEntry> entries, Path packageZip) throws IOException {
         try (ZipOutputStream out = new ZipOutputStream(Files.newOutputStream(packageZip))) {
+            out.setLevel(Deflater.BEST_COMPRESSION);
             for (PackageEntry entry : entries) {
                 ZipEntry zipEntry = new ZipEntry(safeZipEntryName(entry.path()));
                 out.putNextEntry(zipEntry);

@@ -4,8 +4,12 @@ import com.iflytek.skillhub.domain.skill.metadata.SkillMetadataParser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -92,6 +96,9 @@ class SkillPackageValidatorTest {
 
     @Test
     void testTooManyFiles() {
+        SkillPackageValidator smallValidator = new SkillPackageValidator(
+                new SkillMetadataParser(), 3, SkillPackagePolicy.MAX_SINGLE_FILE_SIZE,
+                SkillPackagePolicy.MAX_TOTAL_UNCOMPRESSED_SIZE, SkillPackagePolicy.ALLOWED_EXTENSIONS);
         String skillMdContent = """
             ---
             name: test-skill
@@ -104,11 +111,11 @@ class SkillPackageValidatorTest {
         List<PackageEntry> entries = new ArrayList<>();
         entries.add(new PackageEntry("SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown"));
 
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 3; i++) {
             entries.add(new PackageEntry("file" + i + ".txt", "content".getBytes(), 7, "text/plain"));
         }
 
-        ValidationResult result = validator.validate(entries);
+        ValidationResult result = smallValidator.validate(entries);
 
         assertFalse(result.passed());
         assertTrue(result.errors().stream().anyMatch(e -> e.contains("Too many files")));
@@ -286,6 +293,136 @@ class SkillPackageValidatorTest {
         assertTrue(result.passed());
     }
 
+    @Test
+    void acceptsNewFormatsAndExactLicenseBasename() throws Exception {
+        List<PackageEntry> entries = List.of(
+                skillMdEntry(),
+                entry("LICENSE", "license".getBytes(StandardCharsets.UTF_8)),
+                entry("templates/config.in", "key=value".getBytes(StandardCharsets.UTF_8)),
+                entry("templates/config.example", "key=example".getBytes(StandardCharsets.UTF_8)),
+                entry("slides.pptx", createPptx()),
+                entry("audio.wav", validWav())
+        );
+
+        ValidationResult result = validator.validate(entries);
+
+        assertTrue(result.passed(), () -> String.join("\n", result.errors()));
+    }
+
+    @Test
+    void rejectsLowercaseLicenseWithoutExtension() {
+        List<PackageEntry> entries = List.of(
+                skillMdEntry(),
+                entry("license", "license".getBytes(StandardCharsets.UTF_8))
+        );
+
+        ValidationResult result = validator.validate(entries);
+
+        assertFalse(result.passed());
+        assertTrue(result.errors().stream().anyMatch(error ->
+                error.equals("Disallowed file extension: license")));
+    }
+
+    @Test
+    void rejectsInvalidUtf8ForLicenseInAndExampleFiles() {
+        byte[] invalidUtf8 = new byte[]{(byte) 0xc3, 0x28};
+        List<PackageEntry> entries = List.of(
+                skillMdEntry(),
+                entry("LICENSE", invalidUtf8),
+                entry("config.in", invalidUtf8),
+                entry("config.example", invalidUtf8)
+        );
+
+        ValidationResult result = validator.validate(entries);
+
+        assertFalse(result.passed());
+        assertEquals(3, result.errors().stream()
+                .filter(error -> error.startsWith("File content does not match extension:"))
+                .count());
+    }
+
+    @Test
+    void rejectsPptxThatIsOnlyAnUnrelatedZip() throws Exception {
+        List<PackageEntry> entries = List.of(
+                skillMdEntry(),
+                entry("slides.pptx", createZip("readme.txt", "not a presentation"))
+        );
+
+        ValidationResult result = validator.validate(entries);
+
+        assertFalse(result.passed());
+        assertTrue(result.errors().stream().anyMatch(error -> error.contains("slides.pptx")));
+    }
+
+    @Test
+    void rejectsWavWithSpoofedRiffHeader() {
+        byte[] spoofedWav = new byte[]{'R', 'I', 'F', 'F', 4, 0, 0, 0, 'N', 'O', 'P', 'E'};
+        List<PackageEntry> entries = List.of(
+                skillMdEntry(),
+                entry("audio.wav", spoofedWav)
+        );
+
+        ValidationResult result = validator.validate(entries);
+
+        assertFalse(result.passed());
+        assertTrue(result.errors().stream().anyMatch(error -> error.contains("audio.wav")));
+    }
+
+    @Test
+    void rejectsWavWithoutFormatAndDataChunks() {
+        byte[] headerOnly = new byte[]{'R', 'I', 'F', 'F', 4, 0, 0, 0, 'W', 'A', 'V', 'E'};
+
+        ValidationResult result = validator.validate(List.of(
+                skillMdEntry(),
+                entry("audio.wav", headerOnly)
+        ));
+
+        assertFalse(result.passed());
+        assertTrue(result.errors().stream().anyMatch(error -> error.contains("audio.wav")));
+    }
+
+    @Test
+    void rejectsPptxWithEmptyCoreXmlEntries() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(output)) {
+            writeZipEntry(zip, "[Content_Types].xml", "");
+            writeZipEntry(zip, "ppt/presentation.xml", "");
+        }
+
+        ValidationResult result = validator.validate(List.of(
+                skillMdEntry(),
+                entry("slides.pptx", output.toByteArray())
+        ));
+
+        assertFalse(result.passed());
+        assertTrue(result.errors().stream().anyMatch(error -> error.contains("slides.pptx")));
+    }
+
+    @Test
+    void rejectsPptxWithWrongCoreXmlRoots() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(output)) {
+            writeZipEntry(zip, "[Content_Types].xml", "<NotTypes/>");
+            writeZipEntry(zip, "ppt/presentation.xml", "<notPresentation/>");
+        }
+
+        ValidationResult result = validator.validate(List.of(
+                skillMdEntry(),
+                entry("slides.pptx", output.toByteArray())
+        ));
+
+        assertFalse(result.passed());
+        assertTrue(result.errors().stream().anyMatch(error -> error.contains("slides.pptx")));
+    }
+
+    @Test
+    void defaultPolicyUsesRequestedPackageLimits() {
+        assertEquals(20_000, SkillPackagePolicy.MAX_FILE_COUNT);
+        assertEquals(20L * 1024 * 1024, SkillPackagePolicy.MAX_SINGLE_FILE_SIZE);
+        assertEquals(200L * 1024 * 1024, SkillPackagePolicy.MAX_ARCHIVE_SIZE);
+        assertEquals(300L * 1024 * 1024, SkillPackagePolicy.MAX_TOTAL_UNCOMPRESSED_SIZE);
+    }
+
     private PackageEntry skillMdEntry() {
         String skillMdContent = """
             ---
@@ -296,5 +433,43 @@ class SkillPackageValidatorTest {
             Body
             """;
         return new PackageEntry("SKILL.md", skillMdContent.getBytes(), skillMdContent.length(), "text/markdown");
+    }
+
+    private PackageEntry entry(String path, byte[] content) {
+        return new PackageEntry(path, content, content.length, SkillPackagePolicy.determineContentType(path));
+    }
+
+    private byte[] createPptx() throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(output)) {
+            writeZipEntry(zip, "[Content_Types].xml", "<Types/>");
+            writeZipEntry(zip, "ppt/presentation.xml",
+                    "<p:presentation xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>");
+        }
+        return output.toByteArray();
+    }
+
+    private byte[] createZip(String path, String content) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(output)) {
+            writeZipEntry(zip, path, content);
+        }
+        return output.toByteArray();
+    }
+
+    private void writeZipEntry(ZipOutputStream zip, String path, String content) throws Exception {
+        zip.putNextEntry(new ZipEntry(path));
+        zip.write(content.getBytes(StandardCharsets.UTF_8));
+        zip.closeEntry();
+    }
+
+    private byte[] validWav() {
+        return new byte[]{
+                'R', 'I', 'F', 'F', 36, 0, 0, 0, 'W', 'A', 'V', 'E',
+                'f', 'm', 't', ' ', 16, 0, 0, 0,
+                1, 0, 1, 0, 0x44, (byte) 0xac, 0, 0,
+                (byte) 0x88, 0x58, 1, 0, 2, 0, 16, 0,
+                'd', 'a', 't', 'a', 0, 0, 0, 0
+        };
     }
 }

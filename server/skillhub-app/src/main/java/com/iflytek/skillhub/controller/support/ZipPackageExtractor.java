@@ -3,6 +3,7 @@ package com.iflytek.skillhub.controller.support;
 import com.iflytek.skillhub.config.SkillPublishProperties;
 import com.iflytek.skillhub.domain.shared.exception.DomainBadRequestException;
 import com.iflytek.skillhub.domain.skill.validation.PackageEntry;
+import com.iflytek.skillhub.domain.skill.validation.SkillPackagePolicy;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,6 +33,11 @@ public class ZipPackageExtractor {
     }
 
     public List<PackageEntry> extract(MultipartFile file) throws IOException {
+        if (file.getSize() > properties.getMaxArchiveSize()) {
+            throw new DomainBadRequestException("error.skill.publish.package.invalid",
+                    "Archive too large: max " + properties.getMaxArchiveSize() + " bytes");
+        }
+
         List<PackageEntry> entries = new ArrayList<>();
         Set<String> seenPaths = new HashSet<>();
         long totalSize = 0L;
@@ -57,16 +63,17 @@ public class ZipPackageExtractor {
 
                 byte[] content = readEntry(zis, normalizedPath);
                 totalSize += content.length;
-                if (totalSize > properties.getMaxPackageSize()) {
+                if (totalSize > properties.getMaxTotalUncompressedSize()) {
                     throw new DomainBadRequestException("error.skill.publish.package.invalid",
-                            "Package too large: max " + properties.getMaxPackageSize() + " bytes");
+                            "Uncompressed package too large: max "
+                                    + properties.getMaxTotalUncompressedSize() + " bytes");
                 }
 
                 entries.add(new PackageEntry(
                         normalizedPath,
                         content,
                         content.length,
-                        determineContentType(normalizedPath)
+                        SkillPackagePolicy.determineContentType(normalizedPath)
                 ));
                 zis.closeEntry();
             }
@@ -119,28 +126,4 @@ public class ZipPackageExtractor {
         }
     }
 
-    private String determineContentType(String filename) {
-        String lower = filename.toLowerCase();
-        if (lower.endsWith(".py")) return "text/x-python";
-        if (lower.endsWith(".json")) return "application/json";
-        if (lower.endsWith(".yaml") || lower.endsWith(".yml")) return "application/x-yaml";
-        if (lower.endsWith(".txt")) return "text/plain";
-        if (lower.endsWith(".md")) return "text/markdown";
-        if (lower.endsWith(".html")) return "text/html";
-        if (lower.endsWith(".css")) return "text/css";
-        if (lower.endsWith(".csv")) return "text/csv";
-        if (lower.endsWith(".xml")) return "application/xml";
-        if (lower.endsWith(".js")) return "text/javascript";
-        if (lower.endsWith(".ts")) return "text/typescript";
-        if (lower.endsWith(".sh") || lower.endsWith(".bash") || lower.endsWith(".zsh")) return "text/x-shellscript";
-        if (lower.endsWith(".png")) return "image/png";
-        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
-        if (lower.endsWith(".gif")) return "image/gif";
-        if (lower.endsWith(".svg")) return "image/svg+xml";
-        if (lower.endsWith(".webp")) return "image/webp";
-        if (lower.endsWith(".ico")) return "image/x-icon";
-        if (lower.endsWith(".pdf")) return "application/pdf";
-        if (lower.endsWith(".toml")) return "application/toml";
-        return "application/octet-stream";
-    }
 }

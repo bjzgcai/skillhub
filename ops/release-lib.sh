@@ -172,7 +172,21 @@ run_unified_scanner_container() {
     --name skillhub-security-scanner-1 \
     --network skillhub_default \
     --restart unless-stopped \
+    -e SCANNER_MAX_PACKAGE_SIZE_BYTES="${SCANNER_MAX_PACKAGE_SIZE_BYTES:-209715200}" \
+    -e SCANNER_MAX_REPACKED_PACKAGE_SIZE_BYTES="${SCANNER_MAX_REPACKED_PACKAGE_SIZE_BYTES:-335544320}" \
+    -e SCANNER_MAX_FILE_COUNT="${SCANNER_MAX_FILE_COUNT:-20000}" \
+    -e SCANNER_MAX_SINGLE_FILE_SIZE_BYTES="${SCANNER_MAX_SINGLE_FILE_SIZE_BYTES:-20971520}" \
+    -e SCANNER_MAX_UNCOMPRESSED_SIZE_BYTES="${SCANNER_MAX_UNCOMPRESSED_SIZE_BYTES:-314572800}" \
     "$image_ref"
+}
+
+unified_scanner_config_matches() {
+  local container="skillhub-security-scanner-1"
+  [ "$(container_env_value "$container" SCANNER_MAX_PACKAGE_SIZE_BYTES)" = "${SCANNER_MAX_PACKAGE_SIZE_BYTES:-209715200}" ] &&
+    [ "$(container_env_value "$container" SCANNER_MAX_REPACKED_PACKAGE_SIZE_BYTES)" = "${SCANNER_MAX_REPACKED_PACKAGE_SIZE_BYTES:-335544320}" ] &&
+    [ "$(container_env_value "$container" SCANNER_MAX_FILE_COUNT)" = "${SCANNER_MAX_FILE_COUNT:-20000}" ] &&
+    [ "$(container_env_value "$container" SCANNER_MAX_SINGLE_FILE_SIZE_BYTES)" = "${SCANNER_MAX_SINGLE_FILE_SIZE_BYTES:-20971520}" ] &&
+    [ "$(container_env_value "$container" SCANNER_MAX_UNCOMPRESSED_SIZE_BYTES)" = "${SCANNER_MAX_UNCOMPRESSED_SIZE_BYTES:-314572800}" ]
 }
 
 ensure_unified_scanner_container() {
@@ -182,7 +196,9 @@ ensure_unified_scanner_container() {
   local target_image current_image
   target_image="$(unified_scanner_image_ref)"
   current_image="$(unified_scanner_current_image)"
-  if [ "$current_image" = "$target_image" ] && [ -n "$(docker ps -qf name='^skillhub-security-scanner-1$' || true)" ]; then
+  if [ "$current_image" = "$target_image" ] &&
+    [ -n "$(docker ps -qf name='^skillhub-security-scanner-1$' || true)" ] &&
+    unified_scanner_config_matches; then
     return 0
   fi
   remove_container_if_exists skillhub-security-scanner-1

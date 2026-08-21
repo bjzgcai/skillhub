@@ -18,7 +18,7 @@ public class RemoteRegistryConfig {
     public RemoteRegistryClient remoteRegistryClient(WebClient.Builder webClientBuilder,
                                                      RemoteRegistryProperties properties,
                                                      SkillPublishProperties skillPublishProperties) {
-        int maxInMemorySize = Math.toIntExact(skillPublishProperties.getMaxPackageSize());
+        int maxInMemorySize = Math.toIntExact(skillPublishProperties.getMaxArchiveSize());
         WebClient webClient = webClientBuilder.clone()
                 .baseUrl(trimTrailingSlash(properties.getBaseUrl()))
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
@@ -30,7 +30,7 @@ public class RemoteRegistryConfig {
                 URI.create(trimTrailingSlash(properties.getBaseUrl())),
                 properties.getApiBasePath(),
                 properties.buildAuthorizationHeader(),
-                skillPublishProperties.getMaxPackageSize()
+                skillPublishProperties.getMaxArchiveSize()
         );
     }
 

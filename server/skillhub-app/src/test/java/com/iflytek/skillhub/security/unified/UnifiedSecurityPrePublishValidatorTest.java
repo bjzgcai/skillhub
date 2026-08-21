@@ -70,7 +70,10 @@ class UnifiedSecurityPrePublishValidatorTest {
 
             assertThat(result.passed()).isTrue();
             assertThat(scanner.requestCount()).isEqualTo(1);
-            assertThat(scanner.lastRequestBody()).contains("name=\"namespace\"").contains("name=\"file\"");
+            assertThat(scanner.lastRequestBody())
+                    .contains("name=\"namespace\"")
+                    .contains("name=\"source\"\r\n\r\nskillhub_repacked")
+                    .contains("name=\"file\"");
         }
     }
 

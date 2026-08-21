@@ -98,4 +98,46 @@ class BasicPrePublishValidatorTest {
 
         assertTrue(result.passed());
     }
+
+    @Test
+    void shouldScanNewTextFormatsAndLicense() {
+        List<PackageEntry> entries = List.of(
+                new PackageEntry("SKILL.md", "---\nname: Test\nversion: 1.0.0\n---"
+                        .getBytes(StandardCharsets.UTF_8), 38, "text/markdown"),
+                secretEntry("LICENSE"),
+                secretEntry("config.in"),
+                secretEntry("config.example")
+        );
+
+        ValidationResult result = validator.validate(new PrePublishValidator.SkillPackageContext(
+                entries,
+                new SkillMetadata("Test", "desc", "1.0.0", "body", Map.of()),
+                "user-1",
+                1L
+        ));
+
+        assertFalse(result.passed());
+        assertTrue(result.errors().stream().anyMatch(error -> error.startsWith("LICENSE line 1")));
+        assertTrue(result.errors().stream().anyMatch(error -> error.startsWith("config.in line 1")));
+        assertTrue(result.errors().stream().anyMatch(error -> error.startsWith("config.example line 1")));
+    }
+
+    @Test
+    void shouldNotTreatLowercaseLicenseAsLicenseSpecialCase() {
+        PackageEntry lowercaseLicense = secretEntry("license");
+
+        ValidationResult result = validator.validate(new PrePublishValidator.SkillPackageContext(
+                List.of(lowercaseLicense),
+                new SkillMetadata("Test", "desc", "1.0.0", "body", Map.of()),
+                "user-1",
+                1L
+        ));
+
+        assertTrue(result.passed());
+    }
+
+    private PackageEntry secretEntry(String path) {
+        byte[] content = "token=sk-abcdefghijklmnopqrstuvwxyz123456".getBytes(StandardCharsets.UTF_8);
+        return new PackageEntry(path, content, content.length, "text/plain");
+    }
 }
