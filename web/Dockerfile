@@ -1,12 +1,12 @@
 FROM node:22-alpine AS build
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-FROM nginx:alpine
+FROM nginx:1.30.4-alpine@sha256:8a4f4b94275ff59d809477799cbbaf1a7ab65ed1871403d05e31fd66bdb8db82
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY --from=build /app/src/docs/skill.md /usr/share/nginx/html/registry/skill.md
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
