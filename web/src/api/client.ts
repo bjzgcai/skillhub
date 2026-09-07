@@ -204,7 +204,7 @@ function createRequestSignal(init?: RequestWithTimeout): { signal?: AbortSignal,
   }
 
   const controller = new AbortController()
-  const timeoutId = init?.timeoutMs ? window.setTimeout(() => controller.abort('timeout'), init.timeoutMs) : undefined
+  const timeoutId = init?.timeoutMs ? window.setTimeout(() => controller.abort(), init.timeoutMs) : undefined
   const abortListener = () => controller.abort()
 
   if (init?.signal) {

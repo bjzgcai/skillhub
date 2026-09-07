@@ -5,7 +5,7 @@ import { clearDeletedSkillQueries } from '@/features/skill/skill-delete-flow'
 import { getSkillDetailQueryKey } from './query-keys'
 import { buildSkillSearchUrl } from './skill-query-helpers'
 
-const PUBLISH_REQUEST_TIMEOUT_MS = 60_000
+const PUBLISH_REQUEST_TIMEOUT_MS = 300_000
 
 async function searchSkills(params: SearchParams): Promise<PagedResponse<SkillSummary>> {
   return fetchJson<PagedResponse<SkillSummary>>(buildSkillSearchUrl(params))
