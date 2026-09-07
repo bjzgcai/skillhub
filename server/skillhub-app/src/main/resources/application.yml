@@ -139,7 +139,7 @@ skillhub:
     max-single-file-size: 20971520 # 20MiB
     max-archive-size: 209715200 # 200MiB compressed ZIP
     max-total-uncompressed-size: 314572800 # 300MiB after extraction
-    allowed-file-extensions: .md,.txt,.json,.yaml,.yml,.html,.css,.csv,.pdf,.toml,.xml,.ini,.cfg,.env,.in,.example,.js,.mjs,.ts,.py,.pyc,.sh,.rb,.go,.rs,.java,.kt,.lua,.sql,.r,.bat,.ps1,.zsh,.bash,.png,.jpg,.jpeg,.svg,.gif,.webp,.ico,.pptx,.wav
+    allowed-file-extensions: .md,.txt,.json,.json.gz,.yaml,.yml,.html,.css,.csv,.pdf,.toml,.xml,.ini,.cfg,.env,.in,.example,.js,.mjs,.ts,.py,.pyc,.sh,.rb,.go,.rs,.java,.kt,.lua,.sql,.r,.bat,.ps1,.zsh,.bash,.png,.jpg,.jpeg,.svg,.gif,.webp,.ico,.pptx,.wav
   profile:
     moderation:
       machine-review: ${SKILLHUB_PROFILE_MACHINE_REVIEW_ENABLED:true} # Enable machine review (e.g. sensitive word detection)

@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.GZIPOutputStream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -270,6 +271,79 @@ class SkillPackageValidatorTest {
     }
 
     @Test
+    void acceptsNamespacePrefixedSvgRoot() {
+        byte[] svg = """
+                <ns0:svg xmlns:ns0="http://www.w3.org/2000/svg" width="1280" height="720">
+                  <ns0:rect width="1280" height="720"/>
+                </ns0:svg>
+                """.getBytes(StandardCharsets.UTF_8);
+
+        ValidationResult result = validator.validate(List.of(
+                skillMdEntry(),
+                entry("templates/001_cover.svg", svg)
+        ));
+
+        assertTrue(result.passed(), () -> String.join("\n", result.errors()));
+    }
+
+    @Test
+    void rejectsSvgElementBelowNonSvgRoot() {
+        byte[] xml = "<document><svg xmlns=\"http://www.w3.org/2000/svg\"/></document>"
+                .getBytes(StandardCharsets.UTF_8);
+
+        ValidationResult result = validator.validate(List.of(
+                skillMdEntry(),
+                entry("templates/not-really.svg", xml)
+        ));
+
+        assertFalse(result.passed());
+        assertTrue(result.errors().stream().anyMatch(error -> error.contains("not-really.svg")));
+    }
+
+    @Test
+    void acceptsGzippedJson() throws Exception {
+        ValidationResult result = validator.validate(List.of(
+                skillMdEntry(),
+                entry("templates/native_payloads.json.gz", gzip("{\"schema\":1}"))
+        ));
+
+        assertTrue(result.passed(), () -> String.join("\n", result.errors()));
+        assertEquals("application/gzip", SkillPackagePolicy.determineContentType("payload.json.gz"));
+    }
+
+    @Test
+    void rejectsInvalidGzippedJson() {
+        ValidationResult result = validator.validate(List.of(
+                skillMdEntry(),
+                entry("templates/native_payloads.json.gz", "not gzip".getBytes(StandardCharsets.UTF_8))
+        ));
+
+        assertFalse(result.passed());
+        assertTrue(result.errors().stream().anyMatch(error -> error.contains("native_payloads.json.gz")));
+    }
+
+    @Test
+    void rejectsGzipExpandedBeyondSingleFileLimit() throws Exception {
+        byte[] compressed = gzip("a".repeat((int) SkillPackagePolicy.MAX_SINGLE_FILE_SIZE + 1));
+        ValidationResult result = validator.validate(List.of(
+                skillMdEntry(), entry("payload.json.gz", compressed)
+        ));
+
+        assertFalse(result.passed());
+        assertTrue(result.errors().stream().anyMatch(error -> error.contains("payload.json.gz")));
+    }
+
+    @Test
+    void rejectsTruncatedGzip() throws Exception {
+        byte[] compressed = gzip("{\"schema\":1}");
+        ValidationResult result = validator.validate(List.of(
+                skillMdEntry(), entry("payload.json.gz", java.util.Arrays.copyOf(compressed, compressed.length - 4))
+        ));
+
+        assertFalse(result.passed());
+    }
+
+    @Test
     void rejectsJpegWithWrongMagicBytes() {
         List<PackageEntry> entries = List.of(
                 skillMdEntry(),
@@ -437,6 +511,14 @@ class SkillPackageValidatorTest {
 
     private PackageEntry entry(String path, byte[] content) {
         return new PackageEntry(path, content, content.length, SkillPackagePolicy.determineContentType(path));
+    }
+
+    private byte[] gzip(String content) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (GZIPOutputStream gzip = new GZIPOutputStream(output)) {
+            gzip.write(content.getBytes(StandardCharsets.UTF_8));
+        }
+        return output.toByteArray();
     }
 
     private byte[] createPptx() throws Exception {

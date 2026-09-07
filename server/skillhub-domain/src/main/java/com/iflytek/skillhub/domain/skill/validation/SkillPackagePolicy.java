@@ -15,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 import java.util.Set;
 import java.util.zip.DataFormatException;
+import java.util.zip.GZIPInputStream;
 import java.util.zip.Inflater;
 
 /**
@@ -33,7 +34,7 @@ public final class SkillPackagePolicy {
     public static final String LICENSE_BASENAME = "LICENSE";
     public static final Set<String> ALLOWED_EXTENSIONS = Set.of(
             // Documentation
-            ".md", ".txt", ".json", ".yaml", ".yml", ".html", ".css", ".csv", ".pdf",
+            ".md", ".txt", ".json", ".json.gz", ".yaml", ".yml", ".html", ".css", ".csv", ".pdf",
             // Configuration
             ".toml", ".xml", ".ini", ".cfg", ".env", ".in", ".example",
             // Scripts and source code
@@ -96,11 +97,15 @@ public final class SkillPackagePolicy {
                     : "File content does not match extension: " + path;
         }
         if (lowerPath.endsWith(".svg")) {
-            if (!isUtf8Text(content)) {
-                return "File content does not match extension: " + path;
-            }
-            String text = new String(content, StandardCharsets.UTF_8).trim().toLowerCase();
-            return text.contains("<svg") ? null : "File content does not match extension: " + path;
+            return isUtf8Text(content) && hasXmlRoot(content, "svg")
+                    ? null
+                    : "File content does not match extension: " + path;
+        }
+        if (lowerPath.endsWith(".json.gz")) {
+            byte[] decompressed = decompressGzip(content);
+            return decompressed != null && isUtf8Text(decompressed)
+                    ? null
+                    : "File content does not match extension: " + path;
         }
         if (lowerPath.endsWith(".jpeg")) {
             return hasPrefix(content, (byte) 0xff, (byte) 0xd8, (byte) 0xff)
@@ -195,6 +200,7 @@ public final class SkillPackagePolicy {
         if (hasExactLicenseBasename(filename) || lower.endsWith(".txt")
                 || lower.endsWith(".in") || lower.endsWith(".example")) return "text/plain";
         if (lower.endsWith(".py")) return "text/x-python";
+        if (lower.endsWith(".json.gz")) return "application/gzip";
         if (lower.endsWith(".json")) return "application/json";
         if (lower.endsWith(".yaml") || lower.endsWith(".yml")) return "application/x-yaml";
         if (lower.endsWith(".md")) return "text/markdown";
@@ -224,6 +230,23 @@ public final class SkillPackagePolicy {
         int separator = path.lastIndexOf('/');
         String basename = separator >= 0 ? path.substring(separator + 1) : path;
         return LICENSE_BASENAME.equals(basename);
+    }
+
+    private static byte[] decompressGzip(byte[] content) {
+        try (GZIPInputStream input = new GZIPInputStream(new ByteArrayInputStream(content));
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                if (output.size() + read > MAX_SINGLE_FILE_SIZE) {
+                    return null;
+                }
+                output.write(buffer, 0, read);
+            }
+            return output.toByteArray();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static boolean isPptx(byte[] content) {

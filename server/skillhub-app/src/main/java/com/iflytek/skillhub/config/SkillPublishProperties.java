@@ -15,7 +15,7 @@ public class SkillPublishProperties {
     private long maxArchiveSize = 200L * 1024 * 1024;
     private long maxTotalUncompressedSize = 300L * 1024 * 1024;
     private Set<String> allowedFileExtensions = new LinkedHashSet<>(Set.of(
-            ".md", ".txt", ".json", ".yaml", ".yml", ".html", ".css", ".csv", ".pdf",
+            ".md", ".txt", ".json", ".json.gz", ".yaml", ".yml", ".html", ".css", ".csv", ".pdf",
             ".toml", ".xml", ".ini", ".cfg", ".env", ".in", ".example",
             ".js", ".ts", ".py", ".sh", ".rb", ".go", ".rs", ".java", ".kt",
             ".lua", ".sql", ".r", ".bat", ".ps1", ".zsh", ".bash",
