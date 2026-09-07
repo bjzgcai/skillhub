@@ -7,6 +7,7 @@ BASE=/opt/skillhub
 COMPONENT="plan"
 SERVER_TAG_OVERRIDE=""
 WEB_TAG_OVERRIDE=""
+SCANNER_TAG_OVERRIDE=""
 APPLY=0
 
 while [ "$#" -gt 0 ]; do
@@ -14,6 +15,7 @@ while [ "$#" -gt 0 ]; do
     --component) COMPONENT="$2"; shift 2 ;;
     --server-tag) SERVER_TAG_OVERRIDE="$2"; shift 2 ;;
     --web-tag) WEB_TAG_OVERRIDE="$2"; shift 2 ;;
+    --scanner-tag) SCANNER_TAG_OVERRIDE="$2"; shift 2 ;;
     --apply) APPLY=1; shift ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
   esac
@@ -32,6 +34,7 @@ load_env_files
 
 [ -n "$SERVER_TAG_OVERRIDE" ] && SKILLHUB_SERVER_TAG="$SERVER_TAG_OVERRIDE"
 [ -n "$WEB_TAG_OVERRIDE" ] && SKILLHUB_WEB_TAG="$WEB_TAG_OVERRIDE"
+[ -n "$SCANNER_TAG_OVERRIDE" ] && SKILLHUB_SECURITY_SCANNER_TAG="$SCANNER_TAG_OVERRIDE"
 
 case "$COMPONENT" in
   plan|web|server|all) ;;
@@ -47,6 +50,7 @@ printf 'component: %s\n' "$COMPONENT"
 printf 'dir: %s\n' "$out_dir"
 printf 'server image: %s\n' "$(server_image_ref)"
 printf 'web image: %s\n' "$(web_image_ref)"
+printf 'unified scanner image: %s\n' "$(unified_scanner_image_ref)"
 append_release_log "$out_dir" deploy.log "release planned component=$COMPONENT server=$(server_image_ref) web=$(web_image_ref)"
 
 if [ "$APPLY" -eq 0 ]; then

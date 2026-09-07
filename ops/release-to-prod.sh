@@ -6,6 +6,7 @@ PROD_HOST="deploy@prod.example.invalid"
 REMOTE_OPS="/opt/skillhub/ops"
 COMPONENT="all"
 TAG=""
+SCANNER_TAG=""
 APPLY=0
 SKIP_BUILD=0
 SKIP_TRANSFER=0
@@ -20,8 +21,10 @@ run the production release plan, and optionally apply + verify it.
 
 Options:
   --component <all|server|web>  Component to release. Default: all
-  --tag <tag>                  Docker tag for both server/web images.
+  --tag <tag>                  Docker tag for server/web/scanner images.
                                Default: prod-local-<utc>-<git-sha>
+  --scanner-tag <tag>          Docker tag for the unified security scanner.
+                               Defaults to --tag.
   --host <ssh-target>          Production SSH target. Default: deploy@prod.example.invalid
   --apply                      Apply the release. Without this, only plan is executed.
   --skip-build                 Reuse local images with the selected tag.
@@ -40,6 +43,7 @@ while [ "$#" -gt 0 ]; do
   case "$1" in
     --component) COMPONENT="${2:-}"; shift 2 ;;
     --tag) TAG="${2:-}"; shift 2 ;;
+    --scanner-tag) SCANNER_TAG="${2:-}"; shift 2 ;;
     --host) PROD_HOST="${2:-}"; shift 2 ;;
     --apply) APPLY=1; shift ;;
     --skip-build) SKIP_BUILD=1; shift ;;
@@ -67,8 +71,10 @@ if [ -z "$TAG" ]; then
   TAG="prod-local-$(date -u +%Y%m%dT%H%M%SZ)-${GIT_SHA}"
 fi
 
+[ -n "${SCANNER_TAG:-}" ] || SCANNER_TAG="$TAG"
 SERVER_IMAGE="skillhub-server:${TAG}"
 WEB_IMAGE="skillhub-web:${TAG}"
+SCANNER_IMAGE="skill-security-scanner:${SCANNER_TAG}"
 
 require_clean_tree_for_apply() {
   if [ "$APPLY" -eq 1 ] && [ -n "$(git status --porcelain)" ]; then
@@ -97,6 +103,13 @@ build_images() {
       docker build -t "$WEB_IMAGE" -f web/Dockerfile web
       ;;
   esac
+
+  case "$COMPONENT" in
+    all|server)
+      echo "building ${SCANNER_IMAGE}"
+      docker build -t "$SCANNER_IMAGE" security-scanner
+      ;;
+  esac
 }
 
 transfer_images() {
@@ -118,12 +131,19 @@ transfer_images() {
       docker save "$WEB_IMAGE" | ssh "$PROD_HOST" 'docker load'
       ;;
   esac
+
+  case "$COMPONENT" in
+    all|server)
+      echo "transferring ${SCANNER_IMAGE} to ${PROD_HOST}"
+      docker save "$SCANNER_IMAGE" | ssh "$PROD_HOST" 'docker load'
+      ;;
+  esac
 }
 
 remote_deploy_args() {
   printf '%q ' "$REMOTE_OPS/deploy-release.sh" --component "$COMPONENT"
   case "$COMPONENT" in
-    all|server) printf '%q ' --server-tag "$TAG" ;;
+    all|server) printf '%q ' --server-tag "$TAG" --scanner-tag "$SCANNER_TAG" ;;
   esac
   case "$COMPONENT" in
     all|web) printf '%q ' --web-tag "$TAG" ;;
@@ -157,6 +177,7 @@ release target
   host:      ${PROD_HOST}
   component: ${COMPONENT}
   tag:       ${TAG}
+  scanner:   ${SCANNER_TAG}
   apply:     ${APPLY}
 INFO
 
@@ -171,7 +192,7 @@ if [ "$APPLY" -eq 0 ]; then
 
 Dry-run complete. No production containers were changed.
 To apply this exact tag, run:
-  ops/release-to-prod.sh --component ${COMPONENT} --tag ${TAG} --apply
+  ops/release-to-prod.sh --component ${COMPONENT} --tag ${TAG} --scanner-tag ${SCANNER_TAG} --host ${PROD_HOST} --apply
 INFO
 else
   echo "production release completed for ${COMPONENT} with tag ${TAG}"

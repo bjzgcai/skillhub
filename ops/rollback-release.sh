@@ -54,6 +54,15 @@ read_env_value() {
 
 target_server_image="$(read_json "$target_dir/release.json" targetServerImage)"
 [ -n "$target_server_image" ] || target_server_image="$(read_json "$target_dir/release.json" serverImage)"
+target_scanner_image="$(read_json "$target_dir/release.json" targetUnifiedScannerImage)"
+[ -n "$target_scanner_image" ] || target_scanner_image="$(read_json "$target_dir/release.json" unifiedScannerImage)"
+if [ -z "$target_scanner_image" ]; then
+  scanner_image_name="$(read_env_value "$target_dir/release.env" SKILLHUB_SECURITY_SCANNER_IMAGE)"
+  scanner_tag="$(read_env_value "$target_dir/release.env" SKILLHUB_SECURITY_SCANNER_TAG)"
+  if [ -n "$scanner_image_name" ] && [ -n "$scanner_tag" ]; then
+    target_scanner_image="${scanner_image_name}:${scanner_tag}"
+  fi
+fi
 if [ -z "$target_server_image" ]; then
   target_server_image="$(read_env_value "$target_dir/release.env" SKILLHUB_SERVER_IMAGE):$(read_env_value "$target_dir/release.env" SKILLHUB_SERVER_TAG)"
 fi
@@ -78,6 +87,14 @@ expected_api_upstream="$(read_env_value "$target_dir/release.env" SKILLHUB_API_U
 if [ "$COMPONENT" = "server" ] || [ "$COMPONENT" = "all" ]; then
   [ -n "$target_server_image" ] || { echo 'target release missing server image' >&2; exit 1; }
   docker image inspect "$target_server_image" >/dev/null 2>&1 || { echo "target image not found locally: $target_server_image" >&2; exit 1; }
+  set -a
+  . "$target_dir/release.env"
+  set +a
+  if [ "${SKILLHUB_SECURITY_UNIFIED_SCAN_ENABLED:-false}" = "true" ]; then
+    [ -n "$target_scanner_image" ] || { echo 'target release missing unified scanner image' >&2; exit 1; }
+    docker image inspect "$target_scanner_image" >/dev/null 2>&1 || { echo "target scanner image not found locally: $target_scanner_image" >&2; exit 1; }
+    ensure_unified_scanner_container "$target_scanner_image"
+  fi
   remove_container_if_exists skillhub-server-1
   run_server_container "$target_server_image" "$target_dir/release.env" >/tmp/skillhub.rollback.server.cid
   "$BASE/ops/verify-server-release.sh" \

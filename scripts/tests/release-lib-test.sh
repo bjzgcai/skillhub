@@ -17,9 +17,13 @@ MOCK_REPACKED_PACKAGE_SIZE="335544320"
 MOCK_FILE_COUNT="20000"
 MOCK_SINGLE_FILE_SIZE="20971520"
 MOCK_UNCOMPRESSED_SIZE="314572800"
+MOCK_MISSING_IMAGE=""
 
 docker() {
   printf '%s\n' "$*" >> "$CALL_LOG"
+  if [ "$1" = "image" ] && [ "$2" = "inspect" ] && [ "$3" = "$MOCK_MISSING_IMAGE" ]; then
+    return 1
+  fi
   if [ "$1" = "inspect" ] && [ "$2" = "skillhub-security-scanner-1" ]; then
     if [ "$4" = "{{.Config.Image}}" ]; then
       printf '%s\n' "$MOCK_CURRENT_IMAGE"
@@ -73,6 +77,32 @@ assert_log_contains "-e SCANNER_MAX_REPACKED_PACKAGE_SIZE_BYTES=335544320"
 assert_log_contains "-e SCANNER_MAX_FILE_COUNT=20000"
 assert_log_contains "-e SCANNER_MAX_SINGLE_FILE_SIZE_BYTES=20971520"
 assert_log_contains "-e SCANNER_MAX_UNCOMPRESSED_SIZE_BYTES=314572800"
+
+# A rollback manifest can select a different image from the shared environment.
+: > "$CALL_LOG"
+ensure_unified_scanner_container skill-security-scanner:rollback
+assert_log_contains "image inspect skill-security-scanner:rollback"
+assert_log_contains "run -d"
+assert_log_contains "skill-security-scanner:rollback"
+
+# A missing target must not remove the healthy scanner.
+: > "$CALL_LOG"
+MOCK_MISSING_IMAGE=skill-security-scanner:missing
+if ensure_unified_scanner_container "$MOCK_MISSING_IMAGE"; then
+  echo 'expected missing scanner image to fail' >&2
+  exit 1
+fi
+assert_log_excludes "rm -f skillhub-security-scanner-1"
+assert_log_excludes "run -d"
+MOCK_MISSING_IMAGE=""
+
+env_file="$(mktemp)"
+printf 'SKILLHUB_SECURITY_SCANNER_TAG=old\n' > "$env_file"
+update_release_env_value "$env_file" SKILLHUB_SECURITY_SCANNER_TAG new
+update_release_env_value "$env_file" SKILLHUB_SERVER_TAG server-new
+grep -qx 'SKILLHUB_SECURITY_SCANNER_TAG=new' "$env_file"
+grep -qx 'SKILLHUB_SERVER_TAG=server-new' "$env_file"
+rm -f "$env_file"
 
 : > "$CALL_LOG"
 ensure_unified_scanner_container

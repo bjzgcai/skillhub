@@ -37,11 +37,15 @@ render_release() {
   "generatedAtUtc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "serverImage": "${SKILLHUB_SERVER_IMAGE}:${SKILLHUB_SERVER_TAG}",
   "webImage": "${SKILLHUB_WEB_IMAGE}:${SKILLHUB_WEB_TAG}",
+  "unifiedScannerImage": "$(unified_scanner_image_ref)",
   "publicBaseUrl": "${SKILLHUB_PUBLIC_BASE_URL}",
   "apiUpstream": "${SKILLHUB_API_UPSTREAM}"
 }
 JSON
   cp "$SHARED/env.release" "$out_dir/release.env"
+  update_release_env_value "$out_dir/release.env" SKILLHUB_SERVER_TAG "${SKILLHUB_SERVER_TAG:-}"
+  update_release_env_value "$out_dir/release.env" SKILLHUB_WEB_TAG "${SKILLHUB_WEB_TAG:-}"
+  update_release_env_value "$out_dir/release.env" SKILLHUB_SECURITY_SCANNER_TAG "${SKILLHUB_SECURITY_SCANNER_TAG:-}"
   chmod 640 "$out_dir/release.env" || true
   echo "$out_dir"
 }
@@ -74,6 +78,18 @@ find_latest_previous_release_dir() {
     return 0
   done
   return 1
+}
+
+update_release_env_value() {
+  local file="$1"
+  local key="$2"
+  local value="$3"
+  [ -n "$value" ] || return 0
+  if grep -qE "^${key}=" "$file"; then
+    sed -i "s|^${key}=.*|${key}=${value}|" "$file"
+  else
+    printf '%s=%s\n' "$key" "$value" >> "$file"
+  fi
 }
 
 server_image_ref() {
@@ -194,13 +210,14 @@ ensure_unified_scanner_container() {
     return 0
   fi
   local target_image current_image
-  target_image="$(unified_scanner_image_ref)"
+  target_image="${1:-$(unified_scanner_image_ref)}"
   current_image="$(unified_scanner_current_image)"
   if [ "$current_image" = "$target_image" ] &&
     [ -n "$(docker ps -qf name='^skillhub-security-scanner-1$' || true)" ] &&
     unified_scanner_config_matches; then
     return 0
   fi
+  docker image inspect "$target_image" >/dev/null 2>&1 || { echo "unified scanner image not found locally: $target_image" >&2; return 4; }
   remove_container_if_exists skillhub-security-scanner-1
   run_unified_scanner_container "$target_image" >/tmp/skillhub.deploy.unified-scanner.cid
 }
@@ -302,8 +319,10 @@ write_manifest() {
   "previousReleaseDir": "$previous_release_dir",
   "previousServerImage": "$previous_server_image",
   "previousWebImage": "$previous_web_image",
+  "previousUnifiedScannerImage": "$(unified_scanner_current_image)",
   "targetServerImage": "$target_server_image",
   "targetWebImage": "$target_web_image",
+  "targetUnifiedScannerImage": "$(unified_scanner_image_ref)",
   "publicBaseUrl": "${SKILLHUB_PUBLIC_BASE_URL}",
   "dingtalkRedirectUri": "${SKILLHUB_AUTH_DINGTALK_REDIRECT_URI:-}",
   "apiUpstream": "${SKILLHUB_API_UPSTREAM}",
