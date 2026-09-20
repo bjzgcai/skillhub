@@ -12,7 +12,7 @@ SKILLHUB_REF="${SKILLHUB_REF:-main}"
 SKILLHUB_HOME_DEFAULT="${TMPDIR:-/tmp}/skillhub-runtime"
 SKILLHUB_HOME="${SKILLHUB_HOME:-$SKILLHUB_HOME_DEFAULT}"
 SKILLHUB_VERSION_VALUE="${SKILLHUB_VERSION:-}"
-SKILLHUB_ALIYUN_REGISTRY="${SKILLHUB_ALIYUN_REGISTRY:-crpi-ptu2rqimrigtq0qx.cn-hangzhou.personal.cr.aliyuncs.com}"
+SKILLHUB_ALIYUN_REGISTRY="${SKILLHUB_ALIYUN_REGISTRY:-}"
 SKILLHUB_ALIYUN_NAMESPACE="${SKILLHUB_ALIYUN_NAMESPACE:-skill_hub}"
 SKILLHUB_MIRROR_REGISTRY_VALUE="${SKILLHUB_MIRROR_REGISTRY:-}"
 SKILLHUB_SERVER_IMAGE_VALUE="${SKILLHUB_SERVER_IMAGE:-}"
@@ -96,8 +96,11 @@ done
 
 SKILLHUB_RAW_BASE="${SKILLHUB_RAW_BASE:-https://raw.githubusercontent.com/iflytek/skillhub/$SKILLHUB_REF}"
 COMPOSE_FILE="$SKILLHUB_HOME/compose.release.yml"
-ENV_EXAMPLE_FILE="$SKILLHUB_HOME/.env.release.example"
-ENV_FILE="$SKILLHUB_HOME/.env.release"
+ENV_EXAMPLE_FILE="$SKILLHUB_HOME/.env.quickstart.example"
+ENV_FILE="$SKILLHUB_HOME/.env.quickstart"
+LEGACY_ENV_FILE="$SKILLHUB_HOME/.env.release"
+VALIDATE_CONFIG_FILE="$SKILLHUB_HOME/validate-release-config.sh"
+RUNTIME_VALIDATION_MODE="quickstart"
 
 find_compose() {
   if docker compose version >/dev/null 2>&1; then
@@ -140,10 +143,31 @@ set_env_value() {
   mv "$tmp" "$ENV_FILE"
 }
 
+ensure_env_value() {
+  key="$1"
+  value="$2"
+
+  if ! grep -q "^$key=" "$ENV_FILE"; then
+    printf '%s=%s\n' "$key" "$value" >>"$ENV_FILE"
+  fi
+}
+
 prepare_runtime_files() {
   mkdir -p "$SKILLHUB_HOME"
   download_file "$SKILLHUB_RAW_BASE/compose.release.yml" "$COMPOSE_FILE"
-  download_file "$SKILLHUB_RAW_BASE/.env.release.example" "$ENV_EXAMPLE_FILE"
+  download_file "$SKILLHUB_RAW_BASE/.env.quickstart.example" "$ENV_EXAMPLE_FILE"
+  download_file "$SKILLHUB_RAW_BASE/scripts/validate-release-config.sh" "$VALIDATE_CONFIG_FILE"
+  chmod 700 "$VALIDATE_CONFIG_FILE"
+
+  # Keep existing runtime directories usable after the template split. New
+  # installations always use the explicit Quickstart file.
+  if [ ! -f "$ENV_FILE" ] && [ -f "$LEGACY_ENV_FILE" ]; then
+    ENV_FILE="$LEGACY_ENV_FILE"
+    RUNTIME_VALIDATION_MODE="production"
+    ensure_env_value "SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED" "false"
+    ensure_env_value "BOOTSTRAP_ADMIN_ENABLED" "false"
+    echo "Using legacy runtime config: $ENV_FILE" >&2
+  fi
 
   if [ ! -f "$ENV_FILE" ]; then
     cp "$ENV_EXAMPLE_FILE" "$ENV_FILE"
@@ -186,24 +210,55 @@ prepare_runtime_files() {
   fi
 }
 
+validate_runtime_config() {
+  "$VALIDATE_CONFIG_FILE" "$ENV_FILE" "$RUNTIME_VALIDATION_MODE"
+}
+
+env_value() {
+  key="$1"
+  sed -n "s/^$key=//p" "$ENV_FILE" | tail -n 1
+}
+
 run_compose() {
   compose_cmd="$(find_compose)"
+  profiles=""
+  if [ "$(env_value SKILLHUB_SECRET_SCAN_ENABLED)" = "true" ]; then
+    profiles="secret-scan"
+  fi
+  if [ "$(env_value SKILLHUB_SECURITY_UNIFIED_SCAN_ENABLED)" = "true" ]; then
+    if [ -n "$profiles" ]; then
+      profiles="$profiles,unified-scan"
+    else
+      profiles="unified-scan"
+    fi
+  fi
   # shellcheck disable=SC2086
-  $compose_cmd --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  if [ -n "$profiles" ]; then
+    COMPOSE_PROFILES="$profiles" $compose_cmd --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  else
+    $compose_cmd --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  fi
 }
 
 prepare_runtime_files
 
 case "$COMMAND" in
   up)
+    validate_runtime_config
     run_compose up -d
+    if [ -f "$0" ] && [ "$0" != "sh" ] && [ "$0" != "/bin/sh" ] && [ "$0" != "/usr/bin/sh" ]; then
+      stop_command="sh \"$0\" down --home \"$SKILLHUB_HOME\""
+    else
+      stop_command="re-run the verified runtime script with: sh <runtime-script> down --home \"$SKILLHUB_HOME\""
+    fi
     cat <<EOF
 SkillHub runtime started.
 Web UI: http://localhost
 Backend API: http://localhost:8080
 Runtime dir: $SKILLHUB_HOME
+Config file: $ENV_FILE
 Stop with:
-  curl -fsSL $SKILLHUB_RAW_BASE/scripts/runtime.sh | sh -s -- down
+  $stop_command
 EOF
     ;;
   down)

@@ -49,9 +49,13 @@ done
 [ "$ok" -eq 1 ] || { echo 'server health check failed' >&2; exit 1; }
 
 env_dump="$(docker inspect skillhub-server-1 --format '{{range .Config.Env}}{{println .}}{{end}}')"
-for key in SKILLHUB_PUBLIC_BASE_URL SKILLHUB_AUTH_DINGTALK_REDIRECT_URI SKILLHUB_STORAGE_PROVIDER SESSION_COOKIE_SECURE; do
+for key in SKILLHUB_PUBLIC_BASE_URL SKILLHUB_STORAGE_PROVIDER SESSION_COOKIE_SECURE SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED BOOTSTRAP_ADMIN_ENABLED; do
   echo "$env_dump" | grep -q "^${key}=" || { echo "missing server env: ${key}" >&2; exit 1; }
 done
+echo "$env_dump" | grep -Fx 'SESSION_COOKIE_SECURE=true' >/dev/null || {
+  echo 'session cookies must be secure in production' >&2
+  exit 1
+}
 
 if [ -n "$EXPECT_PUBLIC_BASE_URL" ]; then
   echo "$env_dump" | grep -Fx "SKILLHUB_PUBLIC_BASE_URL=${EXPECT_PUBLIC_BASE_URL}" >/dev/null || {
@@ -83,8 +87,31 @@ SKILLHUB_PUBLIC_BASE_URL
 SKILLHUB_AUTH_DINGTALK_REDIRECT_URI
 SKILLHUB_STORAGE_PROVIDER
 SESSION_COOKIE_SECURE
+BOOTSTRAP_ADMIN_ENABLED
 EOF
 fi
+
+echo "$env_dump" | grep -Fx 'SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED=false' >/dev/null || {
+  echo 'local registration must be disabled in production' >&2
+  exit 1
+}
+echo "$env_dump" | grep -E '^BOOTSTRAP_ADMIN_ENABLED=(true|false)$' >/dev/null || {
+  echo 'bootstrap admin setting must be explicitly true or false' >&2
+  exit 1
+}
+
+dingtalk_enabled="$(echo "$env_dump" | awk -F= '$1 == "SKILLHUB_AUTH_DINGTALK_ENABLED" {print $2; exit}')"
+if [ "$dingtalk_enabled" = "true" ]; then
+  echo "$env_dump" | grep -q '^SKILLHUB_AUTH_DINGTALK_REDIRECT_URI=' || {
+    echo 'missing server env: SKILLHUB_AUTH_DINGTALK_REDIRECT_URI' >&2
+    exit 1
+  }
+fi
+
+# Do not POST to /register here: a failed configuration could otherwise create
+# a real account during verification. The exact property binding and endpoint
+# behavior are covered by application tests; production verification checks the
+# effective container environment without mutating application state.
 
 if [ "$CHECK_DINGTALK" -eq 1 ]; then
   location="$(curl -s -D - -o /dev/null 'http://127.0.0.1:8080/api/v1/auth/dingtalk/authorize' | awk 'BEGIN{IGNORECASE=1} /^Location:/ {sub(/^Location:[[:space:]]*/, ""); print; exit}')"

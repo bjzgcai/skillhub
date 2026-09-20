@@ -149,7 +149,7 @@
 
 ## 测试演进策略
 
-- 当前阶段（Phase 2 验证优先）：本地通过 `docker-compose.yml` 启动 PostgreSQL、Redis、MinIO，后端与集成测试直接连接真实依赖，优先验证发布、搜索、下载、限流等基础设施相关链路
+- 当前阶段（Phase 2 验证优先）：本地通过 `docker-compose.yml` 启动 PostgreSQL、Redis、MinIO 和 scanner，后端与集成测试直接连接真实依赖，优先验证发布、搜索、下载、限流等基础设施相关链路
 - 后续阶段（工程化收口）：逐步把后端集成测试迁移到 Testcontainers，由测试代码按需拉起 PostgreSQL、Redis、MinIO，减少对手工启动本地依赖的要求，并纳入 CI
 - 前端阶段性要求：后端 API 契约稳定后，前端必须同步刷新 OpenAPI 生成类型并校验关键页面；统一响应结构变更不允许只改后端不改前端
 - 原则：单元测试可继续使用 mock/in-memory 替身，但 Phase 2/3 的核心验收必须保留一组基于真实中间件的集成测试，避免 Redis Lua、对象存储、Flyway、搜索 SQL 等问题被假实现掩盖

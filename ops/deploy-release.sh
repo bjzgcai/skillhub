@@ -23,18 +23,31 @@ done
 
 load_env_files
 
+validate_release_config() {
+  local validator="$BASE/ops/validate-release-config.sh"
+  [ -x "$validator" ] || {
+    echo "missing release config validator: $validator" >&2
+    exit 8
+  }
+  "$validator" <(cat "$SHARED/env.release" "$SHARED/secrets.env") production
+}
+
+validate_release_config
+
 : "${SKILLHUB_SERVER_IMAGE:=skillhub-server}"
 : "${SKILLHUB_WEB_IMAGE:=skillhub-web}"
-: "${SKILLHUB_SERVER_TAG:=prod-latest-abdb516}"
-: "${SKILLHUB_WEB_TAG:=prod-latest-abdb516}"
+: "${SKILLHUB_SERVER_TAG:=${SKILLHUB_VERSION:-}}"
+: "${SKILLHUB_WEB_TAG:=${SKILLHUB_VERSION:-}}"
 : "${POSTGRES_DB:=skillhub}"
 : "${POSTGRES_USER:=skillhub}"
 : "${SKILLHUB_API_UPSTREAM:=http://skillhub-server-1:8080}"
-: "${SKILLHUB_PUBLIC_BASE_URL:=http://skillhub.example.invalid}"
+: "${SKILLHUB_PUBLIC_BASE_URL:?SKILLHUB_PUBLIC_BASE_URL must be set in shared/env.release}"
 
 [ -n "$SERVER_TAG_OVERRIDE" ] && SKILLHUB_SERVER_TAG="$SERVER_TAG_OVERRIDE"
 [ -n "$WEB_TAG_OVERRIDE" ] && SKILLHUB_WEB_TAG="$WEB_TAG_OVERRIDE"
 [ -n "$SCANNER_TAG_OVERRIDE" ] && SKILLHUB_SECURITY_SCANNER_TAG="$SCANNER_TAG_OVERRIDE"
+: "${SKILLHUB_SERVER_TAG:?SKILLHUB_SERVER_TAG or SKILLHUB_VERSION must be set}"
+: "${SKILLHUB_WEB_TAG:?SKILLHUB_WEB_TAG or SKILLHUB_VERSION must be set}"
 
 case "$COMPONENT" in
   plan|web|server|all) ;;
@@ -90,6 +103,16 @@ apply_web() {
 apply_server() {
   local image_ref prev_image current_web_image prev_secret_scan_enabled prev_secret_scan_base_url prev_scanner_image prev_unified_scan_enabled prev_unified_scanner_image
   [ -n "$SERVER_TAG_OVERRIDE" ] || { echo '--apply for server requires explicit --server-tag <tag>' >&2; exit 3; }
+  [ "${SESSION_COOKIE_SECURE:-}" = "true" ] || { echo 'SESSION_COOKIE_SECURE must be true for production server deploys' >&2; exit 7; }
+  [ "${SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED:-}" = "false" ] || { echo 'SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED must be false for production server deploys' >&2; exit 7; }
+  [ -n "${BOOTSTRAP_ADMIN_ENABLED:-}" ] || { echo 'BOOTSTRAP_ADMIN_ENABLED must be set for production server deploys' >&2; exit 7; }
+  case "${BOOTSTRAP_ADMIN_ENABLED}" in
+    true)
+      [ -n "${BOOTSTRAP_ADMIN_PASSWORD:-}" ] || { echo 'BOOTSTRAP_ADMIN_PASSWORD must be set when bootstrap admin is enabled' >&2; exit 7; }
+      ;;
+    false) ;;
+    *) echo 'BOOTSTRAP_ADMIN_ENABLED must be true or false for production server deploys' >&2; exit 7 ;;
+  esac
   image_ref="$(server_image_ref)"
   docker image inspect "$image_ref" >/dev/null 2>&1 || { echo "image not found locally: $image_ref" >&2; exit 4; }
   prev_image="$(server_current_image)"

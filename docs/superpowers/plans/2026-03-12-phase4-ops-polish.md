@@ -3089,7 +3089,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:?set explicitly for local monitoring}
     depends_on:
       - prometheus
 ```
@@ -3101,7 +3101,7 @@ Expected: Prometheus 和 Grafana 启动成功
 
 访问:
 - Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000 (admin/admin)
+- Grafana: http://localhost:3000（密码通过 GF_SECURITY_ADMIN_PASSWORD 显式设置）
 
 - [ ] **Step 4: Commit**
 

@@ -85,10 +85,10 @@ description: Enterprise-grade AI Skill Registry - Secure, controllable skill pub
 
 <div style={{ textAlign: 'center', marginTop: '40px' }}>
   <div className="quick-start-code">
-    <code>$ curl -fsSL https://raw.githubusercontent.com/iflytek/skillhub/main/scripts/runtime.sh | sh -s -- up</code>
+    <code>$ curl -fL https://raw.githubusercontent.com/iflytek/skillhub/main/scripts/runtime.sh -o /tmp/skillhub-runtime.sh</code>
   </div>
   <p style={{ marginTop: '16px', color: 'var(--ifm-font-color-secondary)' }}>
-    Visit <a href="http://localhost:3000">http://localhost:3000</a> to get started
+    First verify the checksum as described in the <a href="./getting-started/quick-start">Quick Start</a>, then execute the script explicitly; visit <a href="http://localhost">http://localhost</a> to get started
   </p>
 </div>
 

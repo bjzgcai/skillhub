@@ -51,6 +51,7 @@ class BootstrapAdminInitializerTest {
     @BeforeEach
     void setUp() {
         bootstrapAdminProperties = new BootstrapAdminProperties();
+        bootstrapAdminProperties.setPassword("ChangeMe!2026");
         initializer = new BootstrapAdminInitializer(
                 bootstrapAdminProperties,
                 userAccountRepository,
@@ -111,6 +112,7 @@ class BootstrapAdminInitializerTest {
     @Test
     void shouldSkipWhenBootstrapAdminCredentialAlreadyExists() {
         bootstrapAdminProperties.setEnabled(true);
+        bootstrapAdminProperties.setPassword(null);
         when(localCredentialRepository.existsByUsernameIgnoreCase("admin")).thenReturn(true);
 
         initializer.run(new DefaultApplicationArguments(new String[0]));
@@ -129,6 +131,23 @@ class BootstrapAdminInitializerTest {
 
         verify(localCredentialRepository, never()).existsByUsernameIgnoreCase(any());
         verify(userAccountRepository, never()).save(any(UserAccount.class));
+    }
+
+    @Test
+    void shouldFailWhenEnabledWithoutPassword() {
+        bootstrapAdminProperties.setEnabled(true);
+        bootstrapAdminProperties.setPassword(null);
+
+        IllegalStateException exception = org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalStateException.class,
+                () -> initializer.run(new DefaultApplicationArguments(new String[0]))
+        );
+
+        assertEquals(
+                "BOOTSTRAP_ADMIN_PASSWORD must be set when bootstrap admin is enabled",
+                exception.getMessage()
+        );
+        verify(localCredentialRepository).existsByUsernameIgnoreCase("admin");
     }
 
     private static void setField(Object target, String fieldName, Object value) throws Exception {

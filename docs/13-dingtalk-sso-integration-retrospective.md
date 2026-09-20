@@ -6,9 +6,9 @@
 
 测试环境采用独立隔离部署：
 
-- Web：`http://test.example.invalid:18000`
-- API：`http://test.example.invalid:18081`
-- 回调地址：`http://test.example.invalid:18081/api/v1/auth/dingtalk/callback`
+- Web：`http://<TEST_HOST>:18000`
+- API：`http://<TEST_HOST>:18081`
+- 回调地址：`http://<TEST_HOST>:18081/api/v1/auth/dingtalk/callback`
 
 现网 SkillHub 服务未被停止、覆盖或复用。
 
@@ -42,7 +42,7 @@
 - 登录页或登录按钮点击后前端提示网络错误。
 
 #### 原因
-- 前端 runtime-config 中将 API base 配成了绝对地址：`http://test.example.invalid:18081`。
+- 前端 runtime-config 中将 API base 配成了绝对地址：`http://<TEST_HOST>:18081`。
 - 浏览器直接跨域访问后端，导致网络访问与代理路径不稳定。
 
 #### 处理办法
@@ -69,7 +69,7 @@
 #### 处理办法
 - 阅读 `DingTalkAuthController`，确认真实回调入口。
 - 将钉钉后台回调地址修正为：
-  - `http://test.example.invalid:18081/api/v1/auth/dingtalk/callback`
+  - `http://<TEST_HOST>:18081/api/v1/auth/dingtalk/callback`
 
 #### 结果
 - callback 请求能够稳定命中后端控制器。
@@ -88,7 +88,7 @@
 
 #### 处理办法
 - 将失败场景下的重定向统一改为前端地址：
-  - `http://test.example.invalid:18000/login`
+  - `http://<TEST_HOST>:18000/login`
 - 保持错误时也回到前端登录页，而不是后端默认页。
 
 #### 结果
@@ -221,7 +221,7 @@
 
 #### 现象
 - 登录已成功，但浏览器被带到了：
-  - `http://test.example.invalid:18081/dashboard`
+  - `http://<TEST_HOST>:18081/dashboard`
 - 页面返回 500。
 
 #### 原因
@@ -231,7 +231,7 @@
 #### 处理办法
 - 修改成功登录后的 redirect 逻辑。
 - 将成功目标地址拼到前端 `publicBaseUrl` 下：
-  - `http://test.example.invalid:18000/dashboard`
+  - `http://<TEST_HOST>:18000/dashboard`
 
 #### 结果
 - 登录成功后进入前端 dashboard。
@@ -280,12 +280,12 @@
 
 ### 1. 钉钉网页登录 SSO 已在测试环境打通
 测试环境地址：
-- Web：`http://test.example.invalid:18000`
-- API：`http://test.example.invalid:18081`
+- Web：`http://<TEST_HOST>:18000`
+- API：`http://<TEST_HOST>:18081`
 
 ### 2. 关键成功条件
 - callback 地址必须使用项目自定义入口：
-  - `http://test.example.invalid:18081/api/v1/auth/dingtalk/callback`
+  - `http://<TEST_HOST>:18081/api/v1/auth/dingtalk/callback`
 - Browser OAuth 与 H5/免登 code 不能混用
 - Browser OAuth 推荐参数：
   - `prompt=consent`

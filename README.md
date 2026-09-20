@@ -72,8 +72,36 @@ Start the full local stack with one of the following commands:
 Official images:
 ```bash
 rm -rf /tmp/skillhub-runtime
-curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime-github.sh | sh -s -- up
+RUNTIME_URL=https://imageless.oss-cn-beijing.aliyuncs.com/runtime-github.sh
+RUNTIME_FILE=/tmp/skillhub-runtime.sh
+SHA256SUM_URL="${SHA256SUM_URL:-}"
+SHA256SUM="${SHA256SUM:-}"
+curl -fL "$RUNTIME_URL" -o "$RUNTIME_FILE"
+if [ -n "$SHA256SUM_URL" ]; then
+  curl -fL "$SHA256SUM_URL" -o "${RUNTIME_FILE}.sha256"
+  (cd "$(dirname "$RUNTIME_FILE")" && sha256sum -c "$(basename "${RUNTIME_FILE}.sha256")")
+elif [ -n "$SHA256SUM" ]; then
+  printf '%s  %s\n' "$SHA256SUM" "$(basename "$RUNTIME_FILE")" |
+    (cd "$(dirname "$RUNTIME_FILE")" && sha256sum -c -)
+else
+  echo "Set SHA256SUM_URL or SHA256SUM from a trusted release source before executing." >&2
+  exit 1
+fi
+sh "$RUNTIME_FILE" up
 ```
+
+The repository does not embed a checksum for this moving quick-start URL. Set
+exactly one of `SHA256SUM_URL` (a trusted `sha256sum`-format file) or
+`SHA256SUM` (the exact trusted SHA-256 value) before running the command. If
+neither is available, stop after downloading and do not execute the script.
+
+The runtime script is the local Quickstart path. It validates `.env.quickstart`
+before starting; on the first run it downloads `.env.quickstart.example` into
+the runtime directory and stops until the local passwords are set. Edit that
+generated `.env.quickstart`, then run the command again. Quickstart uses local
+storage, disables enterprise SSO, and targets `http://localhost`, so its
+`SESSION_COOKIE_SECURE=false` setting is intentional. This template must not
+be used for production.
 
 The default command pulls the `latest` stable release images. Use
 `--version edge` if you want the newest build from `main`.
@@ -81,8 +109,24 @@ The default command pulls the `latest` stable release images. Use
 Aliyun mirror shortcut:
 ```bash
 rm -rf /tmp/skillhub-aliyun
-curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- up --home /tmp/skillhub-aliyun --aliyun --version latest
+RUNTIME_URL=https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh
+RUNTIME_FILE=/tmp/skillhub-aliyun-runtime.sh
+curl -fL "$RUNTIME_URL" -o "$RUNTIME_FILE"
+# Set SHA256SUM_URL or SHA256SUM using the same verification flow above.
+echo "Verify $RUNTIME_FILE with a trusted SHA-256 checksum before executing it."
 ```
+
+For the Aliyun mirror, set `SKILLHUB_ALIYUN_REGISTRY` and
+`SKILLHUB_ALIYUN_NAMESPACE` explicitly before using `--aliyun`; the repository
+does not publish a private registry hostname.
+
+After verification, execute the selected script explicitly:
+
+```bash
+sh /tmp/skillhub-aliyun-runtime.sh up --home /tmp/skillhub-aliyun --aliyun --version latest
+```
+
+Do not execute the downloaded mirror script if it has not been checksum-verified.
 
 If deployment runs into problems, clear the existing runtime home and retry.
 
@@ -177,7 +221,8 @@ Published images target both `linux/amd64` and `linux/arm64`.
 3. Start the stack with Docker Compose.
 
 ```bash
-cp .env.release.example .env.release
+cp .env.quickstart.example .env.quickstart
+# Set BOOTSTRAP_ADMIN_PASSWORD and POSTGRES_PASSWORD in .env.quickstart first.
 ```
 
 Recommended image tags:
@@ -188,8 +233,8 @@ Recommended image tags:
 Start the runtime:
 
 ```bash
-make validate-release-config
-docker compose --env-file .env.release -f compose.release.yml up -d
+make validate-release-config RELEASE_ENV_FILE=.env.quickstart
+docker compose --env-file .env.quickstart -f compose.release.yml up -d
 ```
 
 Then open:
@@ -200,28 +245,38 @@ Then open:
 Stop it with:
 
 ```bash
-docker compose --env-file .env.release -f compose.release.yml down
+docker compose --env-file .env.quickstart -f compose.release.yml down
 ```
 
 The runtime stack uses its own Compose project name, so it does not
 collide with containers from `make dev-all`.
 
-The production Compose stack now defaults to the `docker` profile only.
-It does not enable local mock auth. The release template (`.env.release.example`)
-enables the bootstrap admin by default, so zero-config quickstart via
-`runtime.sh` works out of the box:
+The Quickstart Compose stack defaults to the `docker` profile only.
+It does not enable local mock auth. Production and staging require an explicit
+`BOOTSTRAP_ADMIN_PASSWORD` whenever bootstrap admin is enabled; there is no
+production default password. The local source `local` profile is the only mode
+that retains the documented `admin` / `ChangeMe!2026` convenience account.
 
-- username: `admin`
-- password: `ChangeMe!2026`
+Quickstart uses GHCR images by default and binds the API port to loopback on
+the host. If either scanner is enabled in the env file, the downloaded
+`runtime.sh` activates the matching Compose profile automatically. With a
+direct Compose command, set `COMPOSE_PROFILES=secret-scan` and/or
+`COMPOSE_PROFILES=unified-scan` explicitly.
+
+For production, start from `.env.release.example`, copy it to `.env.release`,
+set the final HTTPS URL and real secrets, and validate it with
+`make validate-release-config RELEASE_ENV_FILE=.env.release`. Production must
+keep `SESSION_COOKIE_SECURE=true`, use S3/OSS storage, and disable local
+registration.
 
 Recommended production baseline:
 
 - set `SKILLHUB_PUBLIC_BASE_URL` to the final HTTPS entrypoint
 - keep PostgreSQL / Redis bound to `127.0.0.1`
 - use external S3 / OSS via `SKILLHUB_STORAGE_S3_*`
-- change `BOOTSTRAP_ADMIN_PASSWORD` to a strong password (`validate-release-config.sh` rejects the default `ChangeMe!2026`)
+- set `BOOTSTRAP_ADMIN_PASSWORD` to a unique strong password (`validate-release-config.sh` rejects example/default values)
 - rotate or disable the bootstrap admin after initial setup
-- run `make validate-release-config` before `docker compose up -d`
+- run `make validate-release-config RELEASE_ENV_FILE=.env.release` before `docker compose up -d`
 
 If the GHCR package remains private, run `docker login ghcr.io` before
 `docker compose up -d`.
@@ -241,7 +296,7 @@ docker compose -f docker-compose.monitoring.yml up -d
 Then open:
 
 - Prometheus: `http://localhost:9090`
-- Grafana: `http://localhost:3001` (`admin` / `admin`)
+- Grafana: `http://localhost:3001` (set `GF_SECURITY_ADMIN_PASSWORD` explicitly)
 
 By default Prometheus scrapes `http://host.docker.internal:8080/actuator/prometheus`,
 so start the backend locally on port `8080` first.

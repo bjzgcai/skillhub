@@ -2,6 +2,15 @@
 set -eu
 
 ENV_FILE="${1:-.env.release}"
+VALIDATION_MODE="${2:-production}"
+
+case "$VALIDATION_MODE" in
+  production|quickstart) ;;
+  *)
+    echo "ERROR: validation mode must be production or quickstart: $VALIDATION_MODE" >&2
+    exit 1
+    ;;
+esac
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "ERROR: env file not found: $ENV_FILE" >&2
@@ -52,6 +61,16 @@ reject_values() {
   done
 }
 
+reject_todo_placeholder() {
+  var_name="$1"
+  eval "var_value=\${$var_name:-}"
+  case "$var_value" in
+    TODO_*|todo_*|*TODO_*|*todo_*)
+      error "$var_name still uses a TODO placeholder"
+      ;;
+  esac
+}
+
 validate_url() {
   var_name="$1"
   eval "var_value=\${$var_name:-}"
@@ -69,6 +88,15 @@ validate_no_trailing_slash() {
   eval "var_value=\${$var_name:-}"
   case "$var_value" in
     */) error "$var_name must not have a trailing slash" ;;
+  esac
+}
+
+require_https() {
+  var_name="$1"
+  eval "var_value=\${$var_name:-}"
+  case "$var_value" in
+    https://*) ;;
+    *) error "$var_name must use https:// for production" ;;
   esac
 }
 
@@ -102,14 +130,16 @@ validate_url SKILLHUB_PUBLIC_BASE_URL
 validate_no_trailing_slash SKILLHUB_PUBLIC_BASE_URL
 
 reject_values POSTGRES_PASSWORD "change-this-postgres-password" "skillhub_demo" "skillhub_dev"
-reject_values BOOTSTRAP_ADMIN_PASSWORD "replace-this-admin-password" "ChangeMe!2026" "Admin@2026"
+reject_values BOOTSTRAP_ADMIN_PASSWORD "replace-this-admin-password" "change-this-admin-password" "ChangeMe!2026" "Admin@2026"
+reject_todo_placeholder POSTGRES_PASSWORD
+reject_todo_placeholder BOOTSTRAP_ADMIN_PASSWORD
 if [ "${BOOTSTRAP_ADMIN_ENABLED:-false}" = "true" ]; then
   require_non_empty BOOTSTRAP_ADMIN_PASSWORD
 fi
-reject_values SKILLHUB_STORAGE_S3_ACCESS_KEY "replace-me"
-reject_values SKILLHUB_STORAGE_S3_SECRET_KEY "replace-me"
 
 validate_boolean SESSION_COOKIE_SECURE
+validate_boolean SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED
+require_non_empty BOOTSTRAP_ADMIN_ENABLED
 validate_boolean BOOTSTRAP_ADMIN_ENABLED
 validate_boolean SKILLHUB_STORAGE_S3_FORCE_PATH_STYLE
 validate_boolean SKILLHUB_STORAGE_S3_AUTO_CREATE_BUCKET
@@ -129,6 +159,10 @@ require_non_empty POSTGRES_PASSWORD
 storage_provider="${SKILLHUB_STORAGE_PROVIDER:-}"
 case "$storage_provider" in
   s3)
+    reject_values SKILLHUB_STORAGE_S3_ACCESS_KEY "replace-me"
+    reject_values SKILLHUB_STORAGE_S3_SECRET_KEY "replace-me"
+    reject_todo_placeholder SKILLHUB_STORAGE_S3_ACCESS_KEY
+    reject_todo_placeholder SKILLHUB_STORAGE_S3_SECRET_KEY
     require_non_empty SKILLHUB_STORAGE_S3_ENDPOINT
     require_non_empty SKILLHUB_STORAGE_S3_BUCKET
     require_non_empty SKILLHUB_STORAGE_S3_ACCESS_KEY
@@ -138,7 +172,11 @@ case "$storage_provider" in
     validate_url SKILLHUB_STORAGE_S3_PUBLIC_ENDPOINT
     ;;
   local)
-    warn "SKILLHUB_STORAGE_PROVIDER=local is only suitable for non-production or temporary validation"
+    if [ "$VALIDATION_MODE" = "production" ]; then
+      error "SKILLHUB_STORAGE_PROVIDER=local is not allowed for production"
+    else
+      warn "SKILLHUB_STORAGE_PROVIDER=local is only suitable for local Quickstart"
+    fi
     ;;
   "")
     error "SKILLHUB_STORAGE_PROVIDER is required"
@@ -148,18 +186,23 @@ case "$storage_provider" in
     ;;
 esac
 
-require_non_empty SKILLHUB_AUTH_DINGTALK_APP_KEY
-require_non_empty SKILLHUB_AUTH_DINGTALK_APP_SECRET
-require_non_empty SKILLHUB_AUTH_DINGTALK_REDIRECT_URI
-validate_url SKILLHUB_AUTH_DINGTALK_REDIRECT_URI
-validate_no_trailing_slash SKILLHUB_AUTH_DINGTALK_REDIRECT_URI
-
-if [ "${SKILLHUB_AUTH_DINGTALK_ENABLED:-false}" != "true" ]; then
-  error "SKILLHUB_AUTH_DINGTALK_ENABLED must be true for this DingTalk-only deployment"
+dingtalk_enabled="${SKILLHUB_AUTH_DINGTALK_ENABLED:-false}"
+web_dingtalk_enabled="${SKILLHUB_WEB_AUTH_DINGTALK_ENABLED:-false}"
+if [ "$dingtalk_enabled" = "true" ]; then
+  require_non_empty SKILLHUB_AUTH_DINGTALK_APP_KEY
+  require_non_empty SKILLHUB_AUTH_DINGTALK_APP_SECRET
+  require_non_empty SKILLHUB_AUTH_DINGTALK_REDIRECT_URI
+  validate_url SKILLHUB_AUTH_DINGTALK_REDIRECT_URI
+  validate_no_trailing_slash SKILLHUB_AUTH_DINGTALK_REDIRECT_URI
+  if [ "$web_dingtalk_enabled" != "true" ]; then
+    error "SKILLHUB_WEB_AUTH_DINGTALK_ENABLED must be true when DingTalk auth is enabled"
+  fi
+elif [ "$web_dingtalk_enabled" = "true" ]; then
+  error "SKILLHUB_WEB_AUTH_DINGTALK_ENABLED cannot be true when DingTalk auth is disabled"
 fi
 
-if [ "${SKILLHUB_WEB_AUTH_DINGTALK_ENABLED:-false}" != "true" ]; then
-  error "SKILLHUB_WEB_AUTH_DINGTALK_ENABLED must be true for this DingTalk-only deployment"
+if [ "${SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED:-true}" != "false" ]; then
+  error "SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED must be false for this runtime"
 fi
 
 if [ -n "${SKILLHUB_WEB_API_BASE_URL:-}" ]; then
@@ -171,8 +214,21 @@ if [ -n "${DEVICE_AUTH_VERIFICATION_URI:-}" ]; then
   validate_url DEVICE_AUTH_VERIFICATION_URI
 fi
 
-if [ "${SESSION_COOKIE_SECURE:-true}" != "true" ]; then
-  warn "SESSION_COOKIE_SECURE is not true; only acceptable behind plain HTTP during temporary local verification"
+if [ "$VALIDATION_MODE" = "production" ]; then
+  require_https SKILLHUB_PUBLIC_BASE_URL
+  [ "${SESSION_COOKIE_SECURE:-}" = "true" ] ||
+    error "SESSION_COOKIE_SECURE must be true for production"
+  [ "$storage_provider" = "s3" ] ||
+    error "SKILLHUB_STORAGE_PROVIDER must be s3 for production"
+else
+  case "${SKILLHUB_PUBLIC_BASE_URL:-}" in
+    http://localhost|http://localhost:*) ;;
+    *) error "SKILLHUB_PUBLIC_BASE_URL must target http://localhost for Quickstart" ;;
+  esac
+  [ "${SESSION_COOKIE_SECURE:-}" = "false" ] ||
+    error "SESSION_COOKIE_SECURE must be false for HTTP Quickstart"
+  [ "$storage_provider" = "local" ] ||
+    error "SKILLHUB_STORAGE_PROVIDER must be local for Quickstart"
 fi
 
 if [ "${POSTGRES_BIND_ADDRESS:-127.0.0.1}" != "127.0.0.1" ]; then
@@ -198,8 +254,8 @@ if [ -n "$oauth_secret" ] && [ -z "$oauth_id" ]; then
 fi
 
 if [ "$errors" -gt 0 ]; then
-  echo "Release config validation failed: $errors error(s), $warnings warning(s)." >&2
+  echo "Configuration validation failed: $errors error(s), $warnings warning(s)." >&2
   exit 1
 fi
 
-echo "Release config validation passed with $warnings warning(s)."
+echo "Configuration validation passed with $warnings warning(s)."

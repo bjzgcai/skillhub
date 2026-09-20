@@ -672,8 +672,8 @@ services:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set explicitly for local development}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set explicitly for local development}
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -697,8 +697,8 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SKILLHUB_STORAGE_TYPE: s3
       SKILLHUB_STORAGE_S3_ENDPOINT: http://minio:9000
-      SKILLHUB_STORAGE_S3_ACCESS_KEY: minioadmin
-      SKILLHUB_STORAGE_S3_SECRET_KEY: minioadmin
+      SKILLHUB_STORAGE_S3_ACCESS_KEY: ${SKILLHUB_STORAGE_S3_ACCESS_KEY:?set explicitly for local development}
+      SKILLHUB_STORAGE_S3_SECRET_KEY: ${SKILLHUB_STORAGE_S3_SECRET_KEY:?set explicitly for local development}
     ports:
       - "8080:8080"
 
@@ -1136,7 +1136,7 @@ docker compose up -d
 服务启动后访问：
 - 前端：http://localhost:3000
 - 后端 API：http://localhost:8080
-- MinIO 控制台：http://localhost:9001（minioadmin / minioadmin）
+- MinIO 控制台：http://localhost:9001（凭据必须显式配置）
 
 默认管理员账号：`admin` / `Admin@2026`
 

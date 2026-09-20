@@ -10,6 +10,15 @@
 # Docker Compose merges both files so these services are available by hostname.
 
 services:
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: "${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD must be set for staging}"
+
+  minio:
+    environment:
+      MINIO_ROOT_USER: "${SKILLHUB_STORAGE_S3_ACCESS_KEY:?SKILLHUB_STORAGE_S3_ACCESS_KEY must be set for staging}"
+      MINIO_ROOT_PASSWORD: "${SKILLHUB_STORAGE_S3_SECRET_KEY:?SKILLHUB_STORAGE_S3_SECRET_KEY must be set for staging}"
+
   server:
     image: skillhub-server:staging
     ports:
@@ -18,7 +27,7 @@ services:
       SPRING_PROFILES_ACTIVE: docker
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/skillhub
       SPRING_DATASOURCE_USERNAME: skillhub
-      SPRING_DATASOURCE_PASSWORD: skillhub_dev
+      SPRING_DATASOURCE_PASSWORD: "${SPRING_DATASOURCE_PASSWORD:?SPRING_DATASOURCE_PASSWORD must be set for staging}"
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SESSION_COOKIE_SECURE: "false"
@@ -29,15 +38,15 @@ services:
       SKILLHUB_STORAGE_S3_ENDPOINT: http://minio:9000
       SKILLHUB_STORAGE_S3_PUBLIC_ENDPOINT: http://localhost:9000
       SKILLHUB_STORAGE_S3_BUCKET: skillhub
-      SKILLHUB_STORAGE_S3_ACCESS_KEY: minioadmin
-      SKILLHUB_STORAGE_S3_SECRET_KEY: minioadmin
+      SKILLHUB_STORAGE_S3_ACCESS_KEY: "${SKILLHUB_STORAGE_S3_ACCESS_KEY:?SKILLHUB_STORAGE_S3_ACCESS_KEY must be set for staging}"
+      SKILLHUB_STORAGE_S3_SECRET_KEY: "${SKILLHUB_STORAGE_S3_SECRET_KEY:?SKILLHUB_STORAGE_S3_SECRET_KEY must be set for staging}"
       SKILLHUB_STORAGE_S3_REGION: us-east-1
       SKILLHUB_STORAGE_S3_FORCE_PATH_STYLE: "true"
       SKILLHUB_STORAGE_S3_AUTO_CREATE_BUCKET: "true"
       BOOTSTRAP_ADMIN_ENABLED: "true"
       BOOTSTRAP_ADMIN_USER_ID: staging-admin
       BOOTSTRAP_ADMIN_USERNAME: admin
-      BOOTSTRAP_ADMIN_PASSWORD: "REDACTED_STAGING_PASSWORD"
+      BOOTSTRAP_ADMIN_PASSWORD: "${BOOTSTRAP_ADMIN_PASSWORD:?BOOTSTRAP_ADMIN_PASSWORD must be set for staging}"
       BOOTSTRAP_ADMIN_DISPLAY_NAME: Admin
       BOOTSTRAP_ADMIN_EMAIL: admin@skillhub.local
       OAUTH2_GITHUB_CLIENT_ID: local-placeholder

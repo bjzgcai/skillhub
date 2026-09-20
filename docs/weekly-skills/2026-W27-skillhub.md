@@ -4,6 +4,8 @@
 
 `skillhub` 是内部技能注册中心的入口技能——搜索、查看、安装、发布技能，都从它开始。掌握它，等于拿到了整个内部技能生态的钥匙：不再靠口口相传找工具，而是用一条命令精准定位你需要的能力。
 
+以下命令中的 `$SKILLHUB_REGISTRY` 必须由使用者在受信任的内部环境中设置，不要把真实 registry 地址提交到公开仓库。
+
 ## 适合谁
 
 - 想在团队内部查找、复用已有自动化能力的开发者
@@ -18,7 +20,7 @@
 想找一个能力时，先用搜索：
 
 ```bash
-clawhub search "关键词" --registry https://skillhub.example.invalid
+clawhub search "关键词" --registry "$SKILLHUB_REGISTRY"
 ```
 
 试试不同关键词——中文、英文、平台名都可以。一次搜不到不代表没有，换个词再试。
@@ -28,8 +30,8 @@ clawhub search "关键词" --registry https://skillhub.example.invalid
 找到候选后，看清楚再决定：
 
 ```bash
-clawhub inspect <slug> --registry https://skillhub.example.invalid
-clawhub inspect <slug> --registry https://skillhub.example.invalid --file SKILL.md
+clawhub inspect <slug> --registry "$SKILLHUB_REGISTRY"
+clawhub inspect <slug> --registry "$SKILLHUB_REGISTRY" --file SKILL.md
 ```
 
 重点关注：它能做什么、需要什么权限、适用场景是什么。
@@ -39,7 +41,7 @@ clawhub inspect <slug> --registry https://skillhub.example.invalid --file SKILL.
 确认合适后，一条命令安装到 workspace：
 
 ```bash
-clawhub install <slug> --registry https://skillhub.example.invalid
+clawhub install <slug> --registry "$SKILLHUB_REGISTRY"
 ```
 
 安装后技能出现在 workspace 的 `skills/` 目录，agent 下次启动即可使用。
@@ -49,7 +51,7 @@ clawhub install <slug> --registry https://skillhub.example.invalid
 不确定找什么？逛一逛：
 
 ```bash
-clawhub explore --registry https://skillhub.example.invalid
+clawhub explore --registry "$SKILLHUB_REGISTRY"
 ```
 
 按更新时间排列，快速了解最近有什么新能力上线。
@@ -68,14 +70,14 @@ clawhub explore --registry https://skillhub.example.invalid
 如果你有一个自建技能想分享给团队：
 
 1. 确认 `SKILL.md` 完整（name、description 清晰）。
-2. 确认已登录：`clawhub whoami --registry https://skillhub.example.invalid`。
-3. 如果未登录，去 `https://skillhub.example.invalid/login` 钉钉登录，再在 Dashboard → Tokens 创建 Personal API Token，然后：
+2. 确认已登录：`clawhub whoami --registry "$SKILLHUB_REGISTRY"`。
+3. 如果未登录，去内部 registry 登录，再在 Dashboard → Tokens 创建 Personal API Token，然后：
    ```bash
-   clawhub login --registry https://skillhub.example.invalid --no-browser --token '<your-token>'
+   clawhub login --registry "$SKILLHUB_REGISTRY" --no-browser --token '<your-token>'
    ```
 4. 发布：
    ```bash
-   clawhub publish <技能目录> --registry https://skillhub.example.invalid --version <semver>
+   clawhub publish <技能目录> --registry "$SKILLHUB_REGISTRY" --version <semver>
    ```
 5. 发布后用 `clawhub inspect <slug>` 验证。
 
@@ -91,7 +93,7 @@ SkillHub 的鉴权分两条路径，搞清楚区别能少踩坑：
 关键细节：
 - 搜索、查看、浏览技能**不需要登录**（公开可访问）。
 - 发布、删除、改权限**必须登录**。
-- CLI 禁止走浏览器登录流——如果看到 `clawhub.ai/cli/auth` 提示，说明走到了公共 ClawHub，应立即停止，改用 `--registry https://skillhub.example.invalid --no-browser --token`。
+- CLI 禁止走浏览器登录流——如果看到 `clawhub.ai/cli/auth` 提示，说明走到了公共 ClawHub，应立即停止，改用 `--registry "$SKILLHUB_REGISTRY" --no-browser --token`。
 - API Token 需要带 `skill:publish` scope 才能发布。
 
 ## 权限与风险
@@ -135,7 +137,7 @@ SkillHub 的鉴权分两条路径，搞清楚区别能少踩坑：
 
 ### 内部 SkillHub 和公共 ClawHub 有什么区别？
 
-内部 SkillHub（`https://skillhub.example.invalid`）是团队私有 registry，通过钉钉 SSO 登录。公共 ClawHub（`clawhub.ai`）是开放注册的全球 registry。用 `--registry` 参数指定目标；不要混用。
+内部 SkillHub（由 `$SKILLHUB_REGISTRY` 指定）是团队私有 registry，通过钉钉 SSO 登录。公共 ClawHub（`clawhub.ai`）是开放注册的全球 registry。用 `--registry` 参数指定目标；不要混用。
 
 ## 下一步推荐
 

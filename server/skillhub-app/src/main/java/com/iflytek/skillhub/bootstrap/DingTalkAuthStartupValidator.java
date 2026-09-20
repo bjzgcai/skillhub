@@ -19,6 +19,9 @@ public class DingTalkAuthStartupValidator implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        if (!properties.isEnabled()) {
+            return;
+        }
         if (!properties.isConfigured()) {
             throw new IllegalStateException(
                 "DingTalk SSO is required for this deployment. "

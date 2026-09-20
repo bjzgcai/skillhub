@@ -217,8 +217,8 @@ skillhub:
     s3:
       endpoint: http://localhost:9000
       bucket: skillhub
-      access-key: minioadmin
-      secret-key: minioadmin
+      access-key: ${MINIO_ROOT_USER:?set explicitly for local development}
+      secret-key: ${MINIO_ROOT_PASSWORD:?set explicitly for local development}
       region: us-east-1
 ```
 

@@ -548,8 +548,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set explicitly for local development}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set explicitly for local development}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -4294,8 +4294,8 @@ services:
   minio:
     image: minio/minio:latest
     environment:
-      MINIO_ROOT_USER: ${MINIO_USER:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:-minioadmin}
+      MINIO_ROOT_USER: ${MINIO_USER:?set explicitly for local development}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD:?set explicitly for local development}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data

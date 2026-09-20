@@ -20,6 +20,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 /**
  * Seeds a default bootstrap admin account for any runtime profile.
@@ -66,6 +67,11 @@ public class BootstrapAdminInitializer implements ApplicationRunner {
         if (localCredentialRepository.existsByUsernameIgnoreCase(bootstrapAdminProperties.getUsername())) {
             log.info("Bootstrap admin already exists, skipping");
             return;
+        }
+        if (!StringUtils.hasText(bootstrapAdminProperties.getPassword())) {
+            throw new IllegalStateException(
+                    "BOOTSTRAP_ADMIN_PASSWORD must be set when bootstrap admin is enabled"
+            );
         }
 
         // 1. Create admin user account

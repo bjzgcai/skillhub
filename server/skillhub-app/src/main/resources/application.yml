@@ -7,7 +7,7 @@ server:
       timeout: ${SERVER_SERVLET_SESSION_TIMEOUT:8h}
       cookie:
         http-only: true
-        secure: ${SESSION_COOKIE_SECURE:false}
+        secure: ${SESSION_COOKIE_SECURE:true}
         same-site: lax
 
 spring:
@@ -34,7 +34,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/skillhub}
     username: ${SPRING_DATASOURCE_USERNAME:skillhub}
-    password: ${SPRING_DATASOURCE_PASSWORD:skillhub_dev}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     hikari:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
   data:
@@ -64,6 +64,8 @@ spring:
 
 skillhub:
   auth:
+    local:
+      registration-enabled: ${SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED:false}
     mock:
       enabled: ${SKILLHUB_AUTH_MOCK_ENABLED:false}
     direct:
@@ -197,7 +199,7 @@ skillhub:
       enabled: ${BOOTSTRAP_ADMIN_ENABLED:false}
       user-id: ${BOOTSTRAP_ADMIN_USER_ID:docker-admin}
       username: ${BOOTSTRAP_ADMIN_USERNAME:admin}
-      password: ${BOOTSTRAP_ADMIN_PASSWORD:ChangeMe!2026}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:}
       display-name: ${BOOTSTRAP_ADMIN_DISPLAY_NAME:Admin}
       email: ${BOOTSTRAP_ADMIN_EMAIL:admin@skillhub.local}
 

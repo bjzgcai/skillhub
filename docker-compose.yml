@@ -1,3 +1,6 @@
+# Local development dependencies only. All host bindings are loopback-only.
+# Staging layers docker-compose.staging.yml on top of this file; do not use
+# this file alone as a staging or production deployment.
 services:
   gitleaks-scanner:
     build: ./secret-scanner/gitleaks
@@ -15,7 +18,7 @@ services:
   skill-scanner:
     build: ./scanner
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       SKILL_SCANNER_LLM_API_KEY: ${SKILL_SCANNER_LLM_API_KEY:-}
       SKILL_SCANNER_LLM_BASE_URL: ${SKILL_SCANNER_LLM_BASE_URL:-}
@@ -29,7 +32,7 @@ services:
   postgres:
     image: ${POSTGRES_IMAGE:-postgres:16-alpine}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_DB: skillhub
       POSTGRES_USER: skillhub
@@ -45,7 +48,7 @@ services:
   redis:
     image: ${REDIS_IMAGE:-redis:7-alpine}
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -55,8 +58,8 @@ services:
   minio:
     image: ${MINIO_IMAGE:-minio/minio:latest}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin

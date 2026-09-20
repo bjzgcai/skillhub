@@ -4,12 +4,14 @@ import com.iflytek.skillhub.auth.local.LocalAuthService;
 import com.iflytek.skillhub.auth.exception.AuthFlowException;
 import com.iflytek.skillhub.auth.rbac.PlatformPrincipal;
 import com.iflytek.skillhub.auth.session.PlatformSessionService;
+import com.iflytek.skillhub.config.LocalAuthProperties;
 import com.iflytek.skillhub.dto.ApiResponse;
 import com.iflytek.skillhub.dto.ApiResponseFactory;
 import com.iflytek.skillhub.dto.AuthMeResponse;
 import com.iflytek.skillhub.dto.ChangePasswordRequest;
 import com.iflytek.skillhub.dto.LocalLoginRequest;
 import com.iflytek.skillhub.dto.LocalRegisterRequest;
+import com.iflytek.skillhub.exception.ForbiddenException;
 import com.iflytek.skillhub.exception.UnauthorizedException;
 import com.iflytek.skillhub.metrics.SkillHubMetrics;
 import com.iflytek.skillhub.ratelimit.RateLimit;
@@ -34,23 +36,29 @@ public class LocalAuthController extends BaseApiController {
     private final SkillHubMetrics skillHubMetrics;
     private final PlatformSessionService platformSessionService;
     private final AuthFailureThrottleService authFailureThrottleService;
+    private final LocalAuthProperties localAuthProperties;
 
     public LocalAuthController(ApiResponseFactory responseFactory,
                                LocalAuthService localAuthService,
                                SkillHubMetrics skillHubMetrics,
                                PlatformSessionService platformSessionService,
-                               AuthFailureThrottleService authFailureThrottleService) {
+                               AuthFailureThrottleService authFailureThrottleService,
+                               LocalAuthProperties localAuthProperties) {
         super(responseFactory);
         this.localAuthService = localAuthService;
         this.skillHubMetrics = skillHubMetrics;
         this.platformSessionService = platformSessionService;
         this.authFailureThrottleService = authFailureThrottleService;
+        this.localAuthProperties = localAuthProperties;
     }
 
     @PostMapping("/register")
     @RateLimit(category = "auth-register", authenticated = 10, anonymous = 5, windowSeconds = 300)
     public ApiResponse<AuthMeResponse> register(@Valid @RequestBody LocalRegisterRequest request,
                                                 HttpServletRequest httpRequest) {
+        if (!localAuthProperties.isRegistrationEnabled()) {
+            throw new ForbiddenException("error.auth.local.registrationDisabled");
+        }
         PlatformPrincipal principal = localAuthService.register(request.username(), request.password(), request.email());
         skillHubMetrics.incrementUserRegister();
         platformSessionService.establishSession(principal, httpRequest);

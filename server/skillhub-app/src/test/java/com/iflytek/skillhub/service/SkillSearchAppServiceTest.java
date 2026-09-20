@@ -227,10 +227,10 @@ class SkillSearchAppServiceTest {
         setField(namespace, "id", 1L);
         namespace.setStatus(NamespaceStatus.ACTIVE);
 
-        UserAccount owner = new UserAccount("owner-1", "Test Owner", "test-owner@example.invalid", "https://example.test/avatar.png");
-        IdentityBinding dingtalkBinding = new IdentityBinding("owner-1", "dingtalk", "union-1", "Test Owner");
+        UserAccount owner = new UserAccount("owner-1", "Synthetic Owner", "synthetic.owner@example.test", "https://example.test/avatar.png");
+        IdentityBinding dingtalkBinding = new IdentityBinding("owner-1", "dingtalk", "union-1", "Synthetic Owner");
         dingtalkBinding.setExtraJson(Map.of("userid", "ding-user-1"));
-        IdentityBinding staleDingtalkBinding = new IdentityBinding("owner-1", "dingtalk", "union-old", "Test Owner");
+        IdentityBinding staleDingtalkBinding = new IdentityBinding("owner-1", "dingtalk", "union-old", "Synthetic Owner");
         staleDingtalkBinding.setExtraJson(Map.of("unionid", "union-old"));
         SkillLabel skillLabel = new SkillLabel(10L, 100L, null);
         LabelDefinition label = new LabelDefinition("domain-campus-service", LabelType.RECOMMENDED, true, 40, null);
@@ -254,7 +254,7 @@ class SkillSearchAppServiceTest {
         SkillSearchAppService.SearchResponse response = service.search(null, null, "downloads", 0, 20, List.of(), "internal", null, null);
 
         assertEquals(1, response.items().size());
-        assertEquals("Test Owner", response.items().getFirst().owner().displayName());
+        assertEquals("Synthetic Owner", response.items().getFirst().owner().displayName());
         assertEquals("https://example.test/avatar.png", response.items().getFirst().owner().avatarUrl());
         assertEquals("ding-user-1", response.items().getFirst().owner().dingtalkUserId());
         assertEquals(1, response.items().getFirst().labels().size());

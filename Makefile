@@ -1,4 +1,4 @@
-.PHONY: help dev dev-all dev-down dev-all-down dev-all-reset dev-logs dev-status build test check clean web-deps web-install web-install-ci dev-server dev-server-restart dev-web build-backend test-backend build-frontend test-frontend build-web test-web typecheck-web lint-web generate-api db-reset namespace-smoke validate-release-config staging staging-down staging-logs pr parallel-init parallel-sync parallel-up parallel-down
+.PHONY: help dev dev-all dev-down dev-all-down dev-all-reset dev-logs dev-status build test check clean web-deps web-install web-install-ci dev-server dev-server-restart dev-web build-backend test-backend test-ops build-frontend test-frontend build-web test-web typecheck-web lint-web generate-api db-reset namespace-smoke validate-release-config staging staging-down staging-logs pr parallel-init parallel-sync parallel-up parallel-down
 
 DEV_DIR := .dev
 DEV_SERVER_PID := $(DEV_DIR)/server.pid
@@ -192,7 +192,13 @@ test-backend-app: ## 运行 skillhub-app 及其依赖模块测试
 
 build: build-backend build-frontend ## 完整构建前后端
 
-test: test-backend test-frontend ## 运行前后端完整单元测试
+test: test-backend test-frontend test-ops ## 运行前后端及运维脚本测试
+
+test-ops: ## 运行发布与配置脚本测试
+	@bash scripts/tests/release-lib-test.sh
+	@bash scripts/tests/dev-process-test.sh
+	@bash scripts/tests/validate-release-config-test.sh
+	@bash scripts/tests/compose-contract-test.sh
 
 check: build test ## 执行前后端完整构建和完整单元测试
 
@@ -249,10 +255,21 @@ db-reset: ## 重置数据库
 	$(DEV_COMPOSE) up -d --wait --remove-orphans postgres
 	cd server && ./mvnw flyway:migrate -pl skillhub-app
 
-validate-release-config: ## 校验发布环境变量文件（默认 .env.release）
-	./scripts/validate-release-config.sh .env.release
+RELEASE_ENV_FILE ?= .env.release
+RELEASE_ENV_MODE ?= $(if $(filter .env.quickstart,$(notdir $(RELEASE_ENV_FILE))),quickstart,production)
 
+validate-release-config: ## 校验环境变量文件（默认 .env.release，可通过 RELEASE_ENV_FILE 覆盖）
+	./scripts/validate-release-config.sh $(RELEASE_ENV_FILE) $(RELEASE_ENV_MODE)
+
+staging: export BOOTSTRAP_ADMIN_PASSWORD := $(value BOOTSTRAP_ADMIN_PASSWORD)
+staging: export SPRING_DATASOURCE_PASSWORD := $(value SPRING_DATASOURCE_PASSWORD)
+staging: export SKILLHUB_STORAGE_S3_ACCESS_KEY := $(value SKILLHUB_STORAGE_S3_ACCESS_KEY)
+staging: export SKILLHUB_STORAGE_S3_SECRET_KEY := $(value SKILLHUB_STORAGE_S3_SECRET_KEY)
 staging: ## 构建并启动 staging 环境，运行 smoke test（混合模式：后端镜像 + 前端静态文件）
+	@test -n "$${BOOTSTRAP_ADMIN_PASSWORD:-}" || { echo "BOOTSTRAP_ADMIN_PASSWORD must be set for staging" >&2; exit 2; }
+	@test -n "$${SPRING_DATASOURCE_PASSWORD:-}" || { echo "SPRING_DATASOURCE_PASSWORD must be set for staging" >&2; exit 2; }
+	@test -n "$${SKILLHUB_STORAGE_S3_ACCESS_KEY:-}" || { echo "SKILLHUB_STORAGE_S3_ACCESS_KEY must be set for staging" >&2; exit 2; }
+	@test -n "$${SKILLHUB_STORAGE_S3_SECRET_KEY:-}" || { echo "SKILLHUB_STORAGE_S3_SECRET_KEY must be set for staging" >&2; exit 2; }
 	@echo "=== [1/5] Building backend JAR and Docker image ==="
 	cd server && ./mvnw package -DskipTests -B -q
 	docker build -t $(STAGING_SERVER_IMAGE) -f server/Dockerfile.dev server
@@ -263,7 +280,7 @@ staging: ## 构建并启动 staging 环境，运行 smoke test（混合模式：
 	@echo "=== [4/5] Starting staging services ==="
 	$(STAGING_COMPOSE) up -d --wait server web
 	@echo "=== [5/5] Running smoke tests ==="
-	@if BOOTSTRAP_ADMIN_USERNAME=admin BOOTSTRAP_ADMIN_PASSWORD='REDACTED_STAGING_PASSWORD' \
+	@if BOOTSTRAP_ADMIN_USERNAME=admin \
 		bash scripts/smoke-test.sh $(STAGING_API_URL); then \
 		echo ""; \
 		echo "Staging passed. Environment is running:"; \

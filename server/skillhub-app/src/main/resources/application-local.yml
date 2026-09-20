@@ -1,3 +1,9 @@
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
+
 spring:
   jpa:
     hibernate:
@@ -25,6 +31,8 @@ spring:
 
 skillhub:
   auth:
+    local:
+      registration-enabled: ${SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED:true}
     mock:
       enabled: true
     dingtalk:
@@ -44,6 +52,7 @@ skillhub:
   bootstrap:
     admin:
       enabled: ${BOOTSTRAP_ADMIN_ENABLED:true}
+      password: ${BOOTSTRAP_ADMIN_PASSWORD:ChangeMe!2026}
   profile:
     moderation:
       machine-review: ${SKILLHUB_PROFILE_MACHINE_REVIEW_ENABLED:true}
