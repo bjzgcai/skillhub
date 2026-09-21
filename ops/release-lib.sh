@@ -25,12 +25,22 @@ new_release_id() {
   date -u +%Y%m%dT%H%M%SZ
 }
 
+redact_release_compose_secrets() {
+  awk '
+    /^[[:space:]]*[A-Z0-9_]*(PASSWORD|SECRET|TOKEN|ACCESS_KEY)[A-Z0-9_]*:/ {
+      sub(/:.*/, ": <redacted>")
+    }
+    { print }
+  '
+}
+
 render_release() {
   local release_id="$1"
   local out_dir="$RELEASES/$release_id"
   mkdir -p "$out_dir"
   require_file "$TEMPLATES/compose.release.yml.tpl"
-  envsubst < "$TEMPLATES/compose.release.yml.tpl" > "$out_dir/compose.release.yml"
+  envsubst < "$TEMPLATES/compose.release.yml.tpl" |
+    redact_release_compose_secrets > "$out_dir/compose.release.yml"
   cat > "$out_dir/release.json" <<JSON
 {
   "releaseId": "$release_id",

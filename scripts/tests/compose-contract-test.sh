@@ -98,6 +98,8 @@ assert_contains "ops/release-lib.sh" '-e SESSION_COOKIE_SECURE="${SESSION_COOKIE
 assert_contains "ops/release-lib.sh" '-e SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED="${SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED:?SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED must be set}"'
 assert_contains "ops/release-lib.sh" 'POSTGRES_PASSWORD must be set to a unique production secret'
 assert_contains "ops/release-lib.sh" '--env-file "$env_file"'
+assert_contains "ops/release-lib.sh" 'redact_release_compose_secrets'
+assert_contains "ops/release-lib.sh" 'PASSWORD|SECRET|TOKEN|ACCESS_KEY'
 assert_contains "ops/deploy-release.sh" 'SESSION_COOKIE_SECURE:-'
 assert_contains "ops/deploy-release.sh" 'SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED:-'
 assert_contains "ops/deploy-release.sh" 'SESSION_COOKIE_SECURE must be true for production server deploys'
