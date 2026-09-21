@@ -189,3 +189,16 @@ sudo systemctl restart skillhub-firewall-hardening.service
 - 本地注册关闭 release：`/opt/skillhub/releases/20260918T094503Z`
 - 注册验证：有效格式的 `POST /api/v1/auth/local/register` 返回 HTTP 403；现有 `docker-admin` 本地凭据保持 ACTIVE，钉钉认证入口返回 302。
 - Token 验证：发布前后均为 41 条（ACTIVE 29、REVOKED 10、EXPIRED 2），本次发布未创建、吊销或修改 Token。
+
+### PostgreSQL 密码轮换与 Server 发布（2026-09-21）
+
+- 轮换前逻辑备份：`/opt/skillhub/backups/20260921T080606Z-postgres-password-rotation/postgres.dump`，已通过 `pg_restore --list` 和 SHA-256 校验。
+- 停止 Server 写入后生成 local storage 一致性归档：`local-storage-consistent.tar.gz`，大小约 4.72 GiB，权限 `0600`，SHA-256 校验通过。
+- PostgreSQL 角色 `skillhub` 已改为随机强密码；真实值只保存在 `/opt/skillhub/shared/secrets.env`，未写入 Git 或 release 快照。
+- PostgreSQL 容器已使用相同的 `skillhub_postgres_data` volume、`skillhub_default` 网络和 `127.0.0.1:5432` 绑定重建，使容器启动环境与数据库角色密码同步。
+- 经独立客户端容器通过服务网络验证：新密码认证成功，历史默认密码 `skillhub_demo` 认证失败。
+- 生产配置已显式设置 `BOOTSTRAP_ADMIN_ENABLED=false`；已有管理员账号、角色和凭据未被删除或修改。
+- Server 发布镜像：`skillhub-server:prod-20260921-ecd1afa`。
+- 生效 release：`/opt/skillhub/releases/20260921T084156Z`；Server health、数据库连接、local storage 前后检查和公网 HTTPS 均通过。
+- 发布过程中发现并修复 release dry-run/快照泄露敏感配置的问题；release 快照现在只保留 `<redacted>`，真实凭据继续由 `secrets.env` 注入。
+- 本机备份已完成；复制到批准的异机或加密备份存储仍是后续运维事项。
