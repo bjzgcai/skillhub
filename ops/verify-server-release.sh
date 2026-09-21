@@ -39,7 +39,7 @@ if docker inspect skillhub-server-1 --format '{{range .Config.Env}}{{println .}}
 fi
 
 ok=0
-for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+for _ in $(seq 1 60); do
   if curl -fsS http://127.0.0.1:8080/actuator/health | grep -q '"status":"UP"'; then
     ok=1
     break
