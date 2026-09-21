@@ -141,6 +141,12 @@ container_env_value() {
     | awk -F= -v key="$key" '$1 == key {print substr($0, length(key) + 2); exit}'
 }
 
+refresh_web_proxy_upstream() {
+  [ -n "$(docker ps -qf name='^skillhub-web-1$' || true)" ] || return 0
+  docker exec skillhub-web-1 nginx -t
+  docker exec skillhub-web-1 nginx -s reload
+}
+
 server_storage_volume() {
   echo "${SKILLHUB_STORAGE_VOLUME:-skillhub_skillhub_storage}"
 }

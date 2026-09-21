@@ -145,9 +145,13 @@ apply_server() {
   fi
   remove_container_if_exists skillhub-server-1
   run_server_container "$image_ref" "$SHARED/env.release" >/tmp/skillhub.deploy.server.cid
-  if ! "$BASE/ops/verify-server-release.sh" \
-    --expect-public-base-url "$SKILLHUB_PUBLIC_BASE_URL" \
-    --expect-dingtalk-redirect-uri "${SKILLHUB_AUTH_DINGTALK_REDIRECT_URI:-}" >> "$out_dir/verify.log" 2>&1; then
+  if ! {
+    "$BASE/ops/verify-server-release.sh" \
+      --expect-public-base-url "$SKILLHUB_PUBLIC_BASE_URL" \
+      --expect-dingtalk-redirect-uri "${SKILLHUB_AUTH_DINGTALK_REDIRECT_URI:-}" &&
+    refresh_web_proxy_upstream &&
+    "$BASE/ops/verify-web-release.sh"
+  } >> "$out_dir/verify.log" 2>&1; then
     append_release_log "$out_dir" deploy.log "server verify failed, attempting rollback to $prev_image"
     SKILLHUB_SECRET_SCAN_ENABLED="${prev_secret_scan_enabled:-false}"
     SKILLHUB_SECRET_SCAN_BASE_URL="${prev_secret_scan_base_url:-http://skillhub-gitleaks-scanner-1:8015}"
@@ -161,6 +165,8 @@ apply_server() {
       run_server_container "$prev_image" "$SHARED/env.release" >/tmp/skillhub.rollback.server.cid
     fi
     "$BASE/ops/verify-server-release.sh" >> "$out_dir/verify.log" 2>&1
+    refresh_web_proxy_upstream >> "$out_dir/verify.log" 2>&1
+    "$BASE/ops/verify-web-release.sh" >> "$out_dir/verify.log" 2>&1
     exit 5
   fi
   # Post-deploy storage verification
@@ -174,6 +180,8 @@ apply_server() {
         run_server_container "$prev_image" "$SHARED/env.release" >/tmp/skillhub.rollback.server.cid
       fi
       "$BASE/ops/verify-server-release.sh" >> "$out_dir/verify.log" 2>&1
+      refresh_web_proxy_upstream >> "$out_dir/verify.log" 2>&1
+      "$BASE/ops/verify-web-release.sh" >> "$out_dir/verify.log" 2>&1
       exit 5
     }
   fi

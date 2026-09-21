@@ -201,4 +201,5 @@ sudo systemctl restart skillhub-firewall-hardening.service
 - Server 发布镜像：`skillhub-server:prod-20260921-ecd1afa`。
 - 生效 release：`/opt/skillhub/releases/20260921T084156Z`；Server health、数据库连接、local storage 前后检查和公网 HTTPS 均通过。
 - 发布过程中发现并修复 release dry-run/快照泄露敏感配置的问题；release 快照现在只保留 `<redacted>`，真实凭据继续由 `secrets.env` 注入。
+- Server 容器替换后，长期运行的 Web/Nginx 曾继续使用旧 Server Docker IP，导致首页 API 返回 502；执行 `nginx -s reload` 后恢复。发布脚本现会在 Server 发布和回滚后自动校验并 reload Web/Nginx，再通过 `/api/web/labels` 验证真实 API 代理链路。
 - 本机备份已完成；复制到批准的异机或加密备份存储仍是后续运维事项。

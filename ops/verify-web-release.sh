@@ -38,6 +38,18 @@ for i in 1 2 3 4 5 6 7 8 9 10; do
 done
 [ "$ok" -eq 1 ] || { echo "web verify failed: $verify_url" >&2; exit 1; }
 
+api_verify_url="http://${verify_host}:${web_port}/api/web/labels"
+api_ok=0
+for _ in $(seq 1 10); do
+  code="$(curl -o /tmp/skillhub.verify.web.api.json -s -w '%{http_code}' "$api_verify_url" || true)"
+  if [ "$code" = "200" ] && grep -q '"code":0' /tmp/skillhub.verify.web.api.json; then
+    api_ok=1
+    break
+  fi
+  sleep 2
+done
+[ "$api_ok" -eq 1 ] || { echo "web API proxy verify failed: $api_verify_url" >&2; exit 1; }
+
 env_dump="$(docker inspect skillhub-web-1 --format '{{range .Config.Env}}{{println .}}{{end}}')"
 for key in SKILLHUB_PUBLIC_BASE_URL SKILLHUB_API_UPSTREAM; do
   echo "$env_dump" | grep -q "^${key}=" || { echo "missing web env: ${key}" >&2; exit 1; }
