@@ -62,6 +62,26 @@ Docker 在流量进入 `DOCKER-USER` 前已将宿主机 `18088` DNAT 为容器 `
 
 ## 必须联动的事项
 
+### 本次安全变更的发布边界
+
+本次变更包含两类不同的发布动作，不能用一次 `docker restart` 代替：
+
+- `18088` 访问限制是宿主机防火墙变更，不需要重建应用镜像；同步
+  `apply-firewall-hardening.sh` 后重启 `skillhub-firewall-hardening.service`。
+- `SESSION_COOKIE_SECURE=true` 和
+  `SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED=false` 需要由新的 Server
+  容器生效。由于本次同时修改了后端配置绑定和注册接口门禁代码，必须重新构建并发布
+  Server 镜像；不需要为了这两项安全变更重新发布 Web 镜像。
+
+当前生产发布链路是 `ops/release-to-prod.sh` → 生产机
+`/opt/skillhub/ops/deploy-release.sh` → `docker run`。发布入口会在远端 plan/apply
+前自动同步当前仓库的 ops 脚本、release 模板和配置校验器，并执行语法校验；因此不会
+再因为忘记手动同步而使用旧的生产发布脚本。若只在与生产机同一台机器上维护运行副本，
+仍可执行 `./ops/sync-to-runtime.sh`。
+
+Server 发布会先执行 local storage 的 pre-check，确认 Docker volume、路径和数据状态正常后，
+才删除旧 Server 容器并启动新容器；pre-check 失败不会先破坏当前运行实例。
+
 ### 反向代理来源地址变化
 
 当前代理位于允许的 `10.0.0.0/8`。如果后续代理迁移到非 `10/8` 地址、使用云负载均衡公网回源、或经过会改变源地址的 NAT，必须先调整 `SKILLHUB_WEB_ALLOWED_CIDR` 或防火墙规则，再切换代理，否则新代理会收到连接超时。
@@ -87,15 +107,35 @@ Docker 在流量进入 `DOCKER-USER` 前已将宿主机 `18088` DNAT 为容器 `
 
 ## 上线步骤
 
-1. 备份 `/opt/skillhub/ops/apply-firewall-hardening.sh` 和 `/opt/skillhub/shared/env.release`。
-2. 同步新版防火墙脚本，执行 `bash -n`。
-3. 重启 `skillhub-firewall-hardening.service`。
-4. 检查 `DOCKER-USER` 中存在 `10.0.0.0/8` 的允许规则和其后的拒绝规则。
-5. 从 `10/8` 主机验证 `<PRODUCTION_HOST>:18088` 可访问；从非 `10/8` 来源验证被拒绝。
-6. 将生产 `SESSION_COOKIE_SECURE` 设置为 `true`。
-7. 以当前镜像标签执行 server release，重建 Server 容器。
-8. 验证容器环境、健康检查、HTTPS 首页、钉钉登录入口和重新登录后的 Cookie 属性。
-9. 验证本地注册接口返回 403，现有 `admin` 本地登录仍可用。
+1. 在生产机备份 `/opt/skillhub/ops/apply-firewall-hardening.sh` 和
+   `/opt/skillhub/shared/env.release`。
+2. 在仓库执行 `make test-ops`，确认运维脚本契约测试通过。
+3. 使用当前生产 SSH 目标执行 dry-run。不要使用报告中的历史 IP 作为默认目标：
+   ```bash
+   SKILLHUB_PROD_HOST=ubuntu@<current-prod-host> \
+     ./ops/release-to-prod.sh --component server
+   ```
+   输出中必须包含 `remote runtime scripts synced and syntax-checked`，并且生产配置校验通过。
+4. 如果配置校验失败，先在生产机受控文件
+   `/opt/skillhub/shared/env.release` 中确认 `POSTGRES_PASSWORD`、
+   `SKILLHUB_PUBLIC_BASE_URL` 等生产值，同时确认：
+   `SESSION_COOKIE_SECURE=true`、
+   `SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED=false`。
+   `SKILLHUB_STORAGE_PROVIDER=s3` 是推荐配置；若当前仍为 `local`，校验会输出过渡警告，
+   需要确认 Docker volume 已备份且部署仍为单机，S3/OSS 迁移作为后续独立变更。
+5. dry-run 通过后，用同一 tag 显式执行 Server 发布：
+   ```bash
+   SKILLHUB_PROD_HOST=ubuntu@<current-prod-host> \
+     ./ops/release-to-prod.sh --component server --tag <server-release-tag> --apply
+   ```
+   该步骤会重建 Server 容器，并执行健康检查、环境检查、存储检查和失败回滚。
+6. 在生产机执行 `sudo systemctl restart skillhub-firewall-hardening.service`，确认
+   `systemctl is-enabled` 和 `systemctl is-active` 均正常。
+7. 检查 `DOCKER-USER` 中存在 `10.0.0.0/8` 的允许规则和其后的拒绝规则。
+8. 从 `10/8` 主机验证 `<PRODUCTION_HOST>:18088` 可访问；从非 `10/8` 来源验证被拒绝。
+9. 验证容器环境、健康检查、HTTPS 首页、钉钉登录入口和重新登录后的 Cookie 属性。
+10. 不向生产注册接口发送验收 POST；使用应用测试或隔离 staging 验证注册接口返回 403，
+    并确认现有 `admin` 本地登录仍可用。
 
 ## 验证命令
 

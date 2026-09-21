@@ -79,10 +79,14 @@ fi
 
 sed 's/^SKILLHUB_STORAGE_PROVIDER=s3$/SKILLHUB_STORAGE_PROVIDER=local/' \
   "$TMP_DIR/production.env" > "$TMP_DIR/production-local-storage.env"
-if "$VALIDATOR" "$TMP_DIR/production-local-storage.env" production >/dev/null 2>&1; then
-  echo 'expected production local storage to be rejected' >&2
+if ! "$VALIDATOR" "$TMP_DIR/production-local-storage.env" production >"$TMP_DIR/production-local-storage.out" 2>&1; then
+  echo 'expected temporary production local storage to be accepted' >&2
   exit 1
 fi
+grep -F 'temporary single-node production transition' "$TMP_DIR/production-local-storage.out" >/dev/null || {
+  echo 'expected production local storage warning' >&2
+  exit 1
+}
 
 sed 's/^SKILLHUB_STORAGE_PROVIDER=local$/SKILLHUB_STORAGE_PROVIDER=s3/' \
   "$TMP_DIR/local.env" > "$TMP_DIR/s3.env"

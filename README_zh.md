@@ -34,7 +34,7 @@ SkillHub 是一个自托管平台，为团队提供私有的、受治理的智�
 - **账户合并** — 将多个 OAuth 身份和 API 令牌整合到单个用户账户下。
 - **API 令牌管理** — 为 CLI 和程序化访问生成作用域令牌，采用基于前缀的安全哈希。
 - **CLI 优先** — 原生 REST API，加上对现有 ClawHub 风格注册中心客户端的兼容层。原生 CLI API 是主要支持路径，协议兼容性持续扩展中。
-- **可插拔存储** — 开发环境使用本地文件系统，生产环境使用 S3 / MinIO。通过配置切换。
+- **可插拔存储** — 开发环境使用本地文件系统；生产推荐使用 S3 / MinIO，迁移期间允许单机使用本地文件系统。通过配置切换。
 - **国际化** — 使用 i18next 支持多语言。
 
 ## 快速开始
@@ -128,7 +128,8 @@ sh /tmp/skillhub-aliyun-runtime.sh up --home /tmp/skillhub-aliyun --aliyun --ver
 
 生产环境请从 `.env.release.example` 复制为 `.env.release`，填写最终 HTTPS 地址和真实密钥，
 并使用 `make validate-release-config RELEASE_ENV_FILE=.env.release` 校验。生产必须保持
-`SESSION_COOKIE_SECURE=true`，使用 S3/OSS，并关闭本地注册。
+`SESSION_COOKIE_SECURE=true` 并关闭本地注册；S3/OSS 是推荐配置，迁移期间允许单机使用
+local storage，但必须备份 Docker volume，且不能扩展为多节点或多副本。
 
 ### 停止服务
 

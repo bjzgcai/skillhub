@@ -173,7 +173,7 @@ case "$storage_provider" in
     ;;
   local)
     if [ "$VALIDATION_MODE" = "production" ]; then
-      error "SKILLHUB_STORAGE_PROVIDER=local is not allowed for production"
+      warn "SKILLHUB_STORAGE_PROVIDER=local is allowed only as a temporary single-node production transition; back up the Docker volume and migrate to S3/OSS before enabling multiple nodes or replicas"
     else
       warn "SKILLHUB_STORAGE_PROVIDER=local is only suitable for local Quickstart"
     fi
@@ -218,8 +218,6 @@ if [ "$VALIDATION_MODE" = "production" ]; then
   require_https SKILLHUB_PUBLIC_BASE_URL
   [ "${SESSION_COOKIE_SECURE:-}" = "true" ] ||
     error "SESSION_COOKIE_SECURE must be true for production"
-  [ "$storage_provider" = "s3" ] ||
-    error "SKILLHUB_STORAGE_PROVIDER must be s3 for production"
 else
   case "${SKILLHUB_PUBLIC_BASE_URL:-}" in
     http://localhost|http://localhost:*) ;;

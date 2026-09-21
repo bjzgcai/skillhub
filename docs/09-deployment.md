@@ -8,7 +8,7 @@
 |------|------|--------------|------------------|
 | 本地源码开发 | `make dev-all` | server/web 在宿主机 | `docker-compose.yml` 只启动 PostgreSQL、Redis、MinIO 和源码 scanner |
 | Quickstart / 单机体验 | `docker compose --env-file .env.quickstart -f compose.release.yml up -d` | server/web 在容器内 | `compose.release.yml` 启动发布镜像、PostgreSQL、Redis 和可选 scanner；默认 HTTP、本地存储 |
-| 生产单机发布 | `docker compose --env-file .env.release -f compose.release.yml up -d`（仅适用于 Compose 生产部署） | server/web 在容器内 | 使用 HTTPS、S3/OSS、强密码和 `SESSION_COOKIE_SECURE=true` |
+| 生产单机发布 | `docker compose --env-file .env.release -f compose.release.yml up -d`（仅适用于 Compose 生产部署） | server/web 在容器内 | 使用 HTTPS、强密码和 `SESSION_COOKIE_SECURE=true`；推荐 S3/OSS，过渡阶段允许单机 local |
 | 当前生产发布 | `ops/release-to-prod.sh` → `ops/deploy-release.sh --apply` | server/web 由生产机 `docker run` 管理 | release Compose 只作为配置快照和交付参考，不是当前生产切换命令 |
 
 开发和交付使用 GitHub Actions 发布的多架构镜像，默认覆盖 `linux/amd64` 与 `linux/arm64`。
@@ -42,7 +42,7 @@
 - Web 容器提供静态资源，并将 `/api/*`、`/oauth2/*`、`/.well-known/*` 反代到后端
 - 后端默认运行 `docker` profile，不再启用本地 mock 登录
 - PostgreSQL / Redis 默认只绑定 `127.0.0.1`
-- 对象存储推荐使用外部 S3 / OSS，通过环境变量注入
+- 对象存储生产推荐使用外部 S3 / OSS，通过环境变量注入；当前单机过渡阶段允许使用 Docker volume 上的 local storage
 
 ## 3 Profile 约定
 
@@ -115,16 +115,19 @@ Quickstart 使用 `http://localhost`、本地对象存储和
 
 ```bash
 cp .env.release.example .env.release
-# 填写最终 HTTPS 地址、S3/OSS 凭据、数据库密码和首登管理员密码
+# 填写最终 HTTPS 地址、数据库密码和首登管理员密码；推荐同时填写 S3/OSS 凭据
 make validate-release-config RELEASE_ENV_FILE=.env.release
 docker compose --env-file .env.release -f compose.release.yml up -d
 ```
 
-生产必须使用 HTTPS、`SESSION_COOKIE_SECURE=true`、外部 S3/OSS，并保持
-`SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED=false`。
+生产必须使用 HTTPS、`SESSION_COOKIE_SECURE=true`，并保持
+`SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED=false`。S3/OSS 是推荐的生产存储；在迁移完成前，
+允许单机使用 `SKILLHUB_STORAGE_PROVIDER=local`。此过渡模式必须备份对应 Docker volume，
+不得扩展为多节点或多副本部署。
 
 `make validate-release-config` 会根据文件名选择校验模式：`.env.quickstart`
-按本地 HTTP/本地存储规则校验，`.env.release` 按生产 HTTPS/S3 规则校验。
+按本地 HTTP/本地存储规则校验，`.env.release` 按生产 HTTPS 规则校验；生产 local
+存储会通过校验但输出迁移、备份和单节点限制警告。
 如果直接使用 Compose 启用安全扫描，需要显式带上对应 profile，例如：
 
 ```bash
@@ -151,7 +154,7 @@ COMPOSE_PROFILES=secret-scan,unified-scan \
   - 包含镜像名、镜像版本、端口、数据库凭证、外部 OSS、站点公网地址和首登管理员参数
 - `scripts/validate-release-config.sh`
   - 在启动前校验显式传入的环境变量文件
-  - 可提前拦截占位值、URL 格式错误、缺失的 OSS 凭据、危险的明文默认值
+  - 可提前拦截占位值、URL 格式错误、缺失的 S3/OSS 凭据（当选择 S3/OSS 时）、危险的明文默认值
 
 ### 5.4 镜像标签约定
 
@@ -184,13 +187,19 @@ repo/ops/release-to-prod.sh
 docker run skillhub-server-1 / skillhub-web-1
 ```
 
-生产脚本会根据 `ops/templates/compose.release.yml.tpl` 生成 release 配置快照，用于记录本次发布的环境和镜像信息；远端 `deploy-release.sh` 在 plan/apply 前会校验合并后的 `env.release` 与 `secrets.env`，`--apply` 阶段实际通过 `release-lib.sh` 创建或替换应用容器，并执行健康检查、配置检查和失败回滚。
+生产脚本会先将当前仓库的 `ops/*.sh`、`ops/templates/*` 和
+`scripts/validate-release-config.sh` 同步到生产机 `/opt/skillhub`，并在远端完成
+shell 语法校验；随后根据 `ops/templates/compose.release.yml.tpl` 生成 release
+配置快照，用于记录本次发布的环境和镜像信息。远端 `deploy-release.sh` 在
+plan/apply 前会校验合并后的 `env.release` 与 `secrets.env`，`--apply` 阶段实际
+通过 `release-lib.sh` 创建或替换应用容器，并执行健康检查、配置检查和失败回滚。
 
 因此：
 
 - 修改 `compose.release.yml` 会影响 Quickstart，不会自动改变当前生产发布行为；
 - 修改 `ops/templates/compose.release.yml.tpl` 会影响生产 release 快照和配置记录；
 - 修改 `ops/release-lib.sh` 才会改变当前生产 `docker run` 的容器启动参数；
+- 修改任意生产 ops 脚本后，`release-to-prod.sh` 会在 plan/apply 前自动同步，避免远端执行旧版本脚本；
 - 三处关键安全配置必须保持一致，并由 `make test-ops` 的配置契约测试校验。
 
 ## 6 GitHub Actions 发布流程
@@ -269,8 +278,8 @@ Quickstart 环境：
    - 打开 `80` / `443`，避免直接暴露 `5432` / `6379`
 2. 填写 `.env.release`（生产 HTTPS 配置，不要使用 `.env.quickstart`）
    - `SKILLHUB_PUBLIC_BASE_URL` 填最终 HTTPS 域名，且不要带尾部 `/`
-   - `SKILLHUB_STORAGE_PROVIDER=s3`
-   - 按云厂商 OSS / S3 兼容参数填写 `SKILLHUB_STORAGE_S3_*`
+   - 推荐设置 `SKILLHUB_STORAGE_PROVIDER=s3`，并按云厂商 OSS / S3 兼容参数填写 `SKILLHUB_STORAGE_S3_*`
+   - 如暂时使用 `SKILLHUB_STORAGE_PROVIDER=local`，仅用于单机过渡，确认 Docker volume 备份和恢复流程已经可用
    - 设置非默认的 `POSTGRES_PASSWORD`
    - 如启用首登管理员，务必在首次启动前显式设置 `BOOTSTRAP_ADMIN_USERNAME` 和强密码 `BOOTSTRAP_ADMIN_PASSWORD`
 3. 启动前校验

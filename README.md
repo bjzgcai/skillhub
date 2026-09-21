@@ -61,8 +61,9 @@ firewall, with the same polish you'd expect from a public registry.
   existing ClawHub-style registry clients. Native CLI APIs are the
   primary supported path while protocol compatibility continues to
   expand.
-- **Pluggable Storage** — Local filesystem for development, S3 /
-  MinIO for production. Swap via config.
+- **Pluggable Storage** — Local filesystem for development and the
+  temporary single-node production transition; S3 / MinIO is the
+  recommended production target. Swap via config.
 - **Internationalization** — Multi-language support with i18next.
 
 ## Quick Start
@@ -266,8 +267,9 @@ direct Compose command, set `COMPOSE_PROFILES=secret-scan` and/or
 For production, start from `.env.release.example`, copy it to `.env.release`,
 set the final HTTPS URL and real secrets, and validate it with
 `make validate-release-config RELEASE_ENV_FILE=.env.release`. Production must
-keep `SESSION_COOKIE_SECURE=true`, use S3/OSS storage, and disable local
-registration.
+keep `SESSION_COOKIE_SECURE=true` and disable local registration. S3/OSS is
+recommended; temporary local storage is allowed only for a single-node
+transition with Docker volume backups and no horizontal scaling.
 
 Recommended production baseline:
 

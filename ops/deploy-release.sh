@@ -25,11 +25,21 @@ load_env_files
 
 validate_release_config() {
   local validator="$BASE/ops/validate-release-config.sh"
+  local merged_env validation_status
   [ -x "$validator" ] || {
     echo "missing release config validator: $validator" >&2
     exit 8
   }
-  "$validator" <(cat "$SHARED/env.release" "$SHARED/secrets.env") production
+  merged_env="$(mktemp "$BASE/.release-config.XXXXXX")"
+  chmod 600 "$merged_env"
+  cat "$SHARED/env.release" "$SHARED/secrets.env" > "$merged_env"
+  if "$validator" "$merged_env" production; then
+    validation_status=0
+  else
+    validation_status=$?
+  fi
+  rm -f "$merged_env"
+  return "$validation_status"
 }
 
 validate_release_config
@@ -126,7 +136,6 @@ apply_server() {
   append_release_log "$out_dir" deploy.log "starting server deploy prev=$prev_image target=$image_ref"
   ensure_gitleaks_scanner_container
   ensure_unified_scanner_container
-  remove_container_if_exists skillhub-server-1
   # Pre-deploy storage check
   if [ -x "$BASE/ops/verify-storage.sh" ]; then
     "$BASE/ops/verify-storage.sh" --pre --env-file "$SHARED/env.release" >> "$out_dir/verify.log" 2>&1 || {
@@ -134,6 +143,7 @@ apply_server() {
       exit 6
     }
   fi
+  remove_container_if_exists skillhub-server-1
   run_server_container "$image_ref" "$SHARED/env.release" >/tmp/skillhub.deploy.server.cid
   if ! "$BASE/ops/verify-server-release.sh" \
     --expect-public-base-url "$SKILLHUB_PUBLIC_BASE_URL" \

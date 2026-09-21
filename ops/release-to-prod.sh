@@ -140,6 +140,30 @@ transfer_images() {
   esac
 }
 
+sync_remote_runtime() {
+  echo "syncing release scripts and templates to ${PROD_HOST}"
+  tar -czf - ops/*.sh ops/templates/* scripts/validate-release-config.sh |
+    ssh "$PROD_HOST" 'set -eu
+      base=/opt/skillhub
+      tmp="$(mktemp -d "$base/.ops-sync.XXXXXX")"
+      trap '\''rm -rf "$tmp"'\'' EXIT
+      tar -xzf - -C "$tmp"
+      install -d "$base/ops" "$base/releases/templates"
+      install -m 0755 "$tmp"/ops/*.sh "$base/ops/"
+      install -m 0644 "$tmp"/ops/templates/* "$base/releases/templates/"
+      install -m 0755 "$tmp/scripts/validate-release-config.sh" "$base/ops/validate-release-config.sh"
+      bash -n "$base/ops/release-to-prod.sh"
+      bash -n "$base/ops/deploy-release.sh"
+      bash -n "$base/ops/release-lib.sh"
+      bash -n "$base/ops/rollback-release.sh"
+      bash -n "$base/ops/verify-server-release.sh"
+      bash -n "$base/ops/verify-storage.sh"
+      sh -n "$base/ops/validate-release-config.sh"
+      rm -rf "$tmp"
+      trap - EXIT
+      printf "remote runtime scripts synced and syntax-checked\\n"'
+}
+
 remote_deploy_args() {
   printf '%q ' "$REMOTE_OPS/deploy-release.sh" --component "$COMPONENT"
   case "$COMPONENT" in
@@ -184,6 +208,7 @@ INFO
 require_clean_tree_for_apply
 build_images
 transfer_images
+sync_remote_runtime
 run_plan_or_apply
 verify_remote
 

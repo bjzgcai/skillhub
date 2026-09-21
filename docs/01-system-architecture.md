@@ -139,7 +139,7 @@ skillhub/
 - 开发路径：`make dev-all`。前后端在宿主机运行，`docker-compose.yml` 只负责 PostgreSQL、Redis、MinIO 和源码 scanner。
 - Quickstart 交付路径：GitHub Actions 构建并发布 `server` / `web` 镜像；用户通过 `compose.release.yml` 在本地一键拉起前后端容器和基础服务。
 - Quickstart 配置：`.env.quickstart.example` 使用 `http://localhost`、本地对象存储和 `SESSION_COOKIE_SECURE=false`，只用于本地体验。
-- 生产配置：`.env.release.example` 使用 HTTPS、S3/OSS 和 `SESSION_COOKIE_SECURE=true`，生产发布脚本不读取 Quickstart 配置。
+- 生产配置：`.env.release.example` 使用 HTTPS、S3/OSS 和 `SESSION_COOKIE_SECURE=true` 作为推荐基线；迁移期间允许单机 local storage，生产发布脚本不读取 Quickstart 配置。
 - 当前生产路径：`ops/release-to-prod.sh` 将镜像交付到生产机，由 `/opt/skillhub/ops/release-lib.sh` 使用 `docker run` 管理 server/web；生成的 release Compose 文件是配置快照，不是当前生产切换入口。
 - 发布镜像为多架构 manifest，至少覆盖 `linux/amd64` 与 `linux/arm64`。
 
@@ -168,7 +168,7 @@ skillhub/
 
 - ORM：Spring Data JPA (Hibernate)
 - API 文档：Springdoc OpenAPI
-- 对象存储：开发默认 LocalFile，集成测试/生产使用 MinIO / AWS S3 兼容接口
+- 对象存储：开发默认 LocalFile，生产推荐使用 MinIO / 云厂商 S3 兼容接口；迁移期间允许单机使用 LocalFile，但不支持多节点或多副本共享数据
 - 异步任务：Spring Events + 异步线程池，后续视复杂度引入 MQ
 - 缓存/Session：Spring Session + Redis
 - 数据库迁移：Flyway

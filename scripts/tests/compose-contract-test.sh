@@ -22,6 +22,19 @@ assert_not_contains() {
   fi
 }
 
+assert_order() {
+  local file="$1"
+  local first="$2"
+  local second="$3"
+  local first_line second_line
+  first_line="$(grep -nF -- "$first" "$REPO_ROOT/$file" | head -n1 | cut -d: -f1)"
+  second_line="$(grep -nF -- "$second" "$REPO_ROOT/$file" | head -n1 | cut -d: -f1)"
+  [ -n "$first_line" ] && [ -n "$second_line" ] && [ "$first_line" -lt "$second_line" ] || {
+    echo "expected $file to order '$first' before '$second'" >&2
+    exit 1
+  }
+}
+
 DEV_COMPOSE="$REPO_ROOT/docker-compose.yml"
 RELEASE_COMPOSE="$REPO_ROOT/compose.release.yml"
 RELEASE_TEMPLATE="$REPO_ROOT/ops/templates/compose.release.yml.tpl"
@@ -89,7 +102,19 @@ assert_contains "ops/deploy-release.sh" 'SESSION_COOKIE_SECURE:-'
 assert_contains "ops/deploy-release.sh" 'SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED:-'
 assert_contains "ops/deploy-release.sh" 'SESSION_COOKIE_SECURE must be true for production server deploys'
 assert_contains "ops/deploy-release.sh" 'SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED must be false for production server deploys'
+assert_contains "ops/deploy-release.sh" 'merged_env="$(mktemp "$BASE/.release-config.XXXXXX")"'
+assert_contains "ops/deploy-release.sh" '"$validator" "$merged_env" production'
+assert_not_contains "ops/deploy-release.sh" '"$validator" <(cat "$SHARED/env.release" "$SHARED/secrets.env") production'
+assert_order "ops/deploy-release.sh" '"$BASE/ops/verify-storage.sh" --pre' 'remove_container_if_exists skillhub-server-1'
 assert_not_contains "ops/verify-server-release.sh" '/api/v1/auth/local/register'
+
+# The remote production entrypoint must receive the repository-managed release
+# scripts before it runs plan/apply; otherwise /opt/skillhub can execute stale
+# deployment logic after an ops-only security change.
+assert_contains "ops/release-to-prod.sh" 'sync_remote_runtime()'
+assert_contains "ops/release-to-prod.sh" 'tar -czf - ops/*.sh ops/templates/* scripts/validate-release-config.sh'
+assert_contains "ops/release-to-prod.sh" 'remote runtime scripts synced and syntax-checked'
+assert_contains "ops/release-to-prod.sh" 'sync_remote_runtime'
 
 if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
   dev_services="$(docker compose -f "$DEV_COMPOSE" config --services)"

@@ -36,7 +36,7 @@
 - `docker-compose.yml`：本地源码开发依赖。它只启动 PostgreSQL、Redis、MinIO 和源码 scanner，server/web 由宿主机上的 Maven/Vite 进程运行。
 - `compose.release.yml`：Quickstart/单机交付。它使用已构建的 server/web 镜像，启动完整容器栈，供用户在单机上运行。
 - Quickstart 使用 `.env.quickstart`，面向本地 `http://localhost`，并允许 `SESSION_COOKIE_SECURE=false`。
-- 生产配置使用 `.env.release`，面向 HTTPS，必须保持 `SESSION_COOKIE_SECURE=true`；两者不能互换。
+- 生产配置使用 `.env.release`，面向 HTTPS，必须保持 `SESSION_COOKIE_SECURE=true`；推荐 S3/OSS。迁移期间允许单机使用 `SKILLHUB_STORAGE_PROVIDER=local`，但必须备份 Docker volume，且不能扩展为多节点或多副本；两者不能互换。
 
 当前生产发布不直接执行根目录的 `compose.release.yml`。生产机的应用容器由 `/opt/skillhub/ops/release-lib.sh` 中的 `docker run` 创建；`ops/templates/compose.release.yml.tpl` 生成每次 release 的配置快照，用于审计、回滚和追踪。远端 `deploy-release.sh` 在 plan/apply 前会调用同步到 `/opt/skillhub/ops/validate-release-config.sh` 的配置校验器。三套配置的关键安全变量由 `make test-ops` 校验一致性。
 
@@ -93,6 +93,11 @@ SKILLHUB_PROD_HOST=ubuntu@prod.example.com \
 ./ops/release-to-prod.sh --host ubuntu@prod.example.com --component all --apply
 ```
 
+`release-to-prod.sh` 在执行远端 plan/apply 前会自动同步当前仓库的
+`ops/*.sh`、`ops/templates/*` 和 `scripts/validate-release-config.sh` 到
+生产机 `/opt/skillhub`，并在远端通过 `bash -n` / `sh -n` 校验。生产发布不再依赖
+人工先执行本机的 `sync-to-runtime.sh`；后者仍用于本机直接维护 `/opt/skillhub` 的场景。
+
 常用参数：
 
 ```bash
@@ -110,9 +115,9 @@ SKILLHUB_PROD_HOST=ubuntu@prod.example.com \
 
 1. 在 repo 中修改代码或 `ops/` 脚本
 2. 本地执行语法检查 / smoke test
-3. 如修改运行态 ops 脚本，运行 `./ops/sync-to-runtime.sh`
+3. 如需直接维护当前机器的 `/opt/skillhub`，运行 `./ops/sync-to-runtime.sh`；远程生产发布由下一步自动同步
 4. 用 `--host <ssh-target>` 或 `SKILLHUB_PROD_HOST` 提供生产目标，再执行 `./ops/release-to-prod.sh --component <all|server|web>` 生成生产发布 plan
-5. 确认 plan 后执行 `./ops/release-to-prod.sh --host <ssh-target> --component <all|server|web> --apply`
+5. 确认 plan、配置校验和脚本同步成功后，执行 `./ops/release-to-prod.sh --host <ssh-target> --component <all|server|web> --apply`
 6. 将脚本改动和相关文档一起纳入 Git
 
 ## 不要做的事
