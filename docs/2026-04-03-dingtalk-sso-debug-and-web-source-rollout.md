@@ -183,10 +183,12 @@ server 容器运行状态确认：
 
 ## 已观察到的关键现网信息
 
+> 本节记录的是 2026-04-03 的历史测试环境状态，不代表 2026-09-20 的当前生产配置。当前生产安全配置以 `/opt/skillhub/shared/env.release`、运行中容器环境和 `ops/verify-server-release.sh` 验收结果为准。
+
 ### 当前正式配置中的关键值
 
-- `SKILLHUB_PUBLIC_BASE_URL=http://test.example.invalid`
-- `SKILLHUB_AUTH_DINGTALK_REDIRECT_URI=http://test.example.invalid:8080/api/v1/auth/dingtalk/callback`
+- `SKILLHUB_PUBLIC_BASE_URL=http://<TEST_HOST>`
+- `SKILLHUB_AUTH_DINGTALK_REDIRECT_URI=http://<TEST_HOST>:8080/api/v1/auth/dingtalk/callback`
 - `SESSION_COOKIE_SECURE=false`
 - Spring Session 使用 Redis
 - 当前 server 为单实例
@@ -197,8 +199,8 @@ server 容器运行状态确认：
    - 现在是单实例 server + Redis session。
 
 2. **登录入口不一致值得重点关注**
-   - 用户访问 web 站点使用 `http://test.example.invalid`（80 端口）
-   - DingTalk callback 却回到 `http://test.example.invalid:8080/api/v1/auth/dingtalk/callback`
+   - 用户访问 web 站点使用 `http://<TEST_HOST>`（80 端口）
+   - DingTalk callback 却回到 `http://<TEST_HOST>:8080/api/v1/auth/dingtalk/callback`
    - 即前端入口和 OAuth callback 入口不是同一个外部入口。
 
 3. **SESSION cookie 当前为 `SameSite=Lax`**
@@ -281,7 +283,7 @@ server 容器运行状态确认：
 4. 替换当前 `skillhub-web-1` 容器
 5. 保持现网等价运行参数：
    - `SKILLHUB_API_UPSTREAM=http://server:8080`
-   - `SKILLHUB_PUBLIC_BASE_URL=http://test.example.invalid`
+   - `SKILLHUB_PUBLIC_BASE_URL=http://<TEST_HOST>`
    - DingTalk web runtime config 保持开启
 
 ### 部署验证
@@ -325,7 +327,7 @@ server 容器运行状态确认：
 建议的修复优先级：
 
 1. **优先统一 DingTalk callback 到对外公开入口**
-   - 倾向改成：`http://test.example.invalid/api/v1/auth/dingtalk/callback`
+   - 倾向改成：`http://<TEST_HOST>/api/v1/auth/dingtalk/callback`
    - 避免直接暴露 `:8080` 作为浏览器 callback 入口
 
 2. **重新校验 web → server 代理路径与 cookie 回传策略**

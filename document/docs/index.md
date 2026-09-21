@@ -85,10 +85,10 @@ description: 企业级 AI 技能注册表 - 安全可控的技能发布、发现
 
 <div style={{ textAlign: 'center', marginTop: '40px' }}>
   <div className="quick-start-code">
-    <code>$ curl -fsSL https://raw.githubusercontent.com/iflytek/skillhub/main/scripts/runtime.sh | sh -s -- up</code>
+    <code>$ curl -fL https://raw.githubusercontent.com/iflytek/skillhub/main/scripts/runtime.sh -o /tmp/skillhub-runtime.sh</code>
   </div>
   <p style={{ marginTop: '16px', color: 'var(--ifm-font-color-secondary)' }}>
-    访问 <a href="http://localhost:3000">http://localhost:3000</a> 开始使用
+    请先按<a href="./getting-started/quick-start">快速开始</a>完成 checksum 校验，再显式执行脚本；访问 <a href="http://localhost">http://localhost</a> 开始使用
   </p>
 </div>
 

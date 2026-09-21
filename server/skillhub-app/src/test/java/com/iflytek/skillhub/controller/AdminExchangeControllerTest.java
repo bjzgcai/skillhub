@@ -2,6 +2,7 @@ package com.iflytek.skillhub.controller;
 
 import com.iflytek.skillhub.TestRedisConfig;
 import com.iflytek.skillhub.auth.device.DeviceAuthService;
+import com.iflytek.skillhub.auth.repository.ApiTokenRepository;
 import com.iflytek.skillhub.domain.namespace.NamespaceMemberRepository;
 import com.iflytek.skillhub.dto.adminexchange.AdminExchangeEffectiveUserResponse;
 import com.iflytek.skillhub.dto.adminexchange.AdminExchangeResponse;
@@ -45,6 +46,9 @@ class AdminExchangeControllerTest {
 
     @MockBean
     private NamespaceMemberRepository namespaceMemberRepository;
+
+    @MockBean
+    private ApiTokenRepository apiTokenRepository;
 
     @MockBean
     private DeviceAuthService deviceAuthService;

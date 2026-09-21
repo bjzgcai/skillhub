@@ -13,11 +13,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.iflytek.skillhub.auth.exception.AuthFlowException;
 import com.iflytek.skillhub.auth.local.LocalAuthService;
 import com.iflytek.skillhub.auth.rbac.PlatformPrincipal;
+import com.iflytek.skillhub.config.LocalAuthProperties;
 import com.iflytek.skillhub.domain.namespace.NamespaceMemberRepository;
 import com.iflytek.skillhub.metrics.SkillHubMetrics;
 import com.iflytek.skillhub.security.AuthFailureThrottleService;
 import java.util.List;
 import java.util.Set;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -49,6 +51,14 @@ class LocalAuthControllerTest {
 
     @MockBean
     private AuthFailureThrottleService authFailureThrottleService;
+
+    @MockBean
+    private LocalAuthProperties localAuthProperties;
+
+    @BeforeEach
+    void enableLocalRegistrationByDefault() {
+        given(localAuthProperties.isRegistrationEnabled()).willReturn(true);
+    }
 
     @Test
     void login_returnsCurrentUserEnvelope() throws Exception {
@@ -117,6 +127,50 @@ class LocalAuthControllerTest {
             .andExpect(jsonPath("$.code").value(400));
 
         verify(localAuthService).register("bob", "Abcd123!", "not-an-email");
+    }
+
+    @Test
+    void register_whenRegistrationDisabled_returnsForbiddenWithoutCreatingUser() throws Exception {
+        given(localAuthProperties.isRegistrationEnabled()).willReturn(false);
+
+        mockMvc.perform(post("/api/v1/auth/local/register")
+                .with(csrf())
+                .header("Accept-Language", "zh-CN")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"username":"bob","password":"Abcd123!","email":"bob@example.com"}
+                    """))
+            .andExpect(status().isForbidden())
+            .andExpect(jsonPath("$.code").value(403))
+            .andExpect(jsonPath("$.msg").value("本地账号注册已关闭"));
+
+        verify(localAuthService, never()).register("bob", "Abcd123!", "bob@example.com");
+        verify(skillHubMetrics, never()).incrementUserRegister();
+    }
+
+    @Test
+    void login_whenRegistrationDisabled_stillAllowsExistingLocalAccount() throws Exception {
+        given(localAuthProperties.isRegistrationEnabled()).willReturn(false);
+        PlatformPrincipal principal = new PlatformPrincipal(
+            "docker-admin",
+            "admin",
+            "admin@example.com",
+            "",
+            "local",
+            Set.of("SUPER_ADMIN")
+        );
+        given(localAuthService.login("admin", "Admin123!")).willReturn(principal);
+
+        mockMvc.perform(post("/api/v1/auth/local/login")
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"username":"admin","password":"Admin123!"}
+                    """))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.userId").value("docker-admin"));
+
+        verify(localAuthService).login("admin", "Admin123!");
     }
 
     @Test

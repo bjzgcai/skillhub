@@ -10,6 +10,17 @@ description: Detailed SkillHub configuration reference
 
 SkillHub is configured through environment variables. The main configuration items are listed below:
 
+### Template Boundaries
+
+- `.env.quickstart.example`: local Quickstart using `http://localhost`, local
+  storage, and `SESSION_COOKIE_SECURE=false`; it must not be used in production.
+- `.env.release.example`: production/release configuration using HTTPS,
+  S3/OSS, and `SESSION_COOKIE_SECURE=true`. The production release path reads
+  this configuration class and never the Quickstart template.
+- `make validate-release-config` validates `.env.release` by default. To
+  validate Quickstart explicitly, use
+  `make validate-release-config RELEASE_ENV_FILE=.env.quickstart`.
+
 ### Basic Configuration
 
 | Environment Variable | Description | Default Value |
@@ -57,8 +68,10 @@ SkillHub is configured through environment variables. The main configuration ite
 | Environment Variable | Description | Default Value |
 |---------------------|-------------|---------------|
 | `BOOTSTRAP_ADMIN_ENABLED` | Enable bootstrap admin | `true` |
-| `BOOTSTRAP_ADMIN_USERNAME` | Bootstrap admin username | `admin` |
-| `BOOTSTRAP_ADMIN_PASSWORD` | Bootstrap admin password | `ChangeMe!2026` |
+| `BOOTSTRAP_ADMIN_USERNAME` | Bootstrap admin username (required when enabled) | - |
+| `BOOTSTRAP_ADMIN_PASSWORD` | Strong bootstrap admin password (required when enabled) | - |
+
+For local source development with the `local` profile, the default account remains `admin` / `ChangeMe!2026`. This default is for local development only and must not be used with the `docker` profile or in production; production deployments must set a strong password explicitly before first startup.
 
 ## Configuration Files
 

@@ -15,20 +15,21 @@ description: 使用 Docker Compose 单机部署 SkillHub
 - 至少 4GB 可用内存
 - 至少 20GB 可用磁盘空间
 
-## 快速部署
+## 生产部署
 
 ```bash
 # 1. 克隆仓库
 git clone https://github.com/iflytek/skillhub.git
 cd skillhub
 
-# 2. 复制环境变量模板
+# 2. 复制生产环境变量模板
 cp .env.release.example .env.release
 
 # 3. 编辑配置
-# 修改 .env.release 中的配置项，特别是密码和公网地址
+# 修改 .env.release 中的配置项，特别是强密码和公网地址
+# 首次部署必须显式设置 BOOTSTRAP_ADMIN_PASSWORD；生产环境没有默认管理员密码
 
-# 4. 验证配置
+# 4. 验证生产配置
 make validate-release-config
 
 # 5. 启动服务
@@ -49,12 +50,12 @@ docker compose --env-file .env.release -f compose.release.yml ps
 curl -i http://127.0.0.1:8080/actuator/health
 
 # 访问 Web UI
-# 浏览器打开 http://localhost（或配置的公网地址）
+# 浏览器打开配置的 HTTPS 公网地址
 ```
 
 ## 首登配置
 
-1. 使用 `BOOTSTRAP_ADMIN_USERNAME` 和 `BOOTSTRAP_ADMIN_PASSWORD` 登录（默认 `admin` / `ChangeMe!2026`）
+1. 如果启用了首登管理员，使用部署前在 `.env.release` 中显式设置的 `BOOTSTRAP_ADMIN_USERNAME` 和 `BOOTSTRAP_ADMIN_PASSWORD` 登录；生产环境没有默认管理员密码
 2. 立即修改管理员密码
 3. 配置企业 SSO（可选）
 4. 创建团队命名空间

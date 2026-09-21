@@ -15,7 +15,7 @@ current_release_file() {
 }
 
 server_env_summary() {
-  docker inspect skillhub-server-1 --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep -E '^(SKILLHUB_PUBLIC_BASE_URL|SKILLHUB_AUTH_DINGTALK_REDIRECT_URI|SKILLHUB_STORAGE_PROVIDER|SESSION_COOKIE_SECURE)=' | sort || true
+  docker inspect skillhub-server-1 --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | grep -E '^(SKILLHUB_PUBLIC_BASE_URL|SKILLHUB_AUTH_DINGTALK_REDIRECT_URI|SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED|SKILLHUB_STORAGE_PROVIDER|SESSION_COOKIE_SECURE)=' | sort || true
 }
 
 web_env_summary() {

@@ -43,6 +43,7 @@ class SkillSearchControllerTest {
                 eq(0),
                 eq(20),
                 eq(null),
+                eq("all"),
                 any(),
                 any()))
                 .thenReturn(new SkillSearchAppService.SearchResponse(List.of(), 0, 0, 20));
@@ -67,6 +68,7 @@ class SkillSearchControllerTest {
                 eq(0),
                 eq(12),
                 eq(null),
+                eq("all"),
                 any(),
                 any()))
                 .thenReturn(new SkillSearchAppService.SearchResponse(List.of(), 0, 0, 12));
@@ -89,6 +91,7 @@ class SkillSearchControllerTest {
                 eq(0),
                 eq(20),
                 eq(List.of("code-generation", "official")),
+                eq("all"),
                 any(),
                 any()))
                 .thenReturn(new SkillSearchAppService.SearchResponse(List.of(), 0, 0, 20));

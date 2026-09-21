@@ -15,20 +15,21 @@ This guide describes how to deploy SkillHub on a single server using Docker Comp
 - At least 4GB available RAM
 - At least 20GB available disk space
 
-## Quick Deployment
+## Production Deployment
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/iflytek/skillhub.git
 cd skillhub
 
-# 2. Copy environment variable template
+# 2. Copy production environment template
 cp .env.release.example .env.release
 
 # 3. Edit configuration
-# Modify configuration items in .env.release, especially passwords and public URLs
+# Modify configuration items in .env.release, especially strong passwords and public URLs
+# Set BOOTSTRAP_ADMIN_PASSWORD explicitly before the first deployment; production has no default admin password
 
-# 4. Validate configuration
+# 4. Validate production configuration
 make validate-release-config
 
 # 5. Start services
@@ -49,12 +50,12 @@ docker compose --env-file .env.release -f compose.release.yml ps
 curl -i http://127.0.0.1:8080/actuator/health
 
 # Access Web UI
-# Open http://localhost in browser (or configured public URL)
+# Open the configured HTTPS public URL in a browser
 ```
 
 ## First Login Configuration
 
-1. Login with `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` (default `admin` / `ChangeMe!2026`)
+1. If bootstrap admin is enabled, log in with the `BOOTSTRAP_ADMIN_USERNAME` and `BOOTSTRAP_ADMIN_PASSWORD` explicitly set in `.env.release` before deployment; production has no default admin password
 2. Change admin password immediately
 3. Configure enterprise SSO (optional)
 4. Create team namespaces

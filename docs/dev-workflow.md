@@ -119,8 +119,15 @@ This is faster than building both images but still validates the containerized b
 ### Run staging
 
 ```bash
-make staging
+BOOTSTRAP_ADMIN_PASSWORD='use-a-unique-local-password' \
+SPRING_DATASOURCE_PASSWORD='use-a-unique-local-db-password' \
+SKILLHUB_STORAGE_S3_ACCESS_KEY='local-staging-access' \
+SKILLHUB_STORAGE_S3_SECRET_KEY='use-a-unique-local-storage-password' \
+  make staging
 ```
+
+Staging no longer supplies shared default passwords. These values are local
+test credentials only; do not reuse them in production.
 
 This will:
 1. Build the backend Docker image

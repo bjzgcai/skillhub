@@ -119,9 +119,11 @@ skillhub/
 │   ├── Dockerfile        # 前端多阶段构建
 │   ├── nginx.conf.template        # Nginx 运行时模板
 │   └── runtime-config.js.template # 前端运行时环境变量模板
-├── docker-compose.yml    # 本地开发依赖服务（PostgreSQL/Redis/MinIO）
-├── compose.release.yml   # 单机运行时编排（发布镜像 + PostgreSQL + Redis）
-├── .env.release.example  # 单机运行时环境变量模板
+├── docker-compose.yml    # 本地开发依赖服务（PostgreSQL/Redis/MinIO/scanner）
+├── compose.release.yml   # Quickstart 单机运行时编排（发布镜像 + 基础服务）
+├── .env.quickstart.example # HTTP 本地 Quickstart 环境变量模板
+├── .env.release.example  # HTTPS 生产/发布环境变量模板
+├── .env.release.draft    # 裸机生产配置草稿
 ├── .github/workflows/    # GitHub Actions 镜像发布流程
 ├── Makefile              # 顶层开发编排（dev / dev-all / build）
 ├── docs/                 # 设计文档
@@ -134,8 +136,11 @@ skillhub/
 
 部署模型收敛为两条路径：
 
-- 开发路径：`make dev-all`。前后端在宿主机运行，`docker-compose.yml` 只负责 PostgreSQL、Redis、MinIO。
-- 交付路径：GitHub Actions 构建并发布 `server` / `web` 镜像；用户通过 `compose.release.yml` 在本地一键拉起前后端容器和基础服务。
+- 开发路径：`make dev-all`。前后端在宿主机运行，`docker-compose.yml` 只负责 PostgreSQL、Redis、MinIO 和源码 scanner。
+- Quickstart 交付路径：GitHub Actions 构建并发布 `server` / `web` 镜像；用户通过 `compose.release.yml` 在本地一键拉起前后端容器和基础服务。
+- Quickstart 配置：`.env.quickstart.example` 使用 `http://localhost`、本地对象存储和 `SESSION_COOKIE_SECURE=false`，只用于本地体验。
+- 生产配置：`.env.release.example` 使用 HTTPS、S3/OSS 和 `SESSION_COOKIE_SECURE=true` 作为推荐基线；迁移期间允许单机 local storage，生产发布脚本不读取 Quickstart 配置。
+- 当前生产路径：`ops/release-to-prod.sh` 将镜像交付到生产机，由 `/opt/skillhub/ops/release-lib.sh` 使用 `docker run` 管理 server/web；生成的 release Compose 文件是配置快照，不是当前生产切换入口。
 - 发布镜像为多架构 manifest，至少覆盖 `linux/amd64` 与 `linux/arm64`。
 
 单机运行时统一入口：
@@ -163,7 +168,7 @@ skillhub/
 
 - ORM：Spring Data JPA (Hibernate)
 - API 文档：Springdoc OpenAPI
-- 对象存储：开发默认 LocalFile，集成测试/生产使用 MinIO / AWS S3 兼容接口
+- 对象存储：开发默认 LocalFile，生产推荐使用 MinIO / 云厂商 S3 兼容接口；迁移期间允许单机使用 LocalFile，但不支持多节点或多副本共享数据
 - 异步任务：Spring Events + 异步线程池，后续视复杂度引入 MQ
 - 缓存/Session：Spring Session + Redis
 - 数据库迁移：Flyway

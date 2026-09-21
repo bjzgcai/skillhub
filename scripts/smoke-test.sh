@@ -105,7 +105,11 @@ fi
 
 # ---- Label Management (requires admin) ----
 ADMIN_USERNAME="${BOOTSTRAP_ADMIN_USERNAME:-admin}"
-ADMIN_PASSWORD="${BOOTSTRAP_ADMIN_PASSWORD:-ChangeMe!2026}"
+ADMIN_PASSWORD="${BOOTSTRAP_ADMIN_PASSWORD:-}"
+if [[ -z "$ADMIN_PASSWORD" ]]; then
+  echo "BOOTSTRAP_ADMIN_PASSWORD must be set for the admin smoke-test checks" >&2
+  exit 2
+fi
 ADMIN_COOKIE_JAR="$(mktemp)"
 LABEL_SLUG="smoke-label-$(date +%s)"
 

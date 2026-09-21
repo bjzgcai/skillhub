@@ -196,7 +196,7 @@ class SkillControllerDownloadTest {
 
         verify(rateLimiter).tryAcquire(
                 "ratelimit:download:user:test-user:ns:global:slug:demo-skill:version:1.0.0",
-                120,
+                300,
                 60);
     }
 }

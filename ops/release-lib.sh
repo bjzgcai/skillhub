@@ -25,12 +25,22 @@ new_release_id() {
   date -u +%Y%m%dT%H%M%SZ
 }
 
+redact_release_compose_secrets() {
+  awk '
+    /^[[:space:]]*[A-Z0-9_]*_(PASSWORD|SECRET|SECRET_KEY|ACCESS_KEY|TOKEN):/ {
+      sub(/:.*/, ": <redacted>")
+    }
+    { print }
+  '
+}
+
 render_release() {
   local release_id="$1"
   local out_dir="$RELEASES/$release_id"
   mkdir -p "$out_dir"
   require_file "$TEMPLATES/compose.release.yml.tpl"
-  envsubst < "$TEMPLATES/compose.release.yml.tpl" > "$out_dir/compose.release.yml"
+  envsubst < "$TEMPLATES/compose.release.yml.tpl" |
+    redact_release_compose_secrets > "$out_dir/compose.release.yml"
   cat > "$out_dir/release.json" <<JSON
 {
   "releaseId": "$release_id",
@@ -131,6 +141,12 @@ container_env_value() {
     | awk -F= -v key="$key" '$1 == key {print substr($0, length(key) + 2); exit}'
 }
 
+refresh_web_proxy_upstream() {
+  [ -n "$(docker ps -qf name='^skillhub-web-1$' || true)" ] || return 0
+  docker exec skillhub-web-1 nginx -t
+  docker exec skillhub-web-1 nginx -s reload
+}
+
 server_storage_volume() {
   echo "${SKILLHUB_STORAGE_VOLUME:-skillhub_skillhub_storage}"
 }
@@ -183,7 +199,7 @@ restore_gitleaks_scanner_container() {
 run_unified_scanner_container() {
   local image_ref="${1:-}"
   [ -n "$image_ref" ] || image_ref="$(unified_scanner_image_ref)"
-  docker image inspect "$image_ref" >/dev/null 2>&1 || { echo "unified scanner image not found locally: $image_ref" >&2; exit 4; }
+  docker image inspect "$image_ref" >/dev/null 2>&1 || { echo "unified scanner image not found locally: $image_ref" >&2; return 4; }
   docker run -d \
     --name skillhub-security-scanner-1 \
     --network skillhub_default \
@@ -261,15 +277,18 @@ run_server_container() {
     --name skillhub-server-1 \
     --network skillhub_default \
     --restart unless-stopped \
-    -p 8080:8080 \
+    -p "${API_BIND_ADDRESS:-127.0.0.1}:8080:8080" \
     --env-file "$env_file" \
     --env-file "$SHARED/secrets.env" \
     -e SPRING_PROFILES_ACTIVE=docker \
     -e SPRING_DATASOURCE_URL="jdbc:postgresql://postgres:5432/${POSTGRES_DB:-skillhub}" \
     -e SPRING_DATASOURCE_USERNAME="${POSTGRES_USER:-skillhub}" \
-    -e SPRING_DATASOURCE_PASSWORD="${POSTGRES_PASSWORD:-skillhub_demo}" \
+    -e SPRING_DATASOURCE_PASSWORD="${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set to a unique production secret}" \
     -e REDIS_HOST=redis \
     -e REDIS_PORT=6379 \
+    -e SESSION_COOKIE_SECURE="${SESSION_COOKIE_SECURE:?SESSION_COOKIE_SECURE must be set}" \
+    -e SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED="${SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED:?SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED must be set}" \
+    -e BOOTSTRAP_ADMIN_ENABLED="${BOOTSTRAP_ADMIN_ENABLED:?BOOTSTRAP_ADMIN_ENABLED must be set}" \
     -e SKILLHUB_SECRET_SCAN_ENABLED="${SKILLHUB_SECRET_SCAN_ENABLED:-false}" \
     -e SKILLHUB_SECRET_SCAN_BASE_URL="${SKILLHUB_SECRET_SCAN_BASE_URL:-http://skillhub-gitleaks-scanner-1:8015}" \
     -e SKILLHUB_SECRET_SCAN_READ_TIMEOUT="${SKILLHUB_SECRET_SCAN_READ_TIMEOUT:-30000}" \

@@ -83,6 +83,19 @@ fi
 expected_public_base_url="$(read_env_value "$target_dir/release.env" SKILLHUB_PUBLIC_BASE_URL)"
 expected_dingtalk_redirect_uri="$(read_env_value "$target_dir/release.env" SKILLHUB_AUTH_DINGTALK_REDIRECT_URI)"
 expected_api_upstream="$(read_env_value "$target_dir/release.env" SKILLHUB_API_UPSTREAM)"
+target_session_cookie_secure="$(read_env_value "$target_dir/release.env" SESSION_COOKIE_SECURE)"
+target_local_registration_enabled="$(read_env_value "$target_dir/release.env" SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED)"
+
+if [ "$COMPONENT" = "server" ] || [ "$COMPONENT" = "all" ]; then
+  [ "$target_session_cookie_secure" = "true" ] || {
+    echo 'target release does not enforce SESSION_COOKIE_SECURE=true' >&2
+    exit 1
+  }
+  [ "$target_local_registration_enabled" = "false" ] || {
+    echo 'target release does not disable local registration' >&2
+    exit 1
+  }
+fi
 
 if [ "$COMPONENT" = "server" ] || [ "$COMPONENT" = "all" ]; then
   [ -n "$target_server_image" ] || { echo 'target release missing server image' >&2; exit 1; }

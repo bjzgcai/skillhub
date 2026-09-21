@@ -20,6 +20,7 @@ ENV_FILE=""
 ALLOW_EMPTY=0
 TEST_SLUG="${VERIFY_STORAGE_TEST_SLUG:-weather}"
 ADMIN_ENV="${ADMIN_ENV:-/home/ubuntu/.openclaw/workspace/.secrets/skillhub-admin.env}"
+REGISTRY_URL="${SKILLHUB_TEST_REGISTRY:-}"
 
 usage() {
   cat <<USAGE
@@ -48,6 +49,10 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ -n "$PHASE" ] || usage
+
+if [ -z "$REGISTRY_URL" ] && [ -n "${SKILLHUB_PUBLIC_BASE_URL:-}" ]; then
+  REGISTRY_URL="$SKILLHUB_PUBLIC_BASE_URL"
+fi
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -216,11 +221,11 @@ run_post_deploy() {
   local download_ok=0
 
   if command -v clawhub >/dev/null 2>&1; then
-    if clawhub install "$TEST_SLUG" --registry https://skillhub.example.invalid --force 2>&1 | grep -qi 'OK.*Installed'; then
+    if [ -n "$REGISTRY_URL" ] && clawhub install "$TEST_SLUG" --registry "$REGISTRY_URL" --force 2>&1 | grep -qi 'OK.*Installed'; then
       download_ok=1
     fi
   elif command -v npx >/dev/null 2>&1; then
-    if npx -y clawhub install "$TEST_SLUG" --registry https://skillhub.example.invalid --force 2>&1 | grep -qi 'OK.*Installed'; then
+    if [ -n "$REGISTRY_URL" ] && npx -y clawhub install "$TEST_SLUG" --registry "$REGISTRY_URL" --force 2>&1 | grep -qi 'OK.*Installed'; then
       download_ok=1
     fi
   fi

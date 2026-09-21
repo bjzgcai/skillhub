@@ -2,16 +2,18 @@
 
 ## 1 运行模型
 
-当前仓库只保留两种运行方式：
+仓库中有两种面向使用者的 Compose 运行方式，另有一条当前生产发布链路：
 
-- 开发环境：`make dev-all`
-  - 前端和后端运行在宿主机
-  - `docker-compose.yml` 只负责 PostgreSQL、Redis、MinIO
-- 单机交付环境：`docker compose --env-file .env.release -f compose.release.yml up -d`
-  - 前端和后端都运行在容器内
-- 使用 GitHub Actions 发布到 GHCR 的镜像
-- 默认发布 `linux/amd64` 与 `linux/arm64` 多架构镜像
-  - PostgreSQL、Redis 与应用容器一起通过 Compose 启动
+| 场景 | 入口 | 应用运行位置 | Compose 文件职责 |
+|------|------|--------------|------------------|
+| 本地源码开发 | `make dev-all` | server/web 在宿主机 | `docker-compose.yml` 只启动 PostgreSQL、Redis、MinIO 和源码 scanner |
+| Quickstart / 单机体验 | `docker compose --env-file .env.quickstart -f compose.release.yml up -d` | server/web 在容器内 | `compose.release.yml` 启动发布镜像、PostgreSQL、Redis 和可选 scanner；默认 HTTP、本地存储 |
+| 生产单机发布 | `docker compose --env-file .env.release -f compose.release.yml up -d`（仅适用于 Compose 生产部署） | server/web 在容器内 | 使用 HTTPS、强密码和 `SESSION_COOKIE_SECURE=true`；推荐 S3/OSS，过渡阶段允许单机 local |
+| 当前生产发布 | `ops/release-to-prod.sh` → `ops/deploy-release.sh --apply` | server/web 由生产机 `docker run` 管理 | release Compose 只作为配置快照和交付参考，不是当前生产切换命令 |
+
+开发和交付使用 GitHub Actions 发布的多架构镜像，默认覆盖 `linux/amd64` 与 `linux/arm64`。
+
+`docker-compose.yml` 与 `compose.release.yml` 不能互换：前者允许本地开发默认值并将应用跑在宿主机，后者要求发布环境变量并将完整应用跑在容器内。staging 使用 `docker-compose.yml` 加 `docker-compose.staging.yml` 覆盖层，属于开发 Compose 的复用场景。
 
 不再维护本地构建整套 demo 容器的中间模式，也不再保留 `docker-compose.prod.yml`。
 
@@ -40,7 +42,7 @@
 - Web 容器提供静态资源，并将 `/api/*`、`/oauth2/*`、`/.well-known/*` 反代到后端
 - 后端默认运行 `docker` profile，不再启用本地 mock 登录
 - PostgreSQL / Redis 默认只绑定 `127.0.0.1`
-- 对象存储推荐使用外部 S3 / OSS，通过环境变量注入
+- 对象存储生产推荐使用外部 S3 / OSS，通过环境变量注入；当前单机过渡阶段允许使用 Docker volume 上的 local storage
 
 ## 3 Profile 约定
 
@@ -57,13 +59,16 @@
 
 如需启用首登管理员，来源于以下环境变量：
 
-- `BOOTSTRAP_ADMIN_ENABLED=true`（发布模板默认已开启）
-- `BOOTSTRAP_ADMIN_USERNAME`（默认 `admin`）
-- `BOOTSTRAP_ADMIN_PASSWORD`（默认 `ChangeMe!2026`）
+- `BOOTSTRAP_ADMIN_ENABLED=true`（两个模板默认开启；生产可显式关闭）
+- `BOOTSTRAP_ADMIN_USERNAME`（启用首登管理员时显式设置）
+- `BOOTSTRAP_ADMIN_PASSWORD`（启用首登管理员时显式设置强密码）
 
-建议：
+本地源码开发使用 `local` profile 时，仍可使用默认账号 `admin` / `ChangeMe!2026`；该默认值仅限本地开发，不能用于 `docker` profile 或任何生产部署。
 
-- 生产环境务必修改 `BOOTSTRAP_ADMIN_PASSWORD`（`validate-release-config.sh` 会拒绝默认值）
+生产部署要求：
+
+- 首次部署前必须显式设置唯一且足够强的 `BOOTSTRAP_ADMIN_PASSWORD`；`validate-release-config.sh` 会拒绝本地默认值和其它示例密码
+- 如启用首登管理员，同时显式设置 `BOOTSTRAP_ADMIN_USERNAME`
 - 完成首次登录后立即修改管理员密码
 - 如果已有外部身份源，通常不需要启用 bootstrap admin
 - `SKILLHUB_PUBLIC_BASE_URL` 应配置为最终 HTTPS 域名，避免 OAuth / Cookie / 设备码链接异常
@@ -78,7 +83,7 @@ make dev-all
 
 行为：
 
-- `docker-compose.yml` 启动 PostgreSQL、Redis、MinIO
+- `docker-compose.yml` 启动 PostgreSQL、Redis、MinIO 和源码 scanner
 - `server` 在宿主机通过 Maven Wrapper 启动
 - `web` 在宿主机通过 Vite 启动
 
@@ -92,14 +97,42 @@ make dev-all-down
 make dev-all-reset
 ```
 
-## 5 单机交付环境
+## 5 Quickstart 与生产单机环境
 
-### 5.1 启动
+### 5.1 Quickstart 启动
+
+```bash
+cp .env.quickstart.example .env.quickstart
+# 先在 .env.quickstart 中设置 BOOTSTRAP_ADMIN_PASSWORD 和 POSTGRES_PASSWORD
+make validate-release-config RELEASE_ENV_FILE=.env.quickstart
+docker compose --env-file .env.quickstart -f compose.release.yml up -d
+```
+
+Quickstart 使用 `http://localhost`、本地对象存储和
+`SESSION_COOKIE_SECURE=false`，仅用于本地体验，不能直接用于生产。
+
+### 5.2 生产单机启动
 
 ```bash
 cp .env.release.example .env.release
-make validate-release-config
+# 填写最终 HTTPS 地址、数据库密码和首登管理员密码；推荐同时填写 S3/OSS 凭据
+make validate-release-config RELEASE_ENV_FILE=.env.release
 docker compose --env-file .env.release -f compose.release.yml up -d
+```
+
+生产必须使用 HTTPS、`SESSION_COOKIE_SECURE=true`，并保持
+`SKILLHUB_AUTH_LOCAL_REGISTRATION_ENABLED=false`。S3/OSS 是推荐的生产存储；在迁移完成前，
+允许单机使用 `SKILLHUB_STORAGE_PROVIDER=local`。此过渡模式必须备份对应 Docker volume，
+不得扩展为多节点或多副本部署。
+
+`make validate-release-config` 会根据文件名选择校验模式：`.env.quickstart`
+按本地 HTTP/本地存储规则校验，`.env.release` 按生产 HTTPS 规则校验；生产 local
+存储会通过校验但输出迁移、备份和单节点限制警告。
+如果直接使用 Compose 启用安全扫描，需要显式带上对应 profile，例如：
+
+```bash
+COMPOSE_PROFILES=secret-scan,unified-scan \
+  docker compose --env-file .env.release -f compose.release.yml up -d
 ```
 
 默认访问地址：
@@ -107,21 +140,23 @@ docker compose --env-file .env.release -f compose.release.yml up -d
 - Web UI: `SKILLHUB_PUBLIC_BASE_URL`
 - Backend API: `http://localhost:8080`
 
-### 5.2 关键文件
+### 5.3 关键文件
 
 - `compose.release.yml`
   - 使用发布镜像，不在用户机器上执行本地构建
   - 负责拉起 PostgreSQL、Redis、server、web
-  - PostgreSQL、Redis 默认只绑定到 `127.0.0.1`
+  - PostgreSQL、Redis 和 server API 默认只绑定到 `127.0.0.1`
   - Web 和后端都支持运行时环境变量注入，不需要为每个环境重建镜像
+- `.env.quickstart.example`
+  - 本地 HTTP Quickstart 变量模板
 - `.env.release.example`
-  - 运行时变量模板
+  - HTTPS 生产/发布变量模板
   - 包含镜像名、镜像版本、端口、数据库凭证、外部 OSS、站点公网地址和首登管理员参数
 - `scripts/validate-release-config.sh`
-  - 在启动前校验 `.env.release`
-  - 可提前拦截占位值、URL 格式错误、缺失的 OSS 凭据、危险的明文默认值
+  - 在启动前校验显式传入的环境变量文件
+  - 可提前拦截占位值、URL 格式错误、缺失的 S3/OSS 凭据（当选择 S3/OSS 时）、危险的明文默认值
 
-### 5.3 镜像标签约定
+### 5.4 镜像标签约定
 
 - `edge`
   - `main` 分支最新构建
@@ -137,6 +172,35 @@ docker compose --env-file .env.release -f compose.release.yml up -d
 - 默认快速启动：`SKILLHUB_VERSION=latest`
 - 团队内部试用：`SKILLHUB_VERSION=edge`
 - 对外演示或严格可复现环境：固定为某个 `vX.Y.Z`
+
+### 5.5 与当前生产发布的关系
+
+`compose.release.yml` 是面向用户的单机 Quickstart 入口，不是当前生产机的唯一或直接控制入口。当前生产发布由以下链路负责：
+
+```text
+repo/ops/release-to-prod.sh
+        ↓ SSH
+/opt/skillhub/ops/deploy-release.sh
+        ↓
+/opt/skillhub/ops/release-lib.sh
+        ↓
+docker run skillhub-server-1 / skillhub-web-1
+```
+
+生产脚本会先将当前仓库的 `ops/*.sh`、`ops/templates/*` 和
+`scripts/validate-release-config.sh` 同步到生产机 `/opt/skillhub`，并在远端完成
+shell 语法校验；随后根据 `ops/templates/compose.release.yml.tpl` 生成 release
+配置快照，用于记录本次发布的环境和镜像信息。远端 `deploy-release.sh` 在
+plan/apply 前会校验合并后的 `env.release` 与 `secrets.env`，`--apply` 阶段实际
+通过 `release-lib.sh` 创建或替换应用容器，并执行健康检查、配置检查和失败回滚。
+
+因此：
+
+- 修改 `compose.release.yml` 会影响 Quickstart，不会自动改变当前生产发布行为；
+- 修改 `ops/templates/compose.release.yml.tpl` 会影响生产 release 快照和配置记录；
+- 修改 `ops/release-lib.sh` 才会改变当前生产 `docker run` 的容器启动参数；
+- 修改任意生产 ops 脚本后，`release-to-prod.sh` 会在 plan/apply 前自动同步，避免远端执行旧版本脚本；
+- 三处关键安全配置必须保持一致，并由 `make test-ops` 的配置契约测试校验。
 
 ## 6 GitHub Actions 发布流程
 
@@ -187,9 +251,17 @@ docker compose --env-file .env.release -f compose.release.yml up -d
 - 本地命令与 `docker-compose.yml`
 - 非敏感默认值可直接落库或写入本地配置
 
-单机交付环境：
+Quickstart 环境：
+
+- 使用 `.env.quickstart` 管理本地 Compose 变量
+- 默认访问 `http://localhost`
+- `SESSION_COOKIE_SECURE=false` 只适用于本地 HTTP Quickstart
+
+生产单机环境：
 
 - 使用 `.env.release` 管理 Compose 变量
+- `SKILLHUB_PUBLIC_BASE_URL` 必须是最终 HTTPS 地址
+- `SESSION_COOKIE_SECURE=true`，不得复用 `.env.quickstart`
 - 如果 GHCR 包保持私有，用户需要先 `docker login ghcr.io`
 - 推荐将敏感变量放入 CI/CD Secret 或主机上的受控 `.env.release`
 - 外部对象存储通过 `SKILLHUB_STORAGE_S3_*` 注入
@@ -204,14 +276,14 @@ docker compose --env-file .env.release -f compose.release.yml up -d
    - 安装 Docker Engine 与 Docker Compose Plugin
    - 配置公网 HTTPS 入口，确保最终访问域名已经确定
    - 打开 `80` / `443`，避免直接暴露 `5432` / `6379`
-2. 填写 `.env.release`
+2. 填写 `.env.release`（生产 HTTPS 配置，不要使用 `.env.quickstart`）
    - `SKILLHUB_PUBLIC_BASE_URL` 填最终 HTTPS 域名，且不要带尾部 `/`
-   - `SKILLHUB_STORAGE_PROVIDER=s3`
-   - 按云厂商 OSS / S3 兼容参数填写 `SKILLHUB_STORAGE_S3_*`
+   - 推荐设置 `SKILLHUB_STORAGE_PROVIDER=s3`，并按云厂商 OSS / S3 兼容参数填写 `SKILLHUB_STORAGE_S3_*`
+   - 如暂时使用 `SKILLHUB_STORAGE_PROVIDER=local`，仅用于单机过渡，确认 Docker volume 备份和恢复流程已经可用
    - 设置非默认的 `POSTGRES_PASSWORD`
-   - 模板默认已开启首登管理员，务必将 `BOOTSTRAP_ADMIN_PASSWORD` 改为强密码
+   - 如启用首登管理员，务必在首次启动前显式设置 `BOOTSTRAP_ADMIN_USERNAME` 和强密码 `BOOTSTRAP_ADMIN_PASSWORD`
 3. 启动前校验
-   - 运行 `make validate-release-config`
+   - 运行 `make validate-release-config RELEASE_ENV_FILE=.env.release`
    - 确认没有 `replace-me`、`change-this-*`、`ChangeMe!2026` 之类的占位值
 4. 首次启动
    - 运行 `docker compose --env-file .env.release -f compose.release.yml up -d`

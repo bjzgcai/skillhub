@@ -34,7 +34,7 @@ SkillHub 是一个自托管平台，为团队提供私有的、受治理的智�
 - **账户合并** — 将多个 OAuth 身份和 API 令牌整合到单个用户账户下。
 - **API 令牌管理** — 为 CLI 和程序化访问生成作用域令牌，采用基于前缀的安全哈希。
 - **CLI 优先** — 原生 REST API，加上对现有 ClawHub 风格注册中心客户端的兼容层。原生 CLI API 是主要支持路径，协议兼容性持续扩展中。
-- **可插拔存储** — 开发环境使用本地文件系统，生产环境使用 S3 / MinIO。通过配置切换。
+- **可插拔存储** — 开发环境使用本地文件系统；生产推荐使用 S3 / MinIO，迁移期间允许单机使用本地文件系统。通过配置切换。
 - **国际化** — 使用 i18next 支持多语言。
 
 ## 快速开始
@@ -44,17 +44,57 @@ SkillHub 是一个自托管平台，为团队提供私有的、受治理的智�
 官方镜像：
 ```bash
 rm -rf /tmp/skillhub-runtime
-curl -fsSL https://raw.githubusercontent.com/iflytek/skillhub/main/scripts/runtime.sh | sh -s -- up
+RUNTIME_URL=https://raw.githubusercontent.com/iflytek/skillhub/main/scripts/runtime.sh
+RUNTIME_FILE=/tmp/skillhub-runtime.sh
+SHA256SUM_URL="${SHA256SUM_URL:-}"
+SHA256SUM="${SHA256SUM:-}"
+curl -fL "$RUNTIME_URL" -o "$RUNTIME_FILE"
+if [ -n "$SHA256SUM_URL" ]; then
+  curl -fL "$SHA256SUM_URL" -o "${RUNTIME_FILE}.sha256"
+  (cd "$(dirname "$RUNTIME_FILE")" && sha256sum -c "$(basename "${RUNTIME_FILE}.sha256")")
+elif [ -n "$SHA256SUM" ]; then
+  printf '%s  %s\n' "$SHA256SUM" "$(basename "$RUNTIME_FILE")" |
+    (cd "$(dirname "$RUNTIME_FILE")" && sha256sum -c -)
+else
+  echo "执行前必须从可信发布源设置 SHA256SUM_URL 或 SHA256SUM。" >&2
+  exit 1
+fi
+sh "$RUNTIME_FILE" up
 ```
+
+当前仓库没有为这个会变化的快速开始地址内置 checksum。请在执行前设置
+`SHA256SUM_URL`（指向标准 `sha256sum` 格式的可信校验文件）或
+`SHA256SUM`（可信的完整 SHA-256 值）之一；如果没有可信校验值，下载后必须停止，不能直接执行脚本。
 
 默认命令会拉取 `latest` 稳定版镜像；如果你想跟随 `main`
 的最新构建，请显式传 `--version edge`。
 
+运行脚本是本地 Quickstart 入口，启动前会校验 `.env.quickstart`。首次运行会把
+`.env.quickstart.example` 下载到运行目录，并在本地密码未设置时停止；请编辑生成的
+`.env.quickstart` 后再次执行。Quickstart 使用本地存储、关闭企业 SSO，并通过
+`http://localhost` 访问，因此 `SESSION_COOKIE_SECURE=false` 是有意的本地配置。
+该模板不能用于生产环境。
+
 阿里云镜像快捷方式：
 ```bash
 rm -rf /tmp/skillhub-aliyun
-curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- up --home /tmp/skillhub-aliyun --aliyun --version latest
+RUNTIME_URL=https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh
+RUNTIME_FILE=/tmp/skillhub-aliyun-runtime.sh
+curl -fL "$RUNTIME_URL" -o "$RUNTIME_FILE"
+# 按上面的校验流程设置 SHA256SUM_URL 或 SHA256SUM，并完成校验后再执行。
+echo "请先使用可信 SHA-256 校验 $RUNTIME_FILE。"
 ```
+
+校验通过后显式执行：
+
+```bash
+sh /tmp/skillhub-aliyun-runtime.sh up --home /tmp/skillhub-aliyun --aliyun --version latest
+```
+
+未完成 checksum 校验时不要执行下载的镜像脚本。
+
+使用 `--aliyun` 前必须显式设置 `SKILLHUB_ALIYUN_REGISTRY` 和
+`SKILLHUB_ALIYUN_NAMESPACE`，仓库不再内置私有 registry 主机名。
 
 如果部署遇到问题，请清除现有的运行时目录并重试。
 
@@ -82,18 +122,23 @@ curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- u
 - 密码：`ChangeMe!2026`
 - 如需关闭，请在启动后端前设置环境变量 `BOOTSTRAP_ADMIN_ENABLED=false`
 
-通过 `runtime.sh` 或 `compose.release.yml` 部署时，发布模板同样默认开启管理员，
-使用相同的默认账号密码（`admin` / `ChangeMe!2026`），零配置即可登录。
-**生产环境请务必修改密码**——`validate-release-config.sh` 会拒绝默认值
+通过 Quickstart 的 `runtime.sh` 或 `compose.release.yml` 部署时，只要启用了首登管理员，
+就必须显式设置 `BOOTSTRAP_ADMIN_PASSWORD`；生产和 staging 不再提供默认管理员密码。
+只有源码 `local` profile 保留 `admin` / `ChangeMe!2026` 便捷账号，不能用于生产。
+
+生产环境请从 `.env.release.example` 复制为 `.env.release`，填写最终 HTTPS 地址和真实密钥，
+并使用 `make validate-release-config RELEASE_ENV_FILE=.env.release` 校验。生产必须保持
+`SESSION_COOKIE_SECURE=true` 并关闭本地注册；S3/OSS 是推荐配置，迁移期间允许单机使用
+local storage，但必须备份 Docker volume，且不能扩展为多节点或多副本。
 
 ### 停止服务
 
 ```bash
 # 使用官方镜像
-/tmp/skillhub-runtime/runtime.sh down
+sh /tmp/skillhub-runtime.sh down --home /tmp/skillhub-runtime
 
 # 使用阿里云镜像
-/tmp/skillhub-aliyun/runtime.sh down
+sh /tmp/skillhub-aliyun-runtime.sh down --home /tmp/skillhub-aliyun
 ```
 
 ## 开发
@@ -162,11 +207,22 @@ skillhub/
 
 ```bash
 # 使用官方镜像
-curl -fsSL https://raw.githubusercontent.com/iflytek/skillhub/main/scripts/runtime.sh | sh -s -- up
+curl -fL https://raw.githubusercontent.com/iflytek/skillhub/main/scripts/runtime.sh -o /tmp/skillhub-runtime.sh
+# 完成 SHA256SUM_URL 或 SHA256SUM 校验后，再显式执行：
+sh /tmp/skillhub-runtime.sh up
 
 # 使用阿里云镜像
-curl -fsSL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh | sh -s -- up --aliyun
+curl -fL https://imageless.oss-cn-beijing.aliyuncs.com/runtime.sh -o /tmp/skillhub-aliyun-runtime.sh
+# 完成 SHA256SUM_URL 或 SHA256SUM 校验后，再显式执行：
+sh /tmp/skillhub-aliyun-runtime.sh up --aliyun
 ```
+
+如果没有可信的 `SHA256SUM_URL` 或 `SHA256SUM`，只能下载并人工核验，不能直接执行未校验脚本。
+
+Quickstart 默认使用 GHCR 镜像，后端 API 端口只绑定到本机回环地址。
+如果在 `.env.quickstart` 中启用安全扫描，`runtime.sh` 会自动启用对应的
+Compose profile；直接执行 Compose 时，需要显式设置
+`COMPOSE_PROFILES=secret-scan` 或 `COMPOSE_PROFILES=unified-scan`。
 
 ### 使用 Kubernetes
 
@@ -193,11 +249,11 @@ SPRING_DATA_REDIS_HOST=localhost
 SPRING_DATA_REDIS_PORT=6379
 
 # 存储（S3/MinIO）
-STORAGE_TYPE=s3
-STORAGE_S3_ENDPOINT=http://localhost:9000
-STORAGE_S3_ACCESS_KEY=minioadmin
-STORAGE_S3_SECRET_KEY=minioadmin
-STORAGE_S3_BUCKET=skillhub
+SKILLHUB_STORAGE_PROVIDER=s3
+SKILLHUB_STORAGE_S3_ENDPOINT=http://localhost:9000
+SKILLHUB_STORAGE_S3_ACCESS_KEY=replace-with-local-access-key
+SKILLHUB_STORAGE_S3_SECRET_KEY=replace-with-local-secret-key
+SKILLHUB_STORAGE_S3_BUCKET=skillhub
 
 # 认证
 AUTH_JWT_SECRET=your-secret-key
@@ -247,7 +303,7 @@ SkillHub 采用清晰的分层架构：
 
 ### 基础设施
 - **容器化**：Docker & Docker Compose
-- **监控**：Prometheus + Grafana
+- **监控**：Prometheus + Grafana（Grafana 密码必须通过 `GF_SECURITY_ADMIN_PASSWORD` 显式设置）
 - **部署**：Kubernetes 清单
 - **CI/CD**：GitHub Actions
 

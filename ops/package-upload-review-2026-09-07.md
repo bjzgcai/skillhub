@@ -19,7 +19,7 @@ The fixes described below exist locally only.
    `rollback-release.sh:55` reads only `release.json`. A later server/all
    rollback to a web release can therefore select an unrelated server image.
    The production web release `20260902T113316Z` demonstrates the drift:
-   its release JSON lists `prod-latest-abdb516`, while the server runs
+   its release JSON lists an older production tag, while the server runs
    `prod-local-20260826T0902-validation-fix`. Reconcile the snapshot format
    and rollback reader, with component-only deployment regression tests.
 
