@@ -79,7 +79,12 @@ append_release_log "$out_dir" deploy.log "release planned component=$COMPONENT s
 if [ "$APPLY" -eq 0 ]; then
   write_manifest "$out_dir" "$COMPONENT" "$prev_release_dir" "" "" "$(server_image_ref)" "$(web_image_ref)"
   echo '--- rendered compose head ---'
-  sed -n '1,120p' "$out_dir/compose.release.yml"
+  awk '
+    /^[[:space:]]*(POSTGRES_PASSWORD|SPRING_DATASOURCE_PASSWORD|BOOTSTRAP_ADMIN_PASSWORD|SKILLHUB_STORAGE_S3_ACCESS_KEY|SKILLHUB_STORAGE_S3_SECRET_KEY|OAUTH2_GITHUB_CLIENT_SECRET|SKILLHUB_AUTH_DINGTALK_APP_SECRET|SKILLHUB_REMOTE_REGISTRY_CLAWHUB_TOKEN):/ {
+      sub(/:.*/, ": <redacted>")
+    }
+    { print }
+  ' "$out_dir/compose.release.yml" | sed -n '1,120p'
   exit 0
 fi
 
