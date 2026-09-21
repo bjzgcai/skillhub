@@ -27,7 +27,7 @@ new_release_id() {
 
 redact_release_compose_secrets() {
   awk '
-    /^[[:space:]]*[A-Z0-9_]*(PASSWORD|SECRET|TOKEN|ACCESS_KEY)[A-Z0-9_]*:/ {
+    /^[[:space:]]*[A-Z0-9_]*_(PASSWORD|SECRET|SECRET_KEY|ACCESS_KEY|TOKEN):/ {
       sub(/:.*/, ": <redacted>")
     }
     { print }
